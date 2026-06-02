@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, clientIpFromHeaders } from "@/lib/rateLimit";
 
 /**
  * Inbound email webhook.
@@ -15,6 +16,12 @@ import { prisma } from "@/lib/prisma";
  * Accepts a generic JSON body: { from, to, subject, text|body, secret? }.
  */
 export async function POST(req: Request) {
+  // Throttle: at most 60 inbound posts per minute per IP.
+  const ip = clientIpFromHeaders(req.headers);
+  if (!rateLimit(`inbound:${ip}`, 60, 60 * 1000).ok) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const secret = process.env.INBOUND_EMAIL_SECRET;
 
   // Auth: accept the secret via Authorization: Bearer, x-webhook-secret header,

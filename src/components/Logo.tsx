@@ -14,10 +14,15 @@ export function Logo({
       aria-label="Rowan Heating & Air Conditioning home"
     >
       <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent font-bold text-white shadow-sm"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy-900 shadow-sm"
         aria-hidden="true"
       >
-        R
+        <svg viewBox="0 0 64 64" className="h-6 w-6">
+          <path
+            d="M20 46V18h13c6 0 10 3.5 10 9 0 4-2.2 6.9-5.8 8.2L45 46h-7.6l-6.7-9.7H27V46h-7zm7-15.4h5.4c2.6 0 4.2-1.3 4.2-3.4S39 23.8 32.4 23.8H27v6.8z"
+            fill="#f57c1f"
+          />
+        </svg>
       </span>
       <span className="flex flex-col leading-tight">
         <span

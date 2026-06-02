@@ -36,6 +36,19 @@ It has two parts behind one codebase:
 - **Deactivated users** cannot log in, are removed from assignment dropdowns,
   and are treated as logged-out mid-session — but their records are retained.
 
+## Hardening & quality
+
+- **Rate limiting** on public endpoints — the quote form (5 / 10 min per IP) and
+  the inbound-email webhook (60 / min per IP). See `src/lib/rateLimit.ts` (swap
+  the in-memory store for Redis/Upstash for multi-instance deployments).
+- **Pagination** on the high-volume lists (requests, sent-email history,
+  messages).
+- **Automated tests** with Vitest covering the rate limiter, email parsing /
+  validation, and password hashing. Run with `npm test`.
+- **Resilient UX** — global `error`, `not-found`, and `loading` boundaries, plus
+  a portal loading state. Favicon (`icon.svg`) and a generated Open Graph image
+  (`/opengraph-image`) for rich link previews.
+
 ## Prerequisites
 
 - Node.js 18+ (tested on Node 22)

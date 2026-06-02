@@ -3,12 +3,18 @@ import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { ComposeEmail } from "@/components/portal/ComposeEmail";
 import { SentEmailList } from "@/components/portal/SentEmailList";
+import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
 
-export default async function EmployeeEmailPage() {
+export default async function EmployeeEmailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await requireRole("EMPLOYEE", "ADMIN");
+  const page = parsePage((await searchParams).page);
 
   // Employees may email clients.
-  const [recipients, emails] = await Promise.all([
+  const [recipients, emails, total] = await Promise.all([
     prisma.user.findMany({
       where: { active: true, role: "CLIENT" },
       orderBy: { name: "asc" },
@@ -18,7 +24,11 @@ export default async function EmployeeEmailPage() {
     prisma.emailLog.findMany({
       where: { senderUserId: user.id, direction: "OUTBOUND" },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.emailLog.count({
+      where: { senderUserId: user.id, direction: "OUTBOUND" },
     }),
   ]);
 
@@ -36,6 +46,7 @@ export default async function EmployeeEmailPage() {
         <div>
           <h2 className="mb-4 text-lg font-semibold text-navy-900">My Sent History</h2>
           <SentEmailList emails={emails} showSender={false} />
+          <Pagination page={page} total={total} basePath="/portal/employee/email" />
         </div>
       </div>
     </>

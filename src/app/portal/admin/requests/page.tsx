@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
+import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
 import { deleteRequest, updateRequestStatus } from "../actions";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -12,12 +13,23 @@ const STATUS_STYLES: Record<string, string> = {
   CLOSED: "bg-navy-100 text-navy-500",
 };
 
-export default async function RequestsPage() {
+export default async function RequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireRole("ADMIN");
-  const requests = await prisma.request.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { client: { select: { name: true } } },
-  });
+  const page = parsePage((await searchParams).page);
+
+  const [requests, total] = await Promise.all([
+    prisma.request.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { client: { select: { name: true } } },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.request.count(),
+  ]);
 
   return (
     <>
@@ -100,6 +112,8 @@ export default async function RequestsPage() {
           ))}
         </div>
       )}
+
+      <Pagination page={page} total={total} basePath="/portal/admin/requests" />
     </>
   );
 }

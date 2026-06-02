@@ -3,11 +3,17 @@ import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { ComposeEmail } from "@/components/portal/ComposeEmail";
 import { SentEmailList } from "@/components/portal/SentEmailList";
+import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
 
-export default async function AdminEmailPage() {
+export default async function AdminEmailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireRole("ADMIN");
+  const page = parsePage((await searchParams).page);
 
-  const [recipients, emails] = await Promise.all([
+  const [recipients, emails, total] = await Promise.all([
     prisma.user.findMany({
       where: { active: true },
       orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -16,9 +22,11 @@ export default async function AdminEmailPage() {
     prisma.emailLog.findMany({
       where: { direction: "OUTBOUND" },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
       include: { sender: { select: { name: true } } },
     }),
+    prisma.emailLog.count({ where: { direction: "OUTBOUND" } }),
   ]);
 
   return (
@@ -38,6 +46,7 @@ export default async function AdminEmailPage() {
             Sent History (all senders)
           </h2>
           <SentEmailList emails={emails} showSender />
+          <Pagination page={page} total={total} basePath="/portal/admin/email" />
         </div>
       </div>
     </>

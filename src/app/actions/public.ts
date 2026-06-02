@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, clientIpFromHeaders } from "@/lib/rateLimit";
 
 const schema = z.object({
   name: z.string().min(2, "Please enter your name").max(120),
@@ -21,6 +23,17 @@ export async function submitQuoteRequest(
   _prev: QuoteFormState,
   formData: FormData,
 ): Promise<QuoteFormState> {
+  // Throttle abuse: at most 5 submissions per 10 minutes per IP.
+  const ip = clientIpFromHeaders(await headers());
+  const limit = rateLimit(`quote:${ip}`, 5, 10 * 60 * 1000);
+  if (!limit.ok) {
+    return {
+      ok: false,
+      error:
+        "You've sent several requests already. Please wait a few minutes, or call us at 410-531-0008.",
+    };
+  }
+
   const parsed = schema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone"),

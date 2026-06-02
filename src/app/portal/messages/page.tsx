@@ -2,32 +2,39 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
+import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
 import { NewThread } from "./NewThread";
 
-export default async function MessagesPage() {
+export default async function MessagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await requireUser();
+  const page = parsePage((await searchParams).page);
 
-  // Only conversations this user participates in.
-  const parts = await prisma.conversationParticipant.findMany({
-    where: { userId: user.id },
-    include: {
-      conversation: {
-        include: {
-          participants: {
-            include: { user: { select: { id: true, name: true, role: true } } },
+  // Only conversations this user participates in, newest activity first.
+  const [parts, total] = await Promise.all([
+    prisma.conversationParticipant.findMany({
+      where: { userId: user.id },
+      orderBy: { conversation: { updatedAt: "desc" } },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: {
+        conversation: {
+          include: {
+            participants: {
+              include: {
+                user: { select: { id: true, name: true, role: true } },
+              },
+            },
+            messages: { orderBy: { createdAt: "desc" }, take: 1 },
           },
-          messages: { orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
-    },
-  });
-
-  // Sort by latest activity.
-  parts.sort(
-    (a, b) =>
-      new Date(b.conversation.updatedAt).getTime() -
-      new Date(a.conversation.updatedAt).getTime(),
-  );
+    }),
+    prisma.conversationParticipant.count({ where: { userId: user.id } }),
+  ]);
 
   const rows = await Promise.all(
     parts.map(async (p) => {
@@ -109,6 +116,8 @@ export default async function MessagesPage() {
           ))}
         </div>
       )}
+
+      <Pagination page={page} total={total} basePath="/portal/messages" />
     </>
   );
 }
