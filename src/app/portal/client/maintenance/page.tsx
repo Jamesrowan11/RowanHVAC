@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, fmtDate } from "@/components/portal/ui";
 import { COMPANY } from "@/lib/company";
 import { scheduleMaintenance } from "../actions";
 
 export default async function ClientMaintenance() {
-  const user = await assertRole("CLIENT");
+  const user = await requireRole("CLIENT");
   const policy = await prisma.maintenancePolicy.findUnique({
     where: { clientId: user.id },
   });

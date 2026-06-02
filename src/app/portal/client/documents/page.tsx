@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
 
 export default async function ClientDocuments() {
-  const user = await assertRole("CLIENT");
+  const user = await requireRole("CLIENT");
 
   // Scoped strictly to this client — never another client's records.
   const [payments, documents] = await Promise.all([

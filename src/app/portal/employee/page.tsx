@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import {
   PageHeader,
   JobStatusBadge,
@@ -9,7 +9,7 @@ import {
 } from "@/components/portal/ui";
 
 export default async function EmployeeSchedule() {
-  const user = await assertRole("EMPLOYEE", "ADMIN");
+  const user = await requireRole("EMPLOYEE", "ADMIN");
 
   // Only jobs assigned to this technician; cancelled jobs leave the active schedule.
   const jobs = await prisma.job.findMany({

@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { ComposeEmail } from "@/components/portal/ComposeEmail";
 import { SentEmailList } from "@/components/portal/SentEmailList";
 
 export default async function EmployeeEmailPage() {
-  const user = await assertRole("EMPLOYEE", "ADMIN");
+  const user = await requireRole("EMPLOYEE", "ADMIN");
 
   // Employees may email clients.
   const [recipients, emails] = await Promise.all([

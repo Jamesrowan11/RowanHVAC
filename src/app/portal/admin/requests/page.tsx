@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
 import { deleteRequest, updateRequestStatus } from "../actions";
@@ -13,7 +13,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function RequestsPage() {
-  await assertRole("ADMIN");
+  await requireRole("ADMIN");
   const requests = await prisma.request.findMany({
     orderBy: { createdAt: "desc" },
     include: { client: { select: { name: true } } },

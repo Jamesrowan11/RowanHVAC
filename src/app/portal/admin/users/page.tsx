@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
 import {
@@ -17,7 +17,7 @@ const ROLE_STYLES: Record<string, string> = {
 };
 
 export default async function UsersPage() {
-  const admin = await assertRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const users = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, fmtDateTime } from "@/components/portal/ui";
 
 export default async function AdminOverview() {
-  await assertRole("ADMIN");
+  await requireRole("ADMIN");
 
   const [openRequests, scheduled, inProgress, completed, recentRequests] =
     await Promise.all([

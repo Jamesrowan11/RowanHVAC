@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import {
   PageHeader,
   JobStatusBadge,
@@ -15,7 +15,7 @@ export default async function SchedulePage({
 }: {
   searchParams: Promise<{ fromRequest?: string }>;
 }) {
-  await assertRole("ADMIN");
+  await requireRole("ADMIN");
   const { fromRequest } = await searchParams;
 
   const [techs, clients, jobs, prefill] = await Promise.all([

@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDate } from "@/components/portal/ui";
 import { upsertMaintenancePolicy } from "../actions";
 
 export default async function MaintenancePage() {
-  await assertRole("ADMIN");
+  await requireRole("ADMIN");
   const clients = await prisma.user.findMany({
     where: { role: "CLIENT" },
     orderBy: { name: "asc" },

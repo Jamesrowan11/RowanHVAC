@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { JobStatusBadge, fmtDate, fmtDateTime } from "@/components/portal/ui";
 import { updateJobStatus, addJobNote } from "../../actions";
 
@@ -10,7 +10,7 @@ export default async function JobDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await assertRole("EMPLOYEE", "ADMIN");
+  const user = await requireRole("EMPLOYEE", "ADMIN");
   const { id } = await params;
 
   const job = await prisma.job.findUnique({

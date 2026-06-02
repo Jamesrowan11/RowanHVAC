@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
 
 export default async function EmployeeAnnouncements() {
-  await assertRole("EMPLOYEE", "ADMIN");
+  await requireRole("EMPLOYEE", "ADMIN");
   const announcements = await prisma.announcement.findMany({
     orderBy: { createdAt: "desc" },
     include: { author: { select: { name: true } } },

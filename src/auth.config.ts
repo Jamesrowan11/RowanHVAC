@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import type { Role } from "@prisma/client";
 
 // Session security limits.
 export const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes idle
@@ -35,10 +36,8 @@ export const authConfig = {
       // Initial sign-in: stamp identity + activity timers.
       if (user) {
         token.id = user.id;
-        // @ts-expect-error custom fields populated by the credentials provider
         token.role = user.role;
-        // @ts-expect-error custom field
-        token.name = user.name;
+        if (user.name) token.name = user.name;
         token.loginAt = now;
         token.lastActivity = now;
         return token;
@@ -61,8 +60,7 @@ export const authConfig = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        // @ts-expect-error custom field on session.user
-        session.user.role = token.role;
+        session.user.role = token.role as Role;
         if (token.name) session.user.name = token.name as string;
       }
       return session;

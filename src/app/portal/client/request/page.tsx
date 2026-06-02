@@ -1,9 +1,9 @@
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { ClientRequestForm } from "./ClientRequestForm";
 
 export default async function ClientRequestPage() {
-  await assertRole("CLIENT");
+  await requireRole("CLIENT");
   return (
     <>
       <PageHeader

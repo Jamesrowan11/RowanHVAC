@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
 import {
@@ -11,7 +11,7 @@ import {
 } from "../actions";
 
 export default async function PaymentsPage() {
-  await assertRole("ADMIN");
+  await requireRole("ADMIN");
   const clients = await prisma.user.findMany({
     where: { role: "CLIENT" },
     orderBy: { name: "asc" },

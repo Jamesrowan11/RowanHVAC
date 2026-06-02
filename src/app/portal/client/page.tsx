@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { assertRole } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import {
   PageHeader,
   JobStatusBadge,
@@ -9,7 +9,7 @@ import {
 } from "@/components/portal/ui";
 
 export default async function ClientAppointments() {
-  const user = await assertRole("CLIENT");
+  const user = await requireRole("CLIENT");
 
   const jobs = await prisma.job.findMany({
     where: { clientId: user.id },
