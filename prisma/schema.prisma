@@ -1,0 +1,224 @@
+// Rowan Heating & Air Conditioning — data model
+// PostgreSQL + Prisma. A hosted Postgres connection string in DATABASE_URL just works.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  EMPLOYEE
+  ADMIN
+}
+
+enum RequestType {
+  QUOTE
+  SERVICE
+  MAINTENANCE
+}
+
+enum RequestStatus {
+  NEW
+  REVIEWED
+  SCHEDULED
+  CLOSED
+}
+
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  SENT
+  PAID
+}
+
+enum EmailStatus {
+  SENT
+  LOGGED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(CLIENT)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // As a client
+  requests          Request[]            @relation("ClientRequests")
+  clientJobs        Job[]                @relation("ClientJobs")
+  maintenancePolicy MaintenancePolicy?
+  paymentLinks      PaymentLink[]        @relation("ClientPayments")
+  documents         Document[]           @relation("ClientDocuments")
+
+  // As a technician (employee or admin)
+  assignedJobs Job[] @relation("TechnicianJobs")
+
+  // Authored content
+  jobNotes         JobNote[]
+  announcements    Announcement[]
+  sentEmails       EmailLog[]            @relation("SentEmails")
+  uploadedDocs     Document[]            @relation("UploadedDocuments")
+  createdPayments  PaymentLink[]         @relation("CreatedPayments")
+
+  // Messaging
+  participations ConversationParticipant[]
+  messages       Message[]
+}
+
+// Public quote / service request form submissions, and client-submitted requests.
+model Request {
+  id            String        @id @default(cuid())
+  type          RequestType   @default(QUOTE)
+  status        RequestStatus @default(NEW)
+  name          String
+  phone         String
+  email         String
+  serviceNeeded String
+  message       String?
+  // Set when submitted by a logged-in client from their dashboard.
+  clientId      String?
+  client        User?         @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  customerName  String
+  address       String
+  serviceNeeded String
+  scheduledDate DateTime
+  scheduledTime String
+  status        JobStatus @default(SCHEDULED)
+  cancelReason  String?
+  summary       String? // short completion summary, visible to client in history
+
+  clientId String?
+  client   User?   @relation("ClientJobs", fields: [clientId], references: [id], onDelete: SetNull)
+
+  technicianId String?
+  technician   User?   @relation("TechnicianJobs", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  notes JobNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Internal, timestamped technician notes. NEVER visible to clients.
+model JobNote {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model MaintenancePolicy {
+  id          String    @id @default(cuid())
+  clientId    String    @unique
+  client      User      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  active      Boolean   @default(true)
+  renewalDate DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model PaymentLink {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    User          @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User        @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: Cascade)
+  url       String
+  label     String?
+  amount    String? // free-form, e.g. "$249.00"
+  status    PaymentStatus @default(SENT)
+  createdAt DateTime      @default(now())
+  paidAt    DateTime?
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       User     @relation("ClientDocuments", fields: [clientId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User     @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
+  originalName String
+  storedName   String // name on disk / object key
+  mimeType     String
+  size         Int
+  createdAt    DateTime @default(now())
+}
+
+model EmailLog {
+  id           String      @id @default(cuid())
+  senderUserId String?
+  sender       User?       @relation("SentEmails", fields: [senderUserId], references: [id], onDelete: SetNull)
+  to           String // comma-separated recipients
+  subject      String
+  body         String
+  status       EmailStatus @default(LOGGED)
+  direction    String      @default("OUTBOUND") // OUTBOUND | INBOUND
+  createdAt    DateTime    @default(now())
+}
+
+// ---- In-app messaging ----
+
+model Conversation {
+  id        String   @id @default(cuid())
+  subject   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  body           String
+  // Marks messages created from an inbound email (no portal sender).
+  viaEmail       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
