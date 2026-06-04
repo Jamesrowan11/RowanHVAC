@@ -1,12 +1,13 @@
 // Rowan Heating & Air Conditioning — data model
-// PostgreSQL + Prisma. A hosted Postgres connection string in DATABASE_URL just works.
+// MySQL/MariaDB (GoDaddy cPanel hosting). A hosted MySQL connection string in
+// DATABASE_URL just works.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -59,21 +60,21 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // As a client
-  requests          Request[]            @relation("ClientRequests")
-  clientJobs        Job[]                @relation("ClientJobs")
+  requests          Request[]          @relation("ClientRequests")
+  clientJobs        Job[]              @relation("ClientJobs")
   maintenancePolicy MaintenancePolicy?
-  paymentLinks      PaymentLink[]        @relation("ClientPayments")
-  documents         Document[]           @relation("ClientDocuments")
+  paymentLinks      PaymentLink[]      @relation("ClientPayments")
+  documents         Document[]         @relation("ClientDocuments")
 
   // As a technician (employee or admin)
   assignedJobs Job[] @relation("TechnicianJobs")
 
   // Authored content
-  jobNotes         JobNote[]
-  announcements    Announcement[]
-  sentEmails       EmailLog[]            @relation("SentEmails")
-  uploadedDocs     Document[]            @relation("UploadedDocuments")
-  createdPayments  PaymentLink[]         @relation("CreatedPayments")
+  jobNotes        JobNote[]
+  announcements   Announcement[]
+  sentEmails      EmailLog[]     @relation("SentEmails")
+  uploadedDocs    Document[]     @relation("UploadedDocuments")
+  createdPayments PaymentLink[]  @relation("CreatedPayments")
 
   // Messaging
   participations ConversationParticipant[]
@@ -88,24 +89,26 @@ model Request {
   name          String
   phone         String
   email         String
-  serviceNeeded String
-  message       String?
+  serviceNeeded String        @db.VarChar(255)
+  message       String?       @db.Text
   // Set when submitted by a logged-in client from their dashboard.
   clientId      String?
   client        User?         @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
   createdAt     DateTime      @default(now())
+
+  @@index([clientId])
 }
 
 model Job {
   id            String    @id @default(cuid())
   customerName  String
-  address       String
-  serviceNeeded String
+  address       String    @db.VarChar(400)
+  serviceNeeded String    @db.VarChar(255)
   scheduledDate DateTime
   scheduledTime String
   status        JobStatus @default(SCHEDULED)
-  cancelReason  String?
-  summary       String? // short completion summary, visible to client in history
+  cancelReason  String?   @db.Text
+  summary       String?   @db.Text // short completion summary, visible to client in history
 
   clientId String?
   client   User?   @relation("ClientJobs", fields: [clientId], references: [id], onDelete: SetNull)
@@ -117,6 +120,9 @@ model Job {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([technicianId])
 }
 
 // Internal, timestamped technician notes. NEVER visible to clients.
@@ -126,8 +132,11 @@ model JobNote {
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body      String
+  body      String   @db.Text
   createdAt DateTime @default(now())
+
+  @@index([jobId])
+  @@index([authorId])
 }
 
 model MaintenancePolicy {
@@ -142,25 +151,30 @@ model MaintenancePolicy {
 
 model Announcement {
   id        String   @id @default(cuid())
-  title     String
-  body      String
+  title     String   @db.VarChar(255)
+  body      String   @db.Text
   authorId  String
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@index([authorId])
 }
 
 model PaymentLink {
-  id        String        @id @default(cuid())
-  clientId  String
-  client    User          @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
+  id          String        @id @default(cuid())
+  clientId    String
+  client      User          @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
   createdById String
-  createdBy   User        @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: Cascade)
-  url       String
-  label     String?
-  amount    String? // free-form, e.g. "$249.00"
-  status    PaymentStatus @default(SENT)
-  createdAt DateTime      @default(now())
-  paidAt    DateTime?
+  createdBy   User          @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: Cascade)
+  url         String        @db.Text
+  label       String?
+  amount      String? // free-form, e.g. "$249.00"
+  status      PaymentStatus @default(SENT)
+  createdAt   DateTime      @default(now())
+  paidAt      DateTime?
+
+  @@index([clientId])
+  @@index([createdById])
 }
 
 model Document {
@@ -169,30 +183,35 @@ model Document {
   client       User     @relation("ClientDocuments", fields: [clientId], references: [id], onDelete: Cascade)
   uploadedById String
   uploadedBy   User     @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
-  originalName String
+  originalName String   @db.VarChar(400)
   storedName   String // name on disk / object key
   mimeType     String
   size         Int
   createdAt    DateTime @default(now())
+
+  @@index([clientId])
+  @@index([uploadedById])
 }
 
 model EmailLog {
   id           String      @id @default(cuid())
   senderUserId String?
   sender       User?       @relation("SentEmails", fields: [senderUserId], references: [id], onDelete: SetNull)
-  to           String // comma-separated recipients
-  subject      String
-  body         String
+  to           String      @db.Text // comma-separated recipients
+  subject      String      @db.VarChar(255)
+  body         String      @db.Text
   status       EmailStatus @default(LOGGED)
   direction    String      @default("OUTBOUND") // OUTBOUND | INBOUND
   createdAt    DateTime    @default(now())
+
+  @@index([senderUserId])
 }
 
 // ---- In-app messaging ----
 
 model Conversation {
   id        String   @id @default(cuid())
-  subject   String?
+  subject   String?  @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -209,6 +228,7 @@ model ConversationParticipant {
   lastReadAt     DateTime?
 
   @@unique([conversationId, userId])
+  @@index([userId])
 }
 
 model Message {
@@ -217,8 +237,11 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String?
   sender         User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  body           String
+  body           String       @db.Text
   // Marks messages created from an inbound email (no portal sender).
   viaEmail       Boolean      @default(false)
   createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
 }
