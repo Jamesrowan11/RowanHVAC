@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: rowanhvac
+          MYSQL_USER: rowan
+          MYSQL_PASSWORD: rowan
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: mysql://rowan:rowan@127.0.0.1:3306/rowanhvac
+      AUTH_SECRET: ci-secret-not-for-production-0123456789abcdef
+      EMAIL_FROM: "Rowan Heating & Air Conditioning <info@rowanhvac.com>"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # ---- Portal (Node app) ----
+      - name: Install portal dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build portal
+        run: npm run build
+
+      # ---- Public static site ----
+      - name: Install public-site dependencies
+        working-directory: public-site
+        run: npm ci || npm install
+
+      - name: Build public static site
+        working-directory: public-site
+        run: npm run build
+        env:
+          NEXT_PUBLIC_PORTAL_URL: https://rowanhvacportal.rowancopy.com
+          NEXT_PUBLIC_SITE_URL: https://rowanhvac.rowancopy.com
