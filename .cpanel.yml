@@ -1,0 +1,15 @@
+---
+# cPanel Git™ Version Control deployment.
+#
+# When you "Deploy HEAD Commit" in cPanel (or trigger it via the API/Action),
+# cPanel runs these tasks from the repository checkout. We deploy in place: the
+# repository checkout IS the Node.js app's Application Root, so we simply build
+# and restart Passenger. No file copying required.
+#
+# Prerequisites on the server (one-time):
+#   - A .env file in the app root (DATABASE_URL, AUTH_SECRET, optional email vars).
+#   - A cPanel "Setup Node.js App" entry whose Application Root is this checkout
+#     and whose Application Startup File is server.js.
+deployment:
+  tasks:
+    - /bin/bash scripts/cpanel-deploy.sh

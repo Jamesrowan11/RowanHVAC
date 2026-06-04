@@ -1,0 +1,55 @@
+name: Deploy to cPanel
+
+# Fully automated deployment: a push to main triggers cPanel to pull this repo
+# and run the .cpanel.yml tasks (install, migrate, build, restart Passenger).
+#
+# This is OPT-IN. It only runs when the required repository secrets are set, so
+# the workflow is a harmless no-op until you configure cPanel deployment. Add
+# these secrets under Settings → Secrets and variables → Actions:
+#
+#   CPANEL_HOST       e.g. server123.web-hosting.com   (no protocol, no port)
+#   CPANEL_USER       your cPanel username
+#   CPANEL_API_TOKEN  a cPanel API token (cPanel → "Manage API Tokens")
+#   CPANEL_REPO_ROOT  absolute path of the repo checkout on the server,
+#                     e.g. /home/youruser/rowanhvac
+#
+# cPanel must already have this repo cloned via Git™ Version Control with the
+# .cpanel.yml present (it is, in this repo).
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  trigger-cpanel-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cPanel Git deployment
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_API_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          CPANEL_REPO_ROOT: ${{ secrets.CPANEL_REPO_ROOT }}
+        run: |
+          if [ -z "${CPANEL_HOST}" ] || [ -z "${CPANEL_API_TOKEN}" ]; then
+            echo "cPanel secrets not configured — skipping deploy (no-op)."
+            exit 0
+          fi
+          echo "Requesting deployment of ${CPANEL_REPO_ROOT} on ${CPANEL_HOST}…"
+          http_code=$(curl -sS -o response.json -w "%{http_code}" \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_API_TOKEN}" \
+            --data-urlencode "repository_root=${CPANEL_REPO_ROOT}" \
+            "https://${CPANEL_HOST}:2083/execute/VersionControl/update?branch=main" || true)
+          # Primary call: create a deployment from the latest commit.
+          deploy_code=$(curl -sS -o deploy.json -w "%{http_code}" \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_API_TOKEN}" \
+            --data-urlencode "repository_root=${CPANEL_REPO_ROOT}" \
+            "https://${CPANEL_HOST}:2083/execute/VersionControlDeployment/create")
+          echo "Update HTTP ${http_code}; Deploy HTTP ${deploy_code}"
+          cat deploy.json || true
+          if [ "${deploy_code}" != "200" ]; then
+            echo "::error::cPanel deployment request failed."
+            exit 1
+          fi
+          echo "Deployment requested successfully."

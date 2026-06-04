@@ -38,5 +38,9 @@ npm-debug.log*
 .vscode
 /coverage
 
+# passenger / cpanel runtime
+/tmp/*
+!/tmp/.gitkeep
+
 # typescript
 *.tsbuildinfo
