@@ -134,6 +134,7 @@ const userSchema = z.object({
   name: z.string().min(2).max(160),
   email: z.string().email().max(160),
   phone: z.string().max(40).optional(),
+  personalEmail: z.string().email().max(160).optional().or(z.literal("")),
   role: z.enum(["CLIENT", "EMPLOYEE", "ADMIN"]),
 });
 
@@ -143,6 +144,7 @@ export async function createUser(formData: FormData) {
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone") || undefined,
+    personalEmail: formData.get("personalEmail") || undefined,
     role: formData.get("role"),
   });
   const password = String(formData.get("password") || "");
@@ -152,11 +154,18 @@ export async function createUser(formData: FormData) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error("A user with that email already exists");
 
+  // Personal email only applies to staff (used for their password-reset emails).
+  const personalEmail =
+    parsed.role !== "CLIENT" && parsed.personalEmail
+      ? parsed.personalEmail.toLowerCase().trim()
+      : null;
+
   await prisma.user.create({
     data: {
       name: parsed.name.trim(),
       email,
       phone: parsed.phone?.trim() || null,
+      personalEmail,
       role: parsed.role,
       passwordHash: await hashPassword(password),
     },
@@ -171,6 +180,7 @@ export async function updateUser(formData: FormData) {
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone") || undefined,
+    personalEmail: formData.get("personalEmail") || undefined,
     role: formData.get("role") || undefined,
   });
   const email = parsed.email!.toLowerCase().trim();
@@ -181,12 +191,22 @@ export async function updateUser(formData: FormData) {
   });
   if (clash) throw new Error("Another user already uses that email");
 
+  const role =
+    parsed.role ??
+    (await prisma.user.findUnique({ where: { id }, select: { role: true } }))
+      ?.role;
+  const personalEmail =
+    role !== "CLIENT" && parsed.personalEmail
+      ? parsed.personalEmail.toLowerCase().trim()
+      : null;
+
   await prisma.user.update({
     where: { id },
     data: {
       name: parsed.name!.trim(),
       email,
       phone: parsed.phone?.trim() || null,
+      personalEmail,
       ...(parsed.role ? { role: parsed.role } : {}),
     },
   });

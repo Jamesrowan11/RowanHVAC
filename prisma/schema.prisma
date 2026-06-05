@@ -53,6 +53,9 @@ model User {
   name         String
   email        String   @unique
   phone        String?
+  // Optional private email for EMPLOYEE/ADMIN. Password-reset emails go here when
+  // set (so staff get them at a personal inbox); CLIENT resets always use `email`.
+  personalEmail String?
   passwordHash String
   role         Role     @default(CLIENT)
   active       Boolean  @default(true)
@@ -79,6 +82,22 @@ model User {
   // Messaging
   participations ConversationParticipant[]
   messages       Message[]
+
+  // Password resets
+  passwordResets PasswordResetToken[]
+}
+
+// Single-use, expiring password-reset tokens. Only a hash of the token is stored.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // Public quote / service request form submissions, and client-submitted requests.

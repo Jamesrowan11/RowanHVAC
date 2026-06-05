@@ -56,6 +56,15 @@ export default async function UsersPage() {
             </select>
           </div>
           <div className="sm:col-span-2">
+            <label className="label" htmlFor="c-personal">
+              Personal email{" "}
+              <span className="font-normal text-navy-400">
+                (staff only — password-reset emails go here)
+              </span>
+            </label>
+            <input id="c-personal" name="personalEmail" type="email" className="input" />
+          </div>
+          <div className="sm:col-span-2">
             <label className="label" htmlFor="c-password">Temporary password</label>
             <input
               id="c-password"
@@ -143,6 +152,20 @@ export default async function UsersPage() {
                       <option value="EMPLOYEE">Employee</option>
                       <option value="ADMIN">Admin</option>
                     </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">
+                      Personal email{" "}
+                      <span className="font-normal text-navy-400">
+                        (staff only — password resets sent here)
+                      </span>
+                    </label>
+                    <input
+                      name="personalEmail"
+                      type="email"
+                      className="input"
+                      defaultValue={u.personalEmail ?? ""}
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <button type="submit" className="btn-navy btn-sm">Save</button>
