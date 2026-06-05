@@ -37,6 +37,7 @@ async function main() {
       name: "Teresa Rowan",
       email: "admin@rowanhvac.com",
       phone: "410-531-0008",
+      personalEmail: "teresa.personal@example.com",
       role: "ADMIN",
       passwordHash: await hash("Password123!"),
     },

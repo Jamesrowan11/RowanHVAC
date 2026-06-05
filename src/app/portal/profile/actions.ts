@@ -12,6 +12,7 @@ const profileSchema = z.object({
   name: z.string().min(2).max(160),
   email: z.string().email().max(160),
   phone: z.string().max(40).optional(),
+  personalEmail: z.string().email().max(160).optional().or(z.literal("")),
 });
 
 export async function updateProfile(
@@ -25,6 +26,7 @@ export async function updateProfile(
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone") || undefined,
+    personalEmail: formData.get("personalEmail") || undefined,
   });
   if (!parsed.success) return { ok: false, error: "Please check your details." };
 
@@ -35,6 +37,12 @@ export async function updateProfile(
   });
   if (clash) return { ok: false, error: "That email is already in use." };
 
+  // Personal email is only meaningful for staff (their password-reset inbox).
+  const personalEmail =
+    user.role !== "CLIENT" && parsed.data.personalEmail
+      ? parsed.data.personalEmail.toLowerCase().trim()
+      : null;
+
   // Scoped strictly to the session user's own id.
   await prisma.user.update({
     where: { id: user.id },
@@ -42,6 +50,7 @@ export async function updateProfile(
       name: parsed.data.name.trim(),
       email,
       phone: parsed.data.phone?.trim() || null,
+      personalEmail,
     },
   });
 

@@ -27,8 +27,15 @@ function Flash({ state }: { state: ProfileState }) {
 
 export function ProfileForm({
   defaults,
+  showPersonalEmail,
 }: {
-  defaults: { name: string; email: string; phone: string };
+  defaults: {
+    name: string;
+    email: string;
+    phone: string;
+    personalEmail: string;
+  };
+  showPersonalEmail?: boolean;
 }) {
   const [state, action, pending] = useActionState(updateProfile, initial);
   return (
@@ -46,6 +53,23 @@ export function ProfileForm({
         <label className="label" htmlFor="p-phone">Phone</label>
         <input id="p-phone" name="phone" className="input" defaultValue={defaults.phone} />
       </div>
+      {showPersonalEmail && (
+        <div>
+          <label className="label" htmlFor="p-personal">
+            Personal email{" "}
+            <span className="font-normal text-navy-400">
+              (where your password-reset emails are sent)
+            </span>
+          </label>
+          <input
+            id="p-personal"
+            name="personalEmail"
+            type="email"
+            className="input"
+            defaultValue={defaults.personalEmail}
+          />
+        </div>
+      )}
       <button type="submit" className="btn-primary" disabled={pending}>
         {pending ? "Saving…" : "Save Changes"}
       </button>
