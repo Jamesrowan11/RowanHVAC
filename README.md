@@ -299,6 +299,43 @@ Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
 `https://rowanhvacportal.rowancopy.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
+## Deploying on Windows Server (e.g. AWS EC2 Windows)
+
+The app runs unchanged on Windows. IIS handles the public ports + SSL and
+reverse-proxies to the Node app (kept alive by PM2). Files in `deploy/windows/`
+and `scripts/*.ps1` support this.
+
+1. **Lock the IP first.** On AWS, attach an **Elastic IP** to the Windows
+   instance (or the public IP changes on every reboot and the site drops). Open
+   inbound **80, 443, 3389 (RDP)** in the security group. Point your DNS A record
+   at the Elastic IP.
+2. **Prereqs** (elevated PowerShell): `./scripts/setup-windows.ps1` installs
+   Node 20, Git, and PM2 (as a startup service). Then install **MySQL Community
+   Server** (MSI) and create a DB + user, and install **IIS** with the free
+   **URL Rewrite** and **Application Request Routing (ARR)** modules (enable the
+   proxy in ARR → Server Proxy Settings).
+3. **Get the code + config**:
+   ```powershell
+   git clone https://github.com/Jamesrowan11/RowanHVAC.git C:\apps\rowanhvac
+   cd C:\apps\rowanhvac
+   # create .env with DATABASE_URL (mysql://user:pass@localhost:3306/rowanhvac),
+   # AUTH_SECRET, AUTH_URL=https://yourdomain, etc.
+   npm ci
+   npx prisma migrate deploy
+   npm run db:seed        # first time only
+   npm run build
+   npm install -g pm2
+   pm2 start server.js --name rowanhvac
+   pm2 save
+   ```
+4. **IIS site**: create a site bound to your domain with physical path e.g.
+   `C:\inetpub\rowanhvac`, and copy `deploy/windows/web.config` there. It
+   forwards all traffic to the Node app on `127.0.0.1:3000`.
+5. **SSL**: use **win-acme** (Let's Encrypt for IIS) to issue a cert for the
+   domain, or put Cloudflare in front (Full strict) with an origin cert.
+6. **Updates later**: `./scripts/deploy.ps1` (pull → migrate → build → PM2
+   reload).
+
 ## Deploying to Vercel (alternative)
 
 The portal also deploys to Vercel (serverless) — set `DATABASE_URL` (a hosted
