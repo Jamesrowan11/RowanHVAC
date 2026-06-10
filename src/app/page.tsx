@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
 import ContactForm from "@/components/public/ContactForm";
+import ServiceAreaChecker from "@/components/public/ServiceAreaChecker";
+import { SERVICE_AREAS } from "@/lib/serviceArea";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +64,6 @@ const reviews = [
   },
 ];
 
-const serviceAreas = ["Highland", "Clarksville", "Fulton", "Dayton", "Maple Lawn"];
 
 function Stars() {
   return (
@@ -105,10 +106,15 @@ export default async function HomePage() {
       opens: "09:00",
       closes: "17:00",
     },
-    areaServed: [...serviceAreas, "Howard County"].map((name) => ({
-      "@type": "Place",
-      name: `${name}, MD`,
-    })),
+    areaServed: [
+      "Howard County, MD",
+      "Montgomery County, MD",
+      "Prince George's County, MD",
+      "Washington, DC",
+      ...SERVICE_AREAS.flatMap((a) =>
+        a.region === "Washington, DC" ? [] : a.cities.map((c) => `${c}, MD`)
+      ),
+    ].map((name) => ({ "@type": "Place", name })),
     url: process.env.APP_URL || "https://rowanhvac.com",
   };
 
@@ -199,21 +205,27 @@ export default async function HomePage() {
         </section>
 
         {/* Service Area */}
-        <section className="mx-auto max-w-6xl px-4 py-16 text-center sm:py-20">
-          <h2 className="text-3xl font-bold text-navy">Proudly Serving Howard County</h2>
+        <section id="service-area" className="mx-auto max-w-6xl px-4 py-16 text-center sm:py-20">
+          <h2 className="text-3xl font-bold text-navy">Our Service Area</h2>
           <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            We serve homeowners throughout Howard County, Maryland, including:
+            Based in Howard County and proudly serving homes across central
+            Maryland and Washington, DC — plus some surrounding areas.
           </p>
-          <ul className="mt-6 flex flex-wrap justify-center gap-3">
-            {serviceAreas.map((a) => (
-              <li key={a} className="rounded-full bg-navy-50 px-5 py-2 font-medium text-navy">
-                {a}
-              </li>
+          <div className="mt-10 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-4">
+            {SERVICE_AREAS.map((area) => (
+              <div key={area.region} className="card">
+                <h3 className="font-bold text-navy">{area.region}</h3>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {area.cities.map((c) => (
+                    <li key={c} className="rounded-full bg-navy-50 px-3 py-1 text-sm font-medium text-navy">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-            <li className="rounded-full bg-navy-50 px-5 py-2 font-medium text-navy">
-              …and surrounding Howard County, MD
-            </li>
-          </ul>
+          </div>
+          <ServiceAreaChecker />
         </section>
 
         {/* Meet Our Techs — populated from the admin dashboard (Team page) */}

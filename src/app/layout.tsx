@@ -3,7 +3,7 @@ import "./globals.css";
 import { COMPANY } from "@/lib/constants";
 
 const description =
-  "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling you can trust. Serving Highland, Clarksville, Fulton, Dayton, Maple Lawn, and surrounding Howard County, MD.";
+  "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling you can trust. Serving Howard County, Montgomery County, Prince George's County, and Washington, DC.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
@@ -22,7 +22,8 @@ export const metadata: Metadata = {
     "thermostat", "ductwork", "heat pump repair", "heat pump service",
     "a/c service", "a/c repair", "heat pump sales", "boiler service",
     "estimates", "Trane", "Carrier", "WaterFurnace", "Fulton MD", "Highland MD",
-    "Howard County HVAC",
+    "Howard County HVAC", "Columbia MD", "Ellicott City MD", "Silver Spring MD",
+    "Montgomery County HVAC", "Prince George's County HVAC", "Washington DC HVAC",
   ],
   openGraph: {
     title: `${COMPANY.name} | HVAC in Highland & Howard County, MD`,
