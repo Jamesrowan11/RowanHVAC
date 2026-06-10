@@ -17,11 +17,11 @@ Fulton, Maryland since 1958):
 ## Tech stack
 
 Next.js (App Router) · React · TypeScript · Tailwind CSS · Prisma ·
-PostgreSQL · Auth.js v5 (credentials + JWT) · bcrypt · Resend (optional).
+MySQL/MariaDB · Auth.js v5 (credentials + JWT) · bcrypt · Resend (optional).
 
 ## Local setup
 
-Prereqs: Node 20+, a PostgreSQL database (any local or hosted instance).
+Prereqs: Node 20+, a MySQL or MariaDB database (any local or hosted instance).
 
 ```bash
 # 1. Install
@@ -29,7 +29,7 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env
-#    → set DATABASE_URL to your Postgres connection string
+#    → set DATABASE_URL to your MySQL/MariaDB connection string
 #    → set AUTH_SECRET (openssl rand -base64 32)
 
 # 3. Create the schema
@@ -60,7 +60,7 @@ link, internal notes, an unmatched inbound email, and a sample sent email.
 
 | Variable                 | Purpose                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `DATABASE_URL`           | PostgreSQL connection string                                                                      |
+| `DATABASE_URL`           | MySQL/MariaDB connection string (`mysql://user:pass@localhost:3306/dbname`)                                                                      |
 | `AUTH_SECRET`            | Auth.js JWT signing secret (`openssl rand -base64 32`)                                            |
 | `NEXTAUTH_URL`           | Public URL of the app (e.g. `https://rowanhvac.com`)                                              |
 | `APP_URL`                | Same URL — used for links inside emails                                                            |
@@ -126,18 +126,17 @@ it in your backups.
 Target: an EC2 Ubuntu instance running Plesk, domain `rowanhvac.com` at
 GoDaddy.
 
-### 1. One-time server prep (SSH as root/ubuntu)
+### 1. Create the database (Plesk UI)
 
-```bash
-# PostgreSQL (skip if using AWS RDS instead)
-apt update && apt install -y postgresql
-sudo -u postgres psql -c "CREATE USER rowan WITH PASSWORD '<strong-password>';"
-sudo -u postgres psql -c "CREATE DATABASE rowanhvac OWNER rowan;"
+Plesk → **Databases → Add Database**: name it (e.g. `rowanhvac`), create a
+database user, and note the password. Plesk's bundled MariaDB on
+`localhost:3306` is exactly what the app expects. Your `DATABASE_URL` is then
+
+```
+mysql://<db-user>:<db-password>@localhost:3306/<db-name>
 ```
 
-Your `DATABASE_URL` is then
-`postgresql://rowan:<strong-password>@localhost:5432/rowanhvac`
-(or the RDS endpoint if you went that route).
+(URL-encode any special characters in the password, e.g. `@` → `%40`.)
 
 In Plesk, install these extensions if missing: **Node.js** and **Git**
 (Extensions → Extensions Catalog). In AWS, make sure the instance's security

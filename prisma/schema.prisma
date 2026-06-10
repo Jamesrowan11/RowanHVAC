@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -42,7 +42,7 @@ model User {
   name          String
   email         String    @unique
   phone         String?
-  address       String?
+  address       String?   @db.VarChar(300)
   passwordHash  String
   role          Role      @default(CLIENT)
   active        Boolean   @default(true)
@@ -76,7 +76,7 @@ model QuoteRequest {
   phone     String
   email     String
   service   String
-  message   String
+  message   String        @db.Text
   source    String        @default("PUBLIC") // PUBLIC | PORTAL | MAINTENANCE
   status    RequestStatus @default(NEW)
   clientId  String?
@@ -87,12 +87,12 @@ model QuoteRequest {
 model Job {
   id           String    @id @default(cuid())
   customerName String
-  address      String
-  service      String
+  address      String    @db.VarChar(300)
+  service      String    @db.VarChar(200)
   scheduledAt  DateTime
   status       JobStatus @default(SCHEDULED)
-  summary      String?
-  cancelReason String?
+  summary      String?   @db.Text
+  cancelReason String?   @db.Text
   cancelledAt  DateTime?
   completedAt  DateTime?
 
@@ -115,14 +115,14 @@ model JobNote {
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
-  body      String
+  body      String   @db.Text
   createdAt DateTime @default(now())
 }
 
 model Announcement {
   id        String   @id @default(cuid())
   title     String
-  body      String
+  body      String   @db.Text
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
@@ -132,7 +132,7 @@ model PaymentLink {
   id          String        @id @default(cuid())
   clientId    String
   client      User          @relation("PaymentClient", fields: [clientId], references: [id], onDelete: Cascade)
-  url         String
+  url         String        @db.VarChar(2000)
   label       String?
   status      PaymentStatus @default(SENT)
   paidAt      DateTime?
@@ -158,11 +158,11 @@ model EmailLog {
   id           String      @id @default(cuid())
   senderUserId String?
   sender       User?       @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
-  toAddresses  String
-  subject      String
-  body         String
+  toAddresses  String      @db.Text
+  subject      String      @db.VarChar(300)
+  body         String      @db.Text
   status       EmailStatus
-  error        String?
+  error        String?     @db.Text
   createdAt    DateTime    @default(now())
 
   @@index([senderUserId])
@@ -170,7 +170,7 @@ model EmailLog {
 
 model Thread {
   id           String              @id @default(cuid())
-  subject      String
+  subject      String              @db.VarChar(200)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   participants ThreadParticipant[]
@@ -193,7 +193,7 @@ model Message {
   thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
-  body      String
+  body      String   @db.Text
   viaEmail  Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -203,8 +203,8 @@ model Message {
 model UnmatchedInbound {
   id          String   @id @default(cuid())
   fromAddress String
-  subject     String
-  body        String
+  subject     String   @db.VarChar(300)
+  body        String   @db.Text
   resolved    Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
@@ -215,7 +215,7 @@ model CustomerNote {
   client    User     @relation("CustomerNoteSubject", fields: [clientId], references: [id], onDelete: Cascade)
   authorId  String
   author    User     @relation("CustomerNoteAuthor", fields: [authorId], references: [id])
-  body      String
+  body      String   @db.Text
   createdAt DateTime @default(now())
 }
 
@@ -225,7 +225,7 @@ model EmployeeNote {
   employee   User     @relation("EmployeeNoteSubject", fields: [employeeId], references: [id], onDelete: Cascade)
   authorId   String
   author     User     @relation("EmployeeNoteAuthor", fields: [authorId], references: [id])
-  body       String
+  body       String   @db.Text
   createdAt  DateTime @default(now())
 }
 
@@ -242,5 +242,5 @@ model TeamMember {
 
 model Setting {
   key   String @id
-  value String
+  value String @db.Text
 }
