@@ -1,86 +1,45 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { COMPANY, SEO_KEYWORDS } from "@/lib/company";
+import { COMPANY } from "@/lib/constants";
 
-const SITE_URL = process.env.AUTH_URL || "https://rowanhvac.com";
+const description =
+  "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling you can trust. Serving Highland, Clarksville, Fulton, Dayton, Maple Lawn, and surrounding Howard County, MD.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: {
-    default:
-      "Rowan Heating & Air Conditioning | HVAC in Highland & Howard County, MD",
-    template: "%s | Rowan Heating & Air Conditioning",
+    default: `${COMPANY.name} | HVAC in Highland & Howard County, MD`,
+    template: `%s | ${COMPANY.name}`,
   },
-  description:
-    "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling for Highland, Fulton, Clarksville, and surrounding Maryland communities.",
-  keywords: SEO_KEYWORDS,
-  authors: [{ name: COMPANY.name }],
-  openGraph: {
-    type: "website",
-    url: SITE_URL,
-    siteName: COMPANY.name,
-    title:
-      "Rowan Heating & Air Conditioning | HVAC in Highland & Howard County, MD",
-    description:
-      "Reliable heating & cooling for Highland and Howard County. Family-owned since 1958.",
-    locale: "en_US",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Rowan Heating & Air Conditioning",
-    description:
-      "Family-owned HVAC serving Highland & Howard County, MD since 1958.",
-  },
-  robots: { index: true, follow: true },
-};
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "HVACBusiness",
-  name: COMPANY.name,
-  foundingDate: COMPANY.foundingDate,
-  telephone: COMPANY.phone,
-  email: COMPANY.email,
-  url: SITE_URL,
-  description:
-    "Family-owned heating and air conditioning company serving Highland, Fulton, and Howard County, Maryland since 1958.",
-  address: {
-    "@type": "PostalAddress",
-    postOfficeBoxNumber: "109",
-    addressLocality: COMPANY.address.city,
-    addressRegion: COMPANY.address.state,
-    postalCode: COMPANY.address.zip,
-    addressCountry: "US",
-  },
-  areaServed: [
-    "Highland, MD",
-    "Clarksville, MD",
-    "Fulton, MD",
-    "Dayton, MD",
-    "Maple Lawn, MD",
-    "Howard County, MD",
+  description,
+  keywords: [
+    "heating", "air conditioning", "geothermal", "aeroseal", "custom sheet metal",
+    "HVAC", "a/c", "heat pump", "service", "repair", "installation", "cooling",
+    "ducts", "furnaces", "gas furnace", "electric furnace", "furnace repair",
+    "furnace service", "furnace sales", "furnace installation", "boilers",
+    "heat pumps", "air handler", "coils", "maintenance", "service agreements",
+    "humidifier", "dehumidifiers", "clean air", "programmable thermostats",
+    "thermostat", "ductwork", "heat pump repair", "heat pump service",
+    "a/c service", "a/c repair", "heat pump sales", "boiler service",
+    "estimates", "Trane", "Carrier", "WaterFurnace", "Fulton MD", "Highland MD",
+    "Howard County HVAC",
   ],
-  openingHoursSpecification: {
-    "@type": "OpeningHoursSpecification",
-    dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    opens: "09:00",
-    closes: "17:00",
+  openGraph: {
+    title: `${COMPANY.name} | HVAC in Highland & Howard County, MD`,
+    description,
+    type: "website",
+    locale: "en_US",
+    siteName: COMPANY.name,
   },
-  brand: ["Trane", "Carrier", "WaterFurnace"],
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <a href="#main" className="skip-link">
+          Skip to main content
+        </a>
         {children}
       </body>
     </html>

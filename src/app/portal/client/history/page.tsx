@@ -1,63 +1,48 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import {
-  PageHeader,
-  JobStatusBadge,
-  EmptyState,
-  fmtDate,
-} from "@/components/portal/ui";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime } from "@/lib/queries";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+
+export const metadata = { title: "Service History" };
 
 export default async function ClientHistory() {
   const user = await requireRole("CLIENT");
 
-  // Past / completed / cancelled jobs for this client only.
-  const jobs = await prisma.job.findMany({
+  // Strictly the client's own jobs — internal staff notes are never selected.
+  const jobs = await db.job.findMany({
     where: { clientId: user.id },
-    orderBy: { scheduledDate: "desc" },
+    orderBy: { scheduledAt: "desc" },
+    select: {
+      id: true,
+      service: true,
+      scheduledAt: true,
+      status: true,
+      summary: true,
+      address: true,
+      cancelledAt: true,
+    },
   });
 
   return (
-    <>
-      <PageHeader
-        title="Service History"
-        subtitle="A record of your past appointments and work performed."
-      />
-      {jobs.length === 0 ? (
-        <EmptyState>No service history yet.</EmptyState>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-navy-100">
-          <table className="min-w-full divide-y divide-navy-100 text-sm">
-            <thead className="bg-navy-50 text-left text-xs uppercase tracking-wide text-navy-500">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Service</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Summary</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-navy-100 bg-white">
-              {jobs.map((j) => (
-                <tr key={j.id}>
-                  <td className="whitespace-nowrap px-4 py-3 text-navy-700">
-                    {fmtDate(j.scheduledDate)}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-navy-900">
-                    {j.serviceNeeded}
-                  </td>
-                  <td className="px-4 py-3">
-                    <JobStatusBadge status={j.status} />
-                  </td>
-                  <td className="px-4 py-3 text-navy-600">
-                    {j.status === "CANCELLED"
-                      ? "Cancelled"
-                      : j.summary || "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-navy">Service History</h1>
+      {jobs.length === 0 && <p className="card text-sm text-gray-500">No service history yet.</p>}
+      <div className="space-y-4">
+        {jobs.map((j) => (
+          <div key={j.id} className="card">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-bold text-navy">{j.service}</h2>
+                <p className="mt-0.5 text-sm text-gray-500">{fmtDateTime(j.scheduledAt)} · {j.address}</p>
+              </div>
+              <JobStatusBadge status={j.status} />
+            </div>
+            {j.status === "COMPLETED" && j.summary && (
+              <p className="mt-3 whitespace-pre-wrap rounded-lg bg-navy-50 p-3 text-sm text-gray-700">{j.summary}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

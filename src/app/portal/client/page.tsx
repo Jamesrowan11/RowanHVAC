@@ -1,91 +1,95 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import {
-  PageHeader,
-  JobStatusBadge,
-  EmptyState,
-  fmtDate,
-} from "@/components/portal/ui";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDate, fmtDateTime } from "@/lib/queries";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+import { COMPANY } from "@/lib/constants";
 
-export default async function ClientAppointments() {
+export const metadata = { title: "My Appointments" };
+
+export default async function ClientDashboard() {
   const user = await requireRole("CLIENT");
 
-  const jobs = await prisma.job.findMany({
-    where: { clientId: user.id },
-    orderBy: { scheduledDate: "desc" },
-  });
-
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  const upcoming = jobs.filter(
-    (j) =>
-      j.status !== "COMPLETED" &&
-      j.status !== "CANCELLED" &&
-      new Date(j.scheduledDate) >= today,
-  );
-  const past = jobs.filter((j) => !upcoming.includes(j));
-
-  const Card = ({ job }: { job: (typeof jobs)[number] }) => (
-    <div className="card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold text-navy-900">{job.serviceNeeded}</h3>
-        <JobStatusBadge status={job.status} />
-      </div>
-      <p className="mt-1 text-sm text-navy-500">
-        {fmtDate(job.scheduledDate)} · {job.scheduledTime}
-      </p>
-      {job.status === "COMPLETED" && job.summary && (
-        <p className="mt-2 rounded-lg bg-navy-50 p-3 text-sm text-navy-700">
-          {job.summary}
-        </p>
-      )}
-      {job.status === "CANCELLED" && (
-        <p className="mt-2 text-xs text-navy-500">This appointment was cancelled.</p>
-      )}
-    </div>
-  );
+  const [upcoming, past] = await Promise.all([
+    db.job.findMany({
+      where: { clientId: user.id, scheduledAt: { gte: now }, status: { in: ["SCHEDULED", "IN_PROGRESS"] } },
+      orderBy: { scheduledAt: "asc" },
+    }),
+    db.job.findMany({
+      where: {
+        clientId: user.id,
+        OR: [{ scheduledAt: { lt: now } }, { status: { in: ["COMPLETED", "CANCELLED"] } }],
+      },
+      orderBy: { scheduledAt: "desc" },
+      take: 10,
+    }),
+  ]);
 
   return (
-    <>
-      <PageHeader
-        title={`Welcome, ${user.name.split(" ")[0]}`}
-        subtitle="Your upcoming and past appointments."
-        action={
-          <Link href="/portal/client/request" className="btn-primary btn-sm">
-            New Request
-          </Link>
-        }
-      />
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-navy">Welcome, {user.name.split(" ")[0]}</h1>
+        <Link href="/portal/client/request" className="btn-primary">New Service Request</Link>
+      </div>
 
-      <h2 className="mb-3 text-lg font-semibold text-navy-900">Upcoming</h2>
-      {upcoming.length === 0 ? (
-        <EmptyState>
-          No upcoming appointments.{" "}
-          <Link href="/portal/client/request" className="text-accent hover:underline">
-            Submit a request
-          </Link>
-          .
-        </EmptyState>
-      ) : (
-        <div className="space-y-3">
+      <section className={`card border-l-4 ${user.policyActive ? "border-green-500" : "border-navy-200"}`}>
+        <h2 className="font-bold text-navy">Maintenance Plan</h2>
+        {user.policyActive ? (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-gray-700">
+              Your maintenance policy is <span className="font-semibold text-green-700">active</span>
+              {user.policyRenewal && <> — renews {fmtDate(user.policyRenewal)}</>}.
+            </p>
+            <Link href="/portal/client/request?maintenance=1" className="btn-small">
+              Schedule Maintenance
+            </Link>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-gray-700">
+            You don&apos;t have an active maintenance policy. Call us at{" "}
+            <a href={COMPANY.phoneHref} className="font-medium text-accent-600">{COMPANY.phone}</a>{" "}
+            to learn about our service agreements — seasonal tune-ups and priority scheduling.
+          </p>
+        )}
+      </section>
+
+      <section className="card">
+        <h2 className="font-bold text-navy">Upcoming appointments</h2>
+        <ul className="mt-3 space-y-2">
+          {upcoming.length === 0 && <li className="text-sm text-gray-500">No upcoming appointments.</li>}
           {upcoming.map((j) => (
-            <Card key={j.id} job={j} />
+            <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+              <div>
+                <p className="font-semibold text-navy">{j.service}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{fmtDateTime(j.scheduledAt)} · {j.address}</p>
+              </div>
+              <JobStatusBadge status={j.status} />
+            </li>
           ))}
-        </div>
-      )}
+        </ul>
+      </section>
 
-      <h2 className="mb-3 mt-8 text-lg font-semibold text-navy-900">Past</h2>
-      {past.length === 0 ? (
-        <EmptyState>No past appointments yet.</EmptyState>
-      ) : (
-        <div className="space-y-3">
-          {past.map((j) => (
-            <Card key={j.id} job={j} />
-          ))}
+      <section className="card">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-navy">Recent appointments</h2>
+          <Link href="/portal/client/history" className="text-sm font-medium text-accent-600 hover:underline">
+            Full history
+          </Link>
         </div>
-      )}
-    </>
+        <ul className="mt-3 space-y-2">
+          {past.length === 0 && <li className="text-sm text-gray-500">No past appointments.</li>}
+          {past.map((j) => (
+            <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+              <div>
+                <p className="font-semibold text-navy">{j.service}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{fmtDateTime(j.scheduledAt)}</p>
+              </div>
+              <JobStatusBadge status={j.status} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }

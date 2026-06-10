@@ -1,52 +1,37 @@
-import { fmtDateTime } from "@/components/portal/ui";
+import { fmtDateTime } from "@/lib/queries";
+import type { EmailLog } from "@prisma/client";
 
-type Item = {
-  id: string;
-  to: string;
-  subject: string;
-  body: string;
-  status: string;
-  createdAt: Date;
-  sender?: { name: string } | null;
-};
+type LogWithSender = EmailLog & { sender: { name: string } | null };
 
-const STATUS_STYLES: Record<string, string> = {
+const statusStyles: Record<string, string> = {
   SENT: "bg-green-100 text-green-800",
-  LOGGED: "bg-blue-100 text-blue-800",
+  LOGGED: "bg-navy-100 text-navy-800",
   FAILED: "bg-red-100 text-red-700",
 };
 
-export function SentEmailList({
-  emails,
-  showSender = true,
-}: {
-  emails: Item[];
-  showSender?: boolean;
-}) {
-  if (emails.length === 0) {
-    return <p className="text-sm text-navy-500">No emails sent yet.</p>;
-  }
+export default function SentEmailList({ logs, showSender }: { logs: LogWithSender[]; showSender: boolean }) {
   return (
-    <div className="space-y-2">
-      {emails.map((e) => (
-        <details key={e.id} className="card p-4">
-          <summary className="cursor-pointer">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium text-navy-900">{e.subject}</span>
-              <span className={`badge ${STATUS_STYLES[e.status] ?? "bg-navy-100 text-navy-600"}`}>
-                {e.status}
-              </span>
-            </div>
-            <p className="mt-1 truncate text-xs text-navy-500">
-              To: {e.to} · {fmtDateTime(e.createdAt)}
-              {showSender ? ` · by ${e.sender?.name ?? "System"}` : ""}
-            </p>
-          </summary>
-          <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-navy-50 p-3 text-sm text-navy-700">
-            {e.body}
-          </pre>
-        </details>
+    <ul className="space-y-3">
+      {logs.length === 0 && <li className="text-sm text-gray-500">No emails yet.</li>}
+      {logs.map((log) => (
+        <li key={log.id} className="rounded-lg bg-navy-50 p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold text-navy">{log.subject}</p>
+            <span className={`badge ${statusStyles[log.status] ?? ""}`}>
+              {log.status === "LOGGED" ? "Logged (console mode)" : log.status === "SENT" ? "Sent" : "Failed"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            {showSender && <>From: {log.sender?.name ?? "System automation"} · </>}
+            To: {log.toAddresses} · {fmtDateTime(log.createdAt)}
+          </p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs font-medium text-accent-600">Show body</summary>
+            <pre className="mt-2 whitespace-pre-wrap rounded bg-white p-3 font-sans text-xs text-gray-700">{log.body}</pre>
+          </details>
+          {log.error && <p className="mt-1 text-xs text-red-600">Error: {log.error}</p>}
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

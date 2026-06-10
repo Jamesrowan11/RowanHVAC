@@ -1,54 +1,29 @@
 # dependencies
-/node_modules
-/.pnp
-.pnp.js
+node_modules/
 
 # next.js
-/.next/
-/out/
-next-env.d.ts
+.next/
+out/
 
-# nested apps (public-site)
-**/node_modules/
-**/.next/
-**/out/
-
-# production
-/build
-
-# environment
+# env files — never commit secrets
 .env
-.env*.local
-.env.local
+.env.*
+!.env.example
 
-# database
+# databases
 *.db
 *.db-journal
 *.sqlite
 
+# uploaded files (runtime data)
+uploads/
+
 # logs
-logs
 *.log
 npm-debug.log*
-
-# uploads (runtime user files)
-/uploads/*
-!/uploads/.gitkeep
+logs/
 
 # misc
 .DS_Store
-*.pem
-.vercel
-.idea
-.vscode
-/coverage
-
-# passenger / cpanel runtime
-/tmp/*
-!/tmp/.gitkeep
-
-# server-side deploy config (contains host paths)
-/deploy.config
-
-# typescript
 *.tsbuildinfo
+next-env.d.ts

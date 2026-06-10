@@ -1,128 +1,110 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { rateLimit, clientIpFromHeaders } from "@/lib/rateLimit";
+import type { NextRequest } from "next/server";
+import { db } from "@/lib/db";
+import { notify } from "@/lib/email";
 
 /**
- * Inbound email webhook.
+ * Inbound email webhook (SendGrid / Mailgun / Postmark style).
+ * Matched sender → message filed into their newest thread (or a new one with
+ * the admins). No match → admin "Unmatched Inbox".
  *
- * Email providers (e.g. Resend inbound, SendGrid Inbound Parse, Postmark) POST
- * a parsed message here. We:
- *   1. Authenticate the request with a shared secret (INBOUND_EMAIL_SECRET).
- *   2. Record it in EmailLog (direction = INBOUND).
- *   3. If the sender matches a known portal user, append the message to a
- *      conversation between that user and the company (admins) — creating one
- *      if needed — so staff see inbound replies in the in-app Messages section.
- *
- * Accepts a generic JSON body: { from, to, subject, text|body, secret? }.
+ * Secured with INBOUND_WEBHOOK_SECRET via the `x-webhook-secret` header or a
+ * `?secret=` query param. If the env var is unset the endpoint is open —
+ * local development only.
  */
-export async function POST(req: Request) {
-  // Throttle: at most 60 inbound posts per minute per IP.
-  const ip = clientIpFromHeaders(req.headers);
-  if (!rateLimit(`inbound:${ip}`, 60, 60 * 1000).ok) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-  }
-
-  const secret = process.env.INBOUND_EMAIL_SECRET;
-
-  // Auth: accept the secret via Authorization: Bearer, x-webhook-secret header,
-  // or a `secret` field in the JSON body.
-  let body: Record<string, unknown> = {};
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
+export async function POST(request: NextRequest) {
+  const secret = process.env.INBOUND_WEBHOOK_SECRET;
   if (secret) {
-    const auth = req.headers.get("authorization") || "";
-    const headerSecret =
-      req.headers.get("x-webhook-secret") || auth.replace(/^Bearer\s+/i, "");
-    const bodySecret = typeof body.secret === "string" ? body.secret : "";
-    if (headerSecret !== secret && bodySecret !== secret) {
+    const provided =
+      request.headers.get("x-webhook-secret") ??
+      request.nextUrl.searchParams.get("secret") ??
+      "";
+    if (provided !== secret) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
 
-  const from = String(body.from || "").toLowerCase().trim();
-  const subject = String(body.subject || "(no subject)");
-  const text = String(body.text || body.body || "").trim();
-  const to = String(body.to || process.env.EMAIL_FROM || "");
-
-  if (!from || !text) {
-    return NextResponse.json(
-      { error: "Missing 'from' or message body" },
-      { status: 400 },
-    );
+  // Accept JSON or form-encoded payloads; field names vary by provider.
+  let payload: Record<string, unknown> = {};
+  const contentType = request.headers.get("content-type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      payload = await request.json();
+    } else {
+      const form = await request.formData();
+      payload = Object.fromEntries(form.entries());
+    }
+  } catch {
+    return NextResponse.json({ error: "Unreadable payload" }, { status: 400 });
   }
 
-  // Extract a bare email address if a display name is included.
-  const match = from.match(/[^\s<>]+@[^\s<>]+/);
-  const fromEmail = match ? match[0] : from;
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = payload[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+  };
 
-  // Always record the inbound email.
-  const sender = await prisma.user.findUnique({
-    where: { email: fromEmail },
-    select: { id: true, role: true },
+  const fromRaw = pick("from", "From", "sender", "Sender", "envelope_from");
+  const subject = pick("subject", "Subject").slice(0, 300) || "(no subject)";
+  const body =
+    pick("text", "TextBody", "body-plain", "stripped-text", "plain", "body").slice(0, 20000) ||
+    "(empty message)";
+
+  // Extract a bare address from forms like `Name <addr@example.com>`.
+  const match = fromRaw.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+  const fromAddress = (match?.[0] ?? fromRaw).toLowerCase();
+  if (!fromAddress) {
+    return NextResponse.json({ error: "Missing sender" }, { status: 400 });
+  }
+
+  const user = await db.user.findUnique({ where: { email: fromAddress } });
+
+  if (!user || !user.active) {
+    await db.unmatchedInbound.create({ data: { fromAddress, subject, body } });
+    return NextResponse.json({ ok: true, filed: "unmatched" });
+  }
+
+  // File into the sender's most recent thread, or open a new one with admins.
+  let thread = await db.thread.findFirst({
+    where: { participants: { some: { userId: user.id } } },
+    orderBy: { updatedAt: "desc" },
   });
 
-  await prisma.emailLog.create({
-    data: {
-      senderUserId: sender?.id ?? null,
-      to,
-      subject,
-      body: text,
-      status: "LOGGED",
-      direction: "INBOUND",
-    },
-  });
-
-  // If we recognize the sender, surface the message in the in-app inbox.
-  if (sender) {
-    const admins = await prisma.user.findMany({
+  if (!thread) {
+    const admins = await db.user.findMany({
       where: { role: "ADMIN", active: true },
       select: { id: true },
     });
-
-    // Find an existing conversation that includes the sender and at least one admin.
-    const existing = await prisma.conversation.findFirst({
-      where: {
-        participants: { some: { userId: sender.id } },
-        AND: [{ participants: { some: { user: { role: "ADMIN" } } } }],
-      },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true },
-    });
-
-    let conversationId = existing?.id;
-    if (!conversationId) {
-      const participantIds = Array.from(
-        new Set([sender.id, ...admins.map((a) => a.id)]),
-      );
-      const convo = await prisma.conversation.create({
-        data: {
-          subject,
-          participants: {
-            create: participantIds.map((id) => ({ userId: id })),
-          },
-        },
-        select: { id: true },
-      });
-      conversationId = convo.id;
-    }
-
-    await prisma.message.create({
+    thread = await db.thread.create({
       data: {
-        conversationId,
-        senderId: sender.id,
-        body: text,
-        viaEmail: true,
+        subject,
+        participants: {
+          create: [{ userId: user.id }, ...admins.map((a) => ({ userId: a.id }))],
+        },
       },
-    });
-    await prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
     });
   }
 
-  return NextResponse.json({ ok: true });
+  await db.message.create({
+    data: { threadId: thread.id, authorId: user.id, body, viaEmail: true },
+  });
+  await db.thread.update({ where: { id: thread.id }, data: { updatedAt: new Date() } });
+
+  // Notify the other participants that a reply arrived by email.
+  const others = await db.threadParticipant.findMany({
+    where: { threadId: thread.id, NOT: { userId: user.id } },
+    include: { user: { select: { email: true, active: true } } },
+  });
+  const emails = others.filter((p) => p.user.active).map((p) => p.user.email);
+  if (emails.length > 0) {
+    notify({
+      to: emails,
+      subject: `New message: ${thread.subject}`,
+      body: `${user.name} replied by email.\n\n"${body.slice(0, 500)}${body.length > 500 ? "…" : ""}"\n\nView the conversation: ${process.env.APP_URL || ""}/portal/messages/${thread.id}`,
+    });
+  }
+
+  return NextResponse.json({ ok: true, filed: "thread", threadId: thread.id });
 }

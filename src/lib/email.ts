@@ -1,119 +1,124 @@
-import { Resend } from "resend";
-import { prisma } from "@/lib/prisma";
-import type { EmailStatus } from "@prisma/client";
+import { db } from "@/lib/db";
+import { COMPANY } from "@/lib/constants";
 
-export const EMAIL_FROM =
-  process.env.EMAIL_FROM ||
-  "Rowan Heating & Air Conditioning <info@rowanhvac.com>";
+export const DEFAULT_SIGNATURE = `Rowan Heating & Air Conditioning
+Family-owned & operated since 1958
+Phone: 410-531-0008
+Email: info@rowanhvac.com
+Highland & Howard County, MD`;
 
-export const COMPANY_SIGNATURE = `
+export async function getSignature(): Promise<string> {
+  const row = await db.setting.findUnique({ where: { key: "emailSignature" } });
+  return row?.value?.trim() || DEFAULT_SIGNATURE;
+}
 
-—
-Rowan Heating & Air Conditioning
-Family-owned and operated in Howard County since 1958
-Phone: 410-531-0008  •  Email: info@rowanhvac.com
-P.O. Box 109, Fulton, MD 20759`;
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-export const MAX_RECIPIENTS = 25;
+function buildHtml(body: string, signature: string): string {
+  const paragraphs = body
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 14px 0;">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+  const sigHtml = escapeHtml(signature).replace(/\n/g, "<br/>");
+  return `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f3f5f9;">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;color:#1f2937;font-size:15px;line-height:1.6;">
+  <div style="background:#1a2b4a;border-radius:10px 10px 0 0;padding:18px 24px;">
+    <span style="color:#ffffff;font-size:17px;font-weight:bold;">${COMPANY.name}</span>
+  </div>
+  <div style="background:#ffffff;border-radius:0 0 10px 10px;padding:24px;box-shadow:0 1px 3px rgba(13,22,38,0.1);">
+    ${paragraphs}
+    <hr style="border:none;border-top:1px solid #e2e7f0;margin:20px 0;"/>
+    <div style="color:#3d5d8e;font-size:13px;line-height:1.6;">${sigHtml}</div>
+  </div>
+</div>
+</body></html>`;
+}
 
-type SendArgs = {
-  to: string[]; // list of recipient email addresses
-  subject: string;
-  body: string; // plain text body (signature is appended by callers when desired)
+export type SendEmailInput = {
   senderUserId?: string | null;
-  appendSignature?: boolean;
+  to: string[];
+  subject: string;
+  body: string;
 };
 
 /**
- * Pluggable email sender. Sends via Resend when RESEND_API_KEY is configured;
- * otherwise logs the full email to the server console. Every attempt is recorded
- * in EmailLog with the sending user's id.
+ * Pluggable email layer. Sends through Resend when RESEND_API_KEY is set,
+ * otherwise logs the full email to the console so the app runs end-to-end
+ * with no email keys. Every send (real or logged) is recorded in EmailLog.
+ * The company signature is appended exactly once.
  */
-export async function sendEmail({
-  to,
-  subject,
-  body,
-  senderUserId = null,
-  appendSignature = true,
-}: SendArgs) {
-  const recipients = to
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .slice(0, MAX_RECIPIENTS);
+export async function sendEmail(input: SendEmailInput) {
+  const signature = await getSignature();
+  // Don't double-append if the body already ends with the signature.
+  const baseBody = input.body.trimEnd();
+  const text = baseBody.endsWith(signature)
+    ? baseBody
+    : `${baseBody}\n\n--\n${signature}`;
+  const html = buildHtml(baseBody.endsWith(signature) ? baseBody.slice(0, -signature.length).trimEnd() : baseBody, signature);
 
-  const finalBody = appendSignature ? `${body}${COMPANY_SIGNATURE}` : body;
-  const toLine = recipients.join(", ");
-
-  let status: EmailStatus = "LOGGED";
-
+  const from = process.env.EMAIL_FROM || "Rowan Heating & Air <info@rowanhvac.com>";
   const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey && recipients.length > 0) {
+
+  let status: "SENT" | "LOGGED" | "FAILED" = "LOGGED";
+  let error: string | null = null;
+
+  if (apiKey) {
     try {
+      const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
-      const { error } = await resend.emails.send({
-        from: EMAIL_FROM,
-        to: recipients,
-        subject,
-        text: finalBody,
+      const result = await resend.emails.send({
+        from,
+        to: input.to,
+        subject: input.subject,
+        text,
+        html,
       });
-      status = error ? "FAILED" : "SENT";
-      if (error) {
-        console.error("[email] Resend error:", error);
+      if (result.error) {
+        status = "FAILED";
+        error = result.error.message;
+      } else {
+        status = "SENT";
       }
-    } catch (err) {
+    } catch (e) {
       status = "FAILED";
-      console.error("[email] Resend threw:", err);
+      error = e instanceof Error ? e.message : String(e);
     }
   } else {
-    // Console fallback — the app runs fully without an email key.
     console.log(
       [
-        "",
-        "==================== EMAIL (console fallback) ====================",
-        `From:    ${EMAIL_FROM}`,
-        `To:      ${toLine || "(no recipients)"}`,
-        `Subject: ${subject}`,
-        "------------------------------------------------------------------",
-        finalBody,
-        "==================================================================",
-        "",
-      ].join("\n"),
+        "================ EMAIL (console mode — no RESEND_API_KEY) ================",
+        `From:    ${from}`,
+        `To:      ${input.to.join(", ")}`,
+        `Subject: ${input.subject}`,
+        "---------------------------------------------------------------------------",
+        text,
+        "===========================================================================",
+      ].join("\n")
     );
   }
 
-  const log = await prisma.emailLog.create({
+  await db.emailLog.create({
     data: {
-      senderUserId: senderUserId || null,
-      to: toLine,
-      subject,
-      body: finalBody,
+      senderUserId: input.senderUserId ?? null,
+      toAddresses: input.to.join(", "),
+      subject: input.subject,
+      body: text,
       status,
-      direction: "OUTBOUND",
+      error,
     },
   });
 
-  return { status, log };
+  return { ok: status !== "FAILED", status, error };
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function parseRecipients(raw: string): {
-  valid: string[];
-  invalid: string[];
-} {
-  const parts = raw
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const valid: string[] = [];
-  const invalid: string[] = [];
-  for (const p of parts) {
-    if (EMAIL_RE.test(p)) valid.push(p);
-    else invalid.push(p);
-  }
-  return { valid, invalid };
-}
-
-export function isValidEmail(email: string): boolean {
-  return EMAIL_RE.test(email.trim());
+/** Fire-and-forget notification — never lets email problems break the request. */
+export function notify(input: SendEmailInput) {
+  sendEmail(input).catch((e) => console.error("Notification email failed:", e));
 }

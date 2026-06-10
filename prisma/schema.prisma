@@ -1,13 +1,9 @@
-// Rowan Heating & Air Conditioning — data model
-// MySQL/MariaDB (GoDaddy cPanel hosting). A hosted MySQL connection string in
-// DATABASE_URL just works.
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -17,24 +13,17 @@ enum Role {
   ADMIN
 }
 
-enum RequestType {
-  QUOTE
-  SERVICE
-  MAINTENANCE
-}
-
-enum RequestStatus {
-  NEW
-  REVIEWED
-  SCHEDULED
-  CLOSED
-}
-
 enum JobStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum RequestStatus {
+  NEW
+  CONVERTED
+  CLOSED
 }
 
 enum PaymentStatus {
@@ -49,218 +38,209 @@ enum EmailStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String?
-  // Optional private email for EMPLOYEE/ADMIN. Password-reset emails go here when
-  // set (so staff get them at a personal inbox); CLIENT resets always use `email`.
-  personalEmail String?
-  passwordHash String
-  role         Role     @default(CLIENT)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // As a client
-  requests          Request[]          @relation("ClientRequests")
-  clientJobs        Job[]              @relation("ClientJobs")
-  maintenancePolicy MaintenancePolicy?
-  paymentLinks      PaymentLink[]      @relation("ClientPayments")
-  documents         Document[]         @relation("ClientDocuments")
-
-  // As a technician (employee or admin)
-  assignedJobs Job[] @relation("TechnicianJobs")
-
-  // Authored content
-  jobNotes        JobNote[]
-  announcements   Announcement[]
-  sentEmails      EmailLog[]     @relation("SentEmails")
-  uploadedDocs    Document[]     @relation("UploadedDocuments")
-  createdPayments PaymentLink[]  @relation("CreatedPayments")
-
-  // Messaging
-  participations ConversationParticipant[]
-  messages       Message[]
-
-  // Password resets
-  passwordResets PasswordResetToken[]
-}
-
-// Single-use, expiring password-reset tokens. Only a hash of the token is stored.
-model PasswordResetToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([userId])
-}
-
-// Public quote / service request form submissions, and client-submitted requests.
-model Request {
-  id            String        @id @default(cuid())
-  type          RequestType   @default(QUOTE)
-  status        RequestStatus @default(NEW)
+  id            String    @id @default(cuid())
   name          String
-  phone         String
-  email         String
-  serviceNeeded String        @db.VarChar(255)
-  message       String?       @db.Text
-  // Set when submitted by a logged-in client from their dashboard.
-  clientId      String?
-  client        User?         @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
-  createdAt     DateTime      @default(now())
+  email         String    @unique
+  phone         String?
+  address       String?
+  passwordHash  String
+  role          Role      @default(CLIENT)
+  active        Boolean   @default(true)
+  // Maintenance / service agreement (clients)
+  policyActive  Boolean   @default(false)
+  policyRenewal DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  @@index([clientId])
+  jobsAsTechnician   Job[]               @relation("JobTechnician")
+  jobsAsClient       Job[]               @relation("JobClient")
+  jobNotes           JobNote[]
+  quoteRequests      QuoteRequest[]
+  announcements      Announcement[]
+  paymentLinks       PaymentLink[]       @relation("PaymentClient")
+  paymentLinksSent   PaymentLink[]       @relation("PaymentCreator")
+  documents          Document[]          @relation("DocumentClient")
+  documentsUploaded  Document[]          @relation("DocumentUploader")
+  emailsSent         EmailLog[]
+  threadMemberships  ThreadParticipant[]
+  messages           Message[]
+  customerNotes      CustomerNote[]      @relation("CustomerNoteSubject")
+  customerNotesMade  CustomerNote[]      @relation("CustomerNoteAuthor")
+  employeeNotes      EmployeeNote[]      @relation("EmployeeNoteSubject")
+  employeeNotesMade  EmployeeNote[]      @relation("EmployeeNoteAuthor")
+}
+
+model QuoteRequest {
+  id        String        @id @default(cuid())
+  name      String
+  phone     String
+  email     String
+  service   String
+  message   String
+  source    String        @default("PUBLIC") // PUBLIC | PORTAL | MAINTENANCE
+  status    RequestStatus @default(NEW)
+  clientId  String?
+  client    User?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now())
 }
 
 model Job {
-  id            String    @id @default(cuid())
-  customerName  String
-  address       String    @db.VarChar(400)
-  serviceNeeded String    @db.VarChar(255)
-  scheduledDate DateTime
-  scheduledTime String
-  status        JobStatus @default(SCHEDULED)
-  cancelReason  String?   @db.Text
-  summary       String?   @db.Text // short completion summary, visible to client in history
+  id           String    @id @default(cuid())
+  customerName String
+  address      String
+  service      String
+  scheduledAt  DateTime
+  status       JobStatus @default(SCHEDULED)
+  summary      String?
+  cancelReason String?
+  cancelledAt  DateTime?
+  completedAt  DateTime?
 
-  clientId String?
-  client   User?   @relation("ClientJobs", fields: [clientId], references: [id], onDelete: SetNull)
+  technicianId String
+  technician   User      @relation("JobTechnician", fields: [technicianId], references: [id])
+  clientId     String?
+  client       User?     @relation("JobClient", fields: [clientId], references: [id], onDelete: SetNull)
 
-  technicianId String?
-  technician   User?   @relation("TechnicianJobs", fields: [technicianId], references: [id], onDelete: SetNull)
-
-  notes JobNote[]
-
+  notes     JobNote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([technicianId, status])
   @@index([clientId])
-  @@index([technicianId])
 }
 
-// Internal, timestamped technician notes. NEVER visible to clients.
 model JobNote {
   id        String   @id @default(cuid())
   jobId     String
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  body      String   @db.Text
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
   createdAt DateTime @default(now())
-
-  @@index([jobId])
-  @@index([authorId])
-}
-
-model MaintenancePolicy {
-  id          String    @id @default(cuid())
-  clientId    String    @unique
-  client      User      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  active      Boolean   @default(true)
-  renewalDate DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 }
 
 model Announcement {
   id        String   @id @default(cuid())
-  title     String   @db.VarChar(255)
-  body      String   @db.Text
+  title     String
+  body      String
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
-
-  @@index([authorId])
 }
 
 model PaymentLink {
   id          String        @id @default(cuid())
   clientId    String
-  client      User          @relation("ClientPayments", fields: [clientId], references: [id], onDelete: Cascade)
-  createdById String
-  createdBy   User          @relation("CreatedPayments", fields: [createdById], references: [id], onDelete: Cascade)
-  url         String        @db.Text
+  client      User          @relation("PaymentClient", fields: [clientId], references: [id], onDelete: Cascade)
+  url         String
   label       String?
-  amount      String? // free-form, e.g. "$249.00"
   status      PaymentStatus @default(SENT)
-  createdAt   DateTime      @default(now())
   paidAt      DateTime?
-
-  @@index([clientId])
-  @@index([createdById])
+  createdById String
+  createdBy   User          @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
 }
 
 model Document {
   id           String   @id @default(cuid())
   clientId     String
-  client       User     @relation("ClientDocuments", fields: [clientId], references: [id], onDelete: Cascade)
-  uploadedById String
-  uploadedBy   User     @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Cascade)
-  originalName String   @db.VarChar(400)
-  storedName   String // name on disk / object key
+  client       User     @relation("DocumentClient", fields: [clientId], references: [id], onDelete: Cascade)
+  fileName     String
+  storagePath  String
   mimeType     String
   size         Int
+  uploadedById String
+  uploadedBy   User     @relation("DocumentUploader", fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
-
-  @@index([clientId])
-  @@index([uploadedById])
 }
 
 model EmailLog {
   id           String      @id @default(cuid())
   senderUserId String?
-  sender       User?       @relation("SentEmails", fields: [senderUserId], references: [id], onDelete: SetNull)
-  to           String      @db.Text // comma-separated recipients
-  subject      String      @db.VarChar(255)
-  body         String      @db.Text
-  status       EmailStatus @default(LOGGED)
-  direction    String      @default("OUTBOUND") // OUTBOUND | INBOUND
+  sender       User?       @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+  toAddresses  String
+  subject      String
+  body         String
+  status       EmailStatus
+  error        String?
   createdAt    DateTime    @default(now())
 
   @@index([senderUserId])
 }
 
-// ---- In-app messaging ----
-
-model Conversation {
-  id        String   @id @default(cuid())
-  subject   String?  @db.VarChar(255)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  participants ConversationParticipant[]
+model Thread {
+  id           String              @id @default(cuid())
+  subject      String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  participants ThreadParticipant[]
   messages     Message[]
 }
 
-model ConversationParticipant {
-  id             String       @id @default(cuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lastReadAt     DateTime?
+model ThreadParticipant {
+  threadId   String
+  thread     Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?
 
-  @@unique([conversationId, userId])
-  @@index([userId])
+  @@id([threadId, userId])
 }
 
 model Message {
-  id             String       @id @default(cuid())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String?
-  sender         User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
-  body           String       @db.Text
-  // Marks messages created from an inbound email (no portal sender).
-  viaEmail       Boolean      @default(false)
-  createdAt      DateTime     @default(now())
+  id        String   @id @default(cuid())
+  threadId  String
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  viaEmail  Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  @@index([conversationId])
-  @@index([senderId])
+  @@index([threadId, createdAt])
+}
+
+model UnmatchedInbound {
+  id          String   @id @default(cuid())
+  fromAddress String
+  subject     String
+  body        String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model CustomerNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    User     @relation("CustomerNoteSubject", fields: [clientId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("CustomerNoteAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model EmployeeNote {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   User     @relation("EmployeeNoteSubject", fields: [employeeId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation("EmployeeNoteAuthor", fields: [authorId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  title     String?
+  photoPath String?
+  mimeType  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
 }

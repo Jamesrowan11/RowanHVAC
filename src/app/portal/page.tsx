@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { requireUser, dashboardPath } from "@/lib/session";
+import { requireUser } from "@/lib/guards";
 
 export default async function PortalIndex() {
   const user = await requireUser();
-  redirect(dashboardPath(user.role));
+  if (user.role === "ADMIN") redirect("/portal/admin");
+  if (user.role === "EMPLOYEE") redirect("/portal/employee");
+  redirect("/portal/client");
 }

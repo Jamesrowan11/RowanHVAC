@@ -1,65 +1,64 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
-import { ConfirmButton } from "@/components/portal/ConfirmButton";
-import { createAnnouncement, deleteAnnouncement } from "../actions";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime } from "@/lib/queries";
+import { createAnnouncement, deleteAnnouncement } from "@/lib/actions/announcements";
+import ActionForm from "@/components/portal/ActionForm";
+import ConfirmForm from "@/components/portal/ConfirmForm";
 
-export default async function AnnouncementsPage() {
+export const metadata = { title: "Announcements" };
+
+export default async function AdminAnnouncements() {
   await requireRole("ADMIN");
-  const announcements = await prisma.announcement.findMany({
+
+  const announcements = await db.announcement.findMany({
     orderBy: { createdAt: "desc" },
     include: { author: { select: { name: true } } },
   });
 
   return (
-    <>
-      <PageHeader
-        title="Company Announcements"
-        subtitle="Posted announcements are visible to all employees and admins."
-      />
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Company Announcements</h1>
 
-      <div className="card mb-6 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-navy-900">New announcement</h2>
-        <form action={createAnnouncement} className="space-y-3">
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">Post an announcement</h2>
+        <p className="mt-1 text-xs text-gray-500">Employees see these in their dashboard and get an email.</p>
+        <ActionForm
+          action={createAnnouncement}
+          submitLabel="Post announcement"
+          pendingLabel="Posting…"
+          successMessage="Posted — the team has been emailed."
+          buttonClassName="btn-primary"
+          className="mt-4 space-y-3"
+        >
           <div>
-            <label className="label" htmlFor="title">Title</label>
-            <input id="title" name="title" className="input" required />
+            <label htmlFor="title" className="label">Title</label>
+            <input id="title" name="title" required className="input" />
           </div>
           <div>
-            <label className="label" htmlFor="body">Message</label>
-            <textarea id="body" name="body" rows={3} className="input" required />
+            <label htmlFor="body" className="label">Body</label>
+            <textarea id="body" name="body" required rows={4} className="input" />
           </div>
-          <button type="submit" className="btn-primary">Post Announcement</button>
-        </form>
-      </div>
+        </ActionForm>
+      </section>
 
-      {announcements.length === 0 ? (
-        <EmptyState>No announcements posted yet.</EmptyState>
-      ) : (
-        <div className="space-y-3">
-          {announcements.map((a) => (
-            <div key={a.id} className="card p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-navy-900">{a.title}</h3>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-navy-700">
-                    {a.body}
-                  </p>
-                  <p className="mt-2 text-xs text-navy-400">
-                    {a.author.name} · {fmtDateTime(a.createdAt)}
-                  </p>
-                </div>
-                <form action={deleteAnnouncement}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <ConfirmButton message="Delete this announcement?">
-                    Delete
-                  </ConfirmButton>
-                </form>
+      <section className="space-y-4">
+        {announcements.map((a) => (
+          <div key={a.id} className="card">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-navy">{a.title}</h2>
+                <p className="mt-1 text-xs text-gray-500">{a.author.name} · {fmtDateTime(a.createdAt)}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{a.body}</p>
               </div>
+              <ConfirmForm action={deleteAnnouncement} confirmText={`Delete "${a.title}"?`}>
+                <input type="hidden" name="id" value={a.id} />
+                <button type="submit" className="btn-danger">Delete</button>
+              </ConfirmForm>
             </div>
-          ))}
-        </div>
-      )}
-    </>
+          </div>
+        ))}
+        {announcements.length === 0 && <p className="card text-sm text-gray-500">No announcements yet.</p>}
+      </section>
+    </div>
   );
 }

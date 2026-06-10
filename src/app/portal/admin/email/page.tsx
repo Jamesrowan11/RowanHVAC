@@ -1,54 +1,49 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { PageHeader } from "@/components/portal/ui";
-import { ComposeEmail } from "@/components/portal/ComposeEmail";
-import { SentEmailList } from "@/components/portal/SentEmailList";
-import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import EmailComposer from "@/components/portal/EmailComposer";
+import SentEmailList from "@/components/portal/SentEmailList";
 
-export default async function AdminEmailPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export const metadata = { title: "Email" };
+
+export default async function AdminEmail() {
   await requireRole("ADMIN");
-  const page = parsePage((await searchParams).page);
 
-  const [recipients, emails, total] = await Promise.all([
-    prisma.user.findMany({
+  const [users, logs] = await Promise.all([
+    db.user.findMany({
       where: { active: true },
       orderBy: [{ role: "asc" }, { name: "asc" }],
       select: { id: true, name: true, email: true, role: true },
     }),
-    prisma.emailLog.findMany({
-      where: { direction: "OUTBOUND" },
+    // Admin sees the full sent history, including automated sends.
+    db.emailLog.findMany({
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      take: 100,
       include: { sender: { select: { name: true } } },
     }),
-    prisma.emailLog.count({ where: { direction: "OUTBOUND" } }),
   ]);
 
-  return (
-    <>
-      <PageHeader
-        title="Compose Email"
-        subtitle="Send individual correspondence to portal users and/or typed addresses (up to 25 recipients)."
-      />
+  const groups = [
+    { label: "Clients", users: users.filter((u) => u.role === "CLIENT") },
+    { label: "Employees", users: users.filter((u) => u.role === "EMPLOYEE") },
+    { label: "Admins", users: users.filter((u) => u.role === "ADMIN") },
+  ].filter((g) => g.users.length > 0);
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card p-6">
-          <h2 className="mb-4 text-lg font-semibold text-navy-900">New Email</h2>
-          <ComposeEmail recipients={recipients} />
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Email</h1>
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">Compose</h2>
+        <div className="mt-4">
+          <EmailComposer groups={groups} />
         </div>
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-navy-900">
-            Sent History (all senders)
-          </h2>
-          <SentEmailList emails={emails} showSender />
-          <Pagination page={page} total={total} basePath="/portal/admin/email" />
+      </section>
+      <section>
+        <h2 className="text-lg font-bold text-navy">Sent Email History</h2>
+        <p className="mt-1 text-sm text-gray-500">Every email the system has sent, and who sent it.</p>
+        <div className="mt-4">
+          <SentEmailList logs={logs} showSender />
         </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

@@ -1,203 +1,111 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { PageHeader } from "@/components/portal/ui";
-import { ConfirmButton } from "@/components/portal/ConfirmButton";
-import {
-  createUser,
-  updateUser,
-  resetUserPassword,
-  setUserActive,
-  deleteUser,
-} from "../actions";
+import Link from "next/link";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { createUser } from "@/lib/actions/users";
+import ActionForm from "@/components/portal/ActionForm";
 
-const ROLE_STYLES: Record<string, string> = {
-  ADMIN: "bg-accent/15 text-accent-700",
-  EMPLOYEE: "bg-blue-100 text-blue-800",
-  CLIENT: "bg-navy-100 text-navy-700",
-};
+export const metadata = { title: "Users" };
 
-export default async function UsersPage() {
-  const admin = await requireRole("ADMIN");
-  const users = await prisma.user.findMany({
+export default async function AdminUsers() {
+  await requireRole("ADMIN");
+
+  const users = await db.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
+  const groups = [
+    { label: "Admins", items: users.filter((u) => u.role === "ADMIN") },
+    { label: "Employees", items: users.filter((u) => u.role === "EMPLOYEE") },
+    { label: "Clients", items: users.filter((u) => u.role === "CLIENT") },
+  ];
+
   return (
-    <>
-      <PageHeader
-        title="Users & Employees"
-        subtitle="Create accounts, manage details, reset passwords, and activate or deactivate access."
-      />
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Users &amp; Accounts</h1>
 
-      {/* Create */}
-      <details className="card mb-6 p-6">
-        <summary className="cursor-pointer text-lg font-semibold text-navy-900">
-          Create a new account
-        </summary>
-        <form action={createUser} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="c-name">Name</label>
-            <input id="c-name" name="name" className="input" required />
-          </div>
-          <div>
-            <label className="label" htmlFor="c-email">Email</label>
-            <input id="c-email" name="email" type="email" className="input" required />
-          </div>
-          <div>
-            <label className="label" htmlFor="c-phone">Phone</label>
-            <input id="c-phone" name="phone" className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="c-role">Role</label>
-            <select id="c-role" name="role" className="input" defaultValue="CLIENT">
-              <option value="CLIENT">Client</option>
-              <option value="EMPLOYEE">Employee</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label" htmlFor="c-personal">
-              Personal email{" "}
-              <span className="font-normal text-navy-400">
-                (staff only — password-reset emails go here)
-              </span>
-            </label>
-            <input id="c-personal" name="personalEmail" type="email" className="input" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label" htmlFor="c-password">Temporary password</label>
-            <input
-              id="c-password"
-              name="password"
-              type="text"
-              className="input"
-              minLength={8}
-              required
-              placeholder="At least 8 characters"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <button type="submit" className="btn-primary">Create Account</button>
-          </div>
-        </form>
-      </details>
-
-      {/* List */}
-      <div className="space-y-3">
-        {users.map((u) => (
-          <div key={u.id} className="card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-navy-900">{u.name}</h3>
-                  <span className={`badge ${ROLE_STYLES[u.role]}`}>{u.role}</span>
-                  {!u.active && (
-                    <span className="badge bg-red-100 text-red-700">Deactivated</span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-navy-500">
-                  {u.email}
-                  {u.phone ? ` · ${u.phone}` : ""}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <form action={setUserActive}>
-                  <input type="hidden" name="id" value={u.id} />
-                  <input type="hidden" name="active" value={(!u.active).toString()} />
-                  <button
-                    type="submit"
-                    className="btn-outline btn-sm"
-                    disabled={u.id === admin.id}
-                    title={u.id === admin.id ? "You can't change your own status here" : ""}
-                  >
-                    {u.active ? "Deactivate" : "Activate"}
-                  </button>
-                </form>
-                <form action={deleteUser}>
-                  <input type="hidden" name="id" value={u.id} />
-                  <ConfirmButton
-                    message="Delete this account permanently? Deactivating is usually preferred. Continue?"
-                  >
-                    Delete
-                  </ConfirmButton>
-                </form>
-              </div>
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">Create account</h2>
+        <ActionForm
+          action={createUser}
+          submitLabel="Create account"
+          pendingLabel="Creating…"
+          successMessage="Account created — a welcome email was sent."
+          buttonClassName="btn-primary"
+          className="mt-4 space-y-4"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="new-name" className="label">Name</label>
+              <input id="new-name" name="name" required className="input" />
             </div>
+            <div>
+              <label htmlFor="new-email" className="label">Email</label>
+              <input id="new-email" name="email" type="email" required className="input" />
+            </div>
+            <div>
+              <label htmlFor="new-phone" className="label">Phone</label>
+              <input id="new-phone" name="phone" className="input" />
+            </div>
+            <div>
+              <label htmlFor="new-role" className="label">Role</label>
+              <select id="new-role" name="role" required className="input" defaultValue="CLIENT">
+                <option value="CLIENT">Client</option>
+                <option value="EMPLOYEE">Employee</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="new-address" className="label">Address (clients)</label>
+            <input id="new-address" name="address" className="input" />
+          </div>
+          <div>
+            <label htmlFor="new-password" className="label">Initial password (min 8 characters)</label>
+            <input id="new-password" name="password" type="password" required minLength={8} className="input" />
+          </div>
+        </ActionForm>
+      </section>
 
-            <div className="mt-3 grid gap-3 border-t border-navy-100 pt-3 lg:grid-cols-2">
-              {/* Edit */}
-              <details>
-                <summary className="cursor-pointer text-sm font-medium text-navy-700">
-                  Edit details
-                </summary>
-                <form action={updateUser} className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <input type="hidden" name="id" value={u.id} />
-                  <div>
-                    <label className="label">Name</label>
-                    <input name="name" className="input" defaultValue={u.name} required />
-                  </div>
-                  <div>
-                    <label className="label">Email</label>
-                    <input name="email" type="email" className="input" defaultValue={u.email} required />
-                  </div>
-                  <div>
-                    <label className="label">Phone</label>
-                    <input name="phone" className="input" defaultValue={u.phone ?? ""} />
-                  </div>
-                  <div>
-                    <label className="label">Role</label>
-                    <select name="role" className="input" defaultValue={u.role}>
-                      <option value="CLIENT">Client</option>
-                      <option value="EMPLOYEE">Employee</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="label">
-                      Personal email{" "}
-                      <span className="font-normal text-navy-400">
-                        (staff only — password resets sent here)
+      {groups.map((g) => (
+        <section key={g.label}>
+          <h2 className="text-lg font-bold text-navy">{g.label}</h2>
+          <div className="mt-3 overflow-x-auto rounded-xl bg-white shadow-card">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3"><span className="sr-only">Manage</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {g.items.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-4 text-gray-500">None yet.</td></tr>
+                )}
+                {g.items.map((u) => (
+                  <tr key={u.id} className="hover:bg-navy-50/50">
+                    <td className="px-4 py-3 font-medium text-navy">{u.name}</td>
+                    <td className="px-4 py-3">{u.email}</td>
+                    <td className="px-4 py-3">{u.phone ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`badge ${u.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"}`}>
+                        {u.active ? "Active" : "Deactivated"}
                       </span>
-                    </label>
-                    <input
-                      name="personalEmail"
-                      type="email"
-                      className="input"
-                      defaultValue={u.personalEmail ?? ""}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <button type="submit" className="btn-navy btn-sm">Save</button>
-                  </div>
-                </form>
-              </details>
-
-              {/* Reset password */}
-              <details>
-                <summary className="cursor-pointer text-sm font-medium text-navy-700">
-                  Set / reset password
-                </summary>
-                <form action={resetUserPassword} className="mt-3 flex items-end gap-2">
-                  <input type="hidden" name="id" value={u.id} />
-                  <div className="flex-1">
-                    <label className="label">New password</label>
-                    <input
-                      name="password"
-                      type="text"
-                      className="input"
-                      minLength={8}
-                      required
-                      placeholder="At least 8 characters"
-                    />
-                  </div>
-                  <button type="submit" className="btn-navy btn-sm">Set</button>
-                </form>
-              </details>
-            </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/portal/admin/users/${u.id}`} className="font-medium text-accent-600 hover:underline">
+                        Manage
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
-    </>
+        </section>
+      ))}
+    </div>
   );
 }

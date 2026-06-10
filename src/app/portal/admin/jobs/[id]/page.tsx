@@ -1,0 +1,132 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime } from "@/lib/queries";
+import { updateJobStatus, addJobNote, cancelJob, reinstateJob } from "@/lib/actions/jobs";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+import ConfirmForm from "@/components/portal/ConfirmForm";
+
+export const metadata = { title: "Job Details" };
+
+export default async function AdminJobDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireRole("ADMIN");
+  const { id } = await params;
+
+  const job = await db.job.findUnique({
+    where: { id },
+    include: {
+      technician: { select: { name: true, email: true } },
+      client: { select: { id: true, name: true, email: true } },
+      notes: { orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } },
+    },
+  });
+  if (!job) notFound();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-navy">
+          {job.customerName} · {job.service}
+        </h1>
+        <JobStatusBadge status={job.status} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="card lg:col-span-1">
+          <h2 className="font-bold text-navy">Details</h2>
+          <dl className="mt-3 space-y-3 text-sm">
+            <div><dt className="font-medium text-gray-500">When</dt><dd>{fmtDateTime(job.scheduledAt)}</dd></div>
+            <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
+            <div><dt className="font-medium text-gray-500">Technician</dt><dd>{job.technician.name}</dd></div>
+            <div>
+              <dt className="font-medium text-gray-500">Portal client</dt>
+              <dd>
+                {job.client ? (
+                  <Link href={`/portal/admin/users/${job.client.id}`} className="text-accent-600 hover:underline">
+                    {job.client.name}
+                  </Link>
+                ) : (
+                  "Not linked"
+                )}
+              </dd>
+            </div>
+            {job.summary && (
+              <div><dt className="font-medium text-gray-500">Summary</dt><dd className="whitespace-pre-wrap">{job.summary}</dd></div>
+            )}
+            {job.status === "CANCELLED" && (
+              <div>
+                <dt className="font-medium text-red-600">Cancelled {job.cancelledAt ? fmtDateTime(job.cancelledAt) : ""}</dt>
+                <dd className="whitespace-pre-wrap">{job.cancelReason}</dd>
+              </div>
+            )}
+          </dl>
+
+          {job.status !== "CANCELLED" ? (
+            <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
+              <form action={updateJobStatus} className="flex items-end gap-2">
+                <input type="hidden" name="jobId" value={job.id} />
+                <div className="flex-1">
+                  <label htmlFor="status" className="label">Update status</label>
+                  <select id="status" name="status" defaultValue={job.status} className="input">
+                    <option value="SCHEDULED">Scheduled</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+                <button type="submit" className="btn-small">Save</button>
+              </form>
+
+              <ConfirmForm
+                action={cancelJob}
+                confirmText="Cancel this job? It will leave the technician's schedule and show as Cancelled for the client."
+                className="space-y-2"
+              >
+                <input type="hidden" name="jobId" value={job.id} />
+                <label htmlFor="reason" className="label">Cancel job — reason (required)</label>
+                <textarea id="reason" name="reason" required rows={2} className="input" />
+                <button type="submit" className="btn-danger">Cancel job</button>
+              </ConfirmForm>
+            </div>
+          ) : (
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <form action={reinstateJob}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <button type="submit" className="btn-small">Reinstate to Scheduled</button>
+              </form>
+            </div>
+          )}
+        </section>
+
+        <section className="card lg:col-span-2">
+          <h2 className="font-bold text-navy">Job Notes</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            Visible to admins and the assigned technician — never to the client.
+          </p>
+          <form action={addJobNote} className="mt-4 flex items-start gap-2">
+            <input type="hidden" name="jobId" value={job.id} />
+            <textarea
+              name="body"
+              required
+              rows={2}
+              placeholder="Add a note…"
+              className="input flex-1"
+            />
+            <button type="submit" className="btn-small">Add</button>
+          </form>
+          <ul className="mt-4 space-y-3">
+            {job.notes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
+            {job.notes.map((n) => (
+              <li key={n.id} className="rounded-lg bg-navy-50 p-3 text-sm">
+                <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {n.author.name} · {fmtDateTime(n.createdAt)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}

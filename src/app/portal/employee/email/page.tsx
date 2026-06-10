@@ -1,54 +1,43 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { PageHeader } from "@/components/portal/ui";
-import { ComposeEmail } from "@/components/portal/ComposeEmail";
-import { SentEmailList } from "@/components/portal/SentEmailList";
-import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import EmailComposer from "@/components/portal/EmailComposer";
+import SentEmailList from "@/components/portal/SentEmailList";
 
-export default async function EmployeeEmailPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
-  const user = await requireRole("EMPLOYEE", "ADMIN");
-  const page = parsePage((await searchParams).page);
+export const metadata = { title: "Email" };
 
-  // Employees may email clients.
-  const [recipients, emails, total] = await Promise.all([
-    prisma.user.findMany({
+export default async function EmployeeEmail() {
+  const user = await requireRole("EMPLOYEE");
+
+  const [clients, logs] = await Promise.all([
+    db.user.findMany({
       where: { active: true, role: "CLIENT" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true },
     }),
-    // Employees see only their own sent history.
-    prisma.emailLog.findMany({
-      where: { senderUserId: user.id, direction: "OUTBOUND" },
+    // Employees only see their OWN sent history.
+    db.emailLog.findMany({
+      where: { senderUserId: user.id },
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.emailLog.count({
-      where: { senderUserId: user.id, direction: "OUTBOUND" },
+      take: 100,
+      include: { sender: { select: { name: true } } },
     }),
   ]);
 
   return (
-    <>
-      <PageHeader
-        title="Compose Email"
-        subtitle="Send individual correspondence to a client and/or a typed address."
-      />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card p-6">
-          <h2 className="mb-4 text-lg font-semibold text-navy-900">New Email</h2>
-          <ComposeEmail recipients={recipients} />
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Email a Customer</h1>
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">Compose</h2>
+        <div className="mt-4">
+          <EmailComposer groups={[{ label: "Clients", users: clients }]} />
         </div>
-        <div>
-          <h2 className="mb-4 text-lg font-semibold text-navy-900">My Sent History</h2>
-          <SentEmailList emails={emails} showSender={false} />
-          <Pagination page={page} total={total} basePath="/portal/employee/email" />
+      </section>
+      <section>
+        <h2 className="text-lg font-bold text-navy">My Sent Emails</h2>
+        <div className="mt-4">
+          <SentEmailList logs={logs} showSender={false} />
         </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

@@ -1,123 +1,76 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/session";
-import { PageHeader, EmptyState, fmtDateTime } from "@/components/portal/ui";
-import { Pagination, parsePage, PAGE_SIZE } from "@/components/portal/Pagination";
-import { NewThread } from "./NewThread";
+import { requireUser } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime } from "@/lib/queries";
 
-export default async function MessagesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string }>;
-}) {
+export const metadata = { title: "Messages" };
+
+export default async function MessagesList() {
   const user = await requireUser();
-  const page = parsePage((await searchParams).page);
 
-  // Only conversations this user participates in, newest activity first.
-  const [parts, total] = await Promise.all([
-    prisma.conversationParticipant.findMany({
-      where: { userId: user.id },
-      orderBy: { conversation: { updatedAt: "desc" } },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: {
-        conversation: {
-          include: {
-            participants: {
-              include: {
-                user: { select: { id: true, name: true, role: true } },
-              },
-            },
-            messages: { orderBy: { createdAt: "desc" }, take: 1 },
-          },
-        },
-      },
-    }),
-    prisma.conversationParticipant.count({ where: { userId: user.id } }),
-  ]);
+  // Admins see every conversation; everyone else only their own threads.
+  const threads = await db.thread.findMany({
+    where: user.role === "ADMIN" ? {} : { participants: { some: { userId: user.id } } },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+    include: {
+      participants: { include: { user: { select: { id: true, name: true, role: true } } } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
 
-  const rows = await Promise.all(
-    parts.map(async (p) => {
-      const unread = await prisma.message.count({
-        where: {
-          conversationId: p.conversationId,
-          senderId: { not: user.id },
-          ...(p.lastReadAt ? { createdAt: { gt: p.lastReadAt } } : {}),
-        },
-      });
-      const others = p.conversation.participants
-        .filter((pp) => pp.user.id !== user.id)
-        .map((pp) => pp.user.name);
-      const last = p.conversation.messages[0];
-      return {
-        id: p.conversationId,
-        subject: p.conversation.subject,
-        others: others.length ? others.join(", ") : "You",
-        last,
-        unread,
-        updatedAt: p.conversation.updatedAt,
-      };
-    }),
-  );
-
-  // Recipient options for staff. Clients never receive a directory.
-  const canPickRecipients = user.role !== "CLIENT";
-  const recipients = canPickRecipients
-    ? await prisma.user.findMany({
-        where: { active: true, NOT: { id: user.id } },
-        orderBy: [{ role: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, email: true, role: true },
-      })
-    : [];
+  const myMembership = (t: (typeof threads)[number]) =>
+    t.participants.find((p) => p.user.id === user.id);
 
   return (
-    <>
-      <PageHeader
-        title="Messages"
-        subtitle={
-          user.role === "CLIENT"
-            ? "Your secure conversations with the Rowan team."
-            : "Conversations with clients and staff."
-        }
-      />
-
-      <div className="mb-6">
-        <NewThread canPickRecipients={canPickRecipients} recipients={recipients} />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-navy">Messages</h1>
+        <Link href="/portal/messages/new" className="btn-primary">New Message</Link>
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState>No conversations yet.</EmptyState>
-      ) : (
-        <div className="space-y-2">
-          {rows.map((r) => (
-            <Link
-              key={r.id}
-              href={`/portal/messages/${r.id}`}
-              className="card flex items-center justify-between gap-4 p-4 transition hover:shadow-soft"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate font-semibold text-navy-900">
-                    {r.subject || r.others}
-                  </p>
-                  {r.unread > 0 && (
-                    <span className="badge bg-accent text-white">{r.unread} new</span>
-                  )}
-                </div>
-                <p className="truncate text-xs text-navy-500">
-                  {r.subject ? `${r.others} · ` : ""}
-                  {r.last ? r.last.body : "No messages yet"}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-navy-400">
-                {fmtDateTime(r.updatedAt)}
-              </span>
-            </Link>
-          ))}
-        </div>
+      {threads.length === 0 && (
+        <p className="card text-sm text-gray-500">
+          No conversations yet. Start one with the button above.
+        </p>
       )}
 
-      <Pagination page={page} total={total} basePath="/portal/messages" />
-    </>
+      <ul className="space-y-3">
+        {threads.map((t) => {
+          const last = t.messages[0];
+          const membership = myMembership(t);
+          const unread =
+            !!last &&
+            last.authorId !== user.id &&
+            (!membership?.lastReadAt || last.createdAt > membership.lastReadAt);
+          const others = t.participants
+            .filter((p) => p.user.id !== user.id)
+            .map((p) => p.user.name);
+
+          return (
+            <li key={t.id}>
+              <Link
+                href={`/portal/messages/${t.id}`}
+                className={`card block transition hover:-translate-y-0.5 hover:shadow-lg ${unread ? "border-l-4 border-accent" : ""}`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className={`${unread ? "font-bold" : "font-semibold"} text-navy`}>
+                    {t.subject}
+                    {unread && <span className="ml-2 badge bg-accent-100 text-accent-800">New</span>}
+                  </p>
+                  <p className="text-xs text-gray-500">{fmtDateTime(t.updatedAt)}</p>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  With: {user.role === "CLIENT" ? "Rowan Heating & Air" : others.join(", ") || "—"}
+                </p>
+                {last && (
+                  <p className="mt-2 truncate text-sm text-gray-600">{last.body}</p>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

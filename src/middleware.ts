@@ -1,25 +1,23 @@
-import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { authConfig } from "@/auth.config";
+import type { NextRequest } from "next/server";
 
-const { auth } = NextAuth(authConfig);
+/**
+ * Lightweight gate: unauthenticated visitors never reach /portal pages.
+ * Real authorization (roles, record ownership) is enforced server-side in
+ * every page loader and server action via src/lib/guards.ts.
+ */
+export function middleware(request: NextRequest) {
+  const hasSession =
+    request.cookies.has("authjs.session-token") ||
+    request.cookies.has("__Secure-authjs.session-token");
 
-// Protect all portal routes. Access control on the *data* is still enforced
-// server-side in every loader/action/route — this is only the first gate.
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const { pathname } = req.nextUrl;
-
-  const isPortal = pathname.startsWith("/portal");
-
-  if (isPortal && !isLoggedIn) {
-    const url = new URL("/login", req.nextUrl.origin);
-    url.searchParams.set("callbackUrl", pathname);
+  if (!hasSession && request.nextUrl.pathname.startsWith("/portal")) {
+    const url = new URL("/login", request.url);
+    url.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
-
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/portal/:path*"],
