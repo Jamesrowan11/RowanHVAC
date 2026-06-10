@@ -115,37 +115,77 @@ unknown senders land in the admin **Unmatched Inbox**. Protect it by setting
 ## File uploads
 
 Documents and tech photos are stored on local disk under `uploads/`
-(gitignored). All filesystem access goes through `src/lib/storage.ts` — to
-move to cloud storage (S3, Vercel Blob), reimplement that one module.
+(gitignored), which persists on a normal server (AWS/Plesk). All filesystem
+access goes through `src/lib/storage.ts` — to move to cloud storage (e.g.
+S3), reimplement that one module. Set `UPLOAD_DIR` to relocate the folder
+(e.g. outside the deploy directory so redeploys never touch it), and include
+it in your backups.
 
-> **Note for serverless hosting (Vercel):** the filesystem there is ephemeral,
-> so uploaded files won't persist between deployments/instances. For
-> production uploads on Vercel, swap `storage.ts` to Vercel Blob — the rest of
-> the app needs no changes.
+## Deploying to AWS (Plesk on Ubuntu)
 
-## Deploying to Vercel
+Target: an EC2 Ubuntu instance running Plesk, domain `rowanhvac.com` at
+GoDaddy.
 
-1. **Create a Postgres database** (Vercel Postgres / Neon / Supabase) and copy
-   its connection string.
-2. **Import the GitHub repo** at vercel.com → Add New → Project. Next.js is
-   auto-detected; the `vercel-build` script runs `prisma migrate deploy`
-   automatically on every deploy.
-3. **Set environment variables** (Project → Settings → Environment Variables):
-   `DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL=https://rowanhvac.com`,
-   `APP_URL=https://rowanhvac.com`, `EMAIL_FROM`, `RESEND_API_KEY` (when
-   ready), `INBOUND_WEBHOOK_SECRET`.
-4. **Deploy**, then seed once from your machine:
+### 1. One-time server prep (SSH as root/ubuntu)
+
+```bash
+# PostgreSQL (skip if using AWS RDS instead)
+apt update && apt install -y postgresql
+sudo -u postgres psql -c "CREATE USER rowan WITH PASSWORD '<strong-password>';"
+sudo -u postgres psql -c "CREATE DATABASE rowanhvac OWNER rowan;"
+```
+
+Your `DATABASE_URL` is then
+`postgresql://rowan:<strong-password>@localhost:5432/rowanhvac`
+(or the RDS endpoint if you went that route).
+
+In Plesk, install these extensions if missing: **Node.js** and **Git**
+(Extensions → Extensions Catalog). In AWS, make sure the instance's security
+group allows inbound **80** and **443**.
+
+### 2. Create the site in Plesk
+
+1. **Websites & Domains → Add Domain** → `rowanhvac.com`.
+2. **Git** (on the domain) → clone this GitHub repo, deploy branch `main`
+   into the domain's directory (e.g. `/var/www/vhosts/rowanhvac.com/httpdocs`).
+3. **Node.js** (on the domain):
+   - Node version: **20+**
+   - Document Root: the repo folder
+   - Application Startup File: **`server.js`**
+   - Custom environment variables: `DATABASE_URL`, `AUTH_SECRET`
+     (`openssl rand -base64 32`), `NEXTAUTH_URL=https://rowanhvac.com`,
+     `APP_URL=https://rowanhvac.com`, `EMAIL_FROM`, `RESEND_API_KEY` (when
+     ready), `INBOUND_WEBHOOK_SECRET`, `NODE_ENV=production`.
+4. First deploy (SSH into the repo folder, or use Plesk's "Run script"):
    ```bash
-   DATABASE_URL="<hosted connection string>" npm run db:seed
+   npm install
+   npm run deploy      # prisma generate + migrate deploy + next build
+   npm run db:seed     # first time only — then log in and change passwords
    ```
-5. **Connect the domain** (Project → Settings → Domains → add
-   `rowanhvac.com` and `www.rowanhvac.com`), then at GoDaddy → DNS:
+5. In Plesk Node.js, click **Restart App**. Passenger now serves the app.
 
-   | Type  | Name | Value                   |
-   | ----- | ---- | ----------------------- |
-   | A     | `@`  | `76.76.21.21`           |
-   | CNAME | `www`| `cname.vercel-dns.com`  |
+   *Prefer PM2 instead of Plesk's Node.js extension?* `pm2 start
+   ecosystem.config.js` and add a reverse proxy in Plesk → Apache & nginx
+   Settings → Additional nginx directives:
+   `location / { proxy_pass http://127.0.0.1:3000; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme; }`
 
-   (Vercel shows these same records on the Domains page — use whatever it
-   displays if they differ. Remove GoDaddy's default parked A record.)
-   Certificates are issued automatically once DNS propagates.
+6. **SSL**: Plesk → SSL/TLS Certificates → install a free Let's Encrypt cert
+   for `rowanhvac.com` + `www`, and turn on "Redirect from HTTP to HTTPS".
+
+### 3. Point GoDaddy at the server
+
+Use the EC2 instance's **Elastic IP** (allocate one in the AWS console so the
+address survives reboots):
+
+| Type  | Name  | Value                  |
+| ----- | ----- | ---------------------- |
+| A     | `@`   | `<your Elastic IP>`    |
+| A     | `www` | `<your Elastic IP>`    |
+
+Remove GoDaddy's default parked A record. Once DNS propagates, issue the
+Let's Encrypt cert (step 6 above) if you couldn't before.
+
+### 4. Updating the site later
+
+Push to GitHub → Plesk Git "Pull Updates" (or enable its webhook for
+automatic pulls) → run `npm install && npm run deploy` → Restart App.
