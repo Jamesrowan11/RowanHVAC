@@ -20,6 +20,11 @@ enum JobStatus {
   CANCELLED
 }
 
+enum JobKind {
+  SERVICE
+  PICKUP
+}
+
 enum RequestStatus {
   NEW
   CONVERTED
@@ -32,6 +37,12 @@ enum PaymentStatus {
 }
 
 enum EmailStatus {
+  SENT
+  LOGGED
+  FAILED
+}
+
+enum SmsStatus {
   SENT
   LOGGED
   FAILED
@@ -89,7 +100,9 @@ model Job {
   customerName String
   address      String    @db.VarChar(300)
   service      String    @db.VarChar(200)
+  kind         JobKind   @default(SERVICE)
   scheduledAt  DateTime
+  endAt        DateTime?
   status       JobStatus @default(SCHEDULED)
   summary      String?   @db.Text
   cancelReason String?   @db.Text
@@ -110,13 +123,14 @@ model Job {
 }
 
 model JobNote {
-  id        String   @id @default(cuid())
-  jobId     String
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
-  body      String   @db.Text
-  createdAt DateTime @default(now())
+  id          String       @id @default(cuid())
+  jobId       String
+  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id])
+  body        String       @db.Text
+  attachments Attachment[]
+  createdAt   DateTime     @default(now())
 }
 
 model Announcement {
@@ -188,16 +202,46 @@ model ThreadParticipant {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  threadId  String
-  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
-  body      String   @db.Text
-  viaEmail  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String       @id @default(cuid())
+  threadId    String
+  thread      Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id])
+  body        String       @db.Text
+  viaEmail    Boolean      @default(false)
+  attachments Attachment[]
+  createdAt   DateTime     @default(now())
 
   @@index([threadId, createdAt])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  jobNoteId    String?
+  jobNote      JobNote? @relation(fields: [jobNoteId], references: [id], onDelete: Cascade)
+  messageId    String?
+  message      Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName     String
+  storagePath  String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  @@index([jobNoteId])
+  @@index([messageId])
+}
+
+model SmsLog {
+  id           String    @id @default(cuid())
+  senderUserId String?
+  toNumbers    String    @db.Text
+  body         String    @db.Text
+  status       SmsStatus
+  error        String?   @db.Text
+  createdAt    DateTime  @default(now())
+
+  @@index([senderUserId])
 }
 
 model UnmatchedInbound {

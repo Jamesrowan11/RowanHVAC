@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { COMPANY } from "@/lib/constants";
+import ServiceWorker from "@/components/ServiceWorker";
 
 const description =
   "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling you can trust. Serving Howard County, Montgomery County, Prince George's County, and Washington, DC.";
@@ -32,6 +33,20 @@ export const metadata: Metadata = {
     locale: "en_US",
     siteName: COMPANY.name,
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Rowan HVAC",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a2b4a",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         {children}
+        <ServiceWorker />
       </body>
     </html>
   );

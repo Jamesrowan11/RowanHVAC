@@ -59,6 +59,13 @@ export default async function AdminSchedule({
           {sourceRequest && <input type="hidden" name="requestId" value={sourceRequest.id} />}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
+              <label htmlFor="kind" className="label">Type</label>
+              <select id="kind" name="kind" className="input" defaultValue="SERVICE">
+                <option value="SERVICE">Service job</option>
+                <option value="PICKUP">Pickup</option>
+              </select>
+            </div>
+            <div>
               <label htmlFor="customerName" className="label">Customer name</label>
               <input
                 id="customerName"
@@ -69,8 +76,12 @@ export default async function AdminSchedule({
               />
             </div>
             <div>
-              <label htmlFor="scheduledAt" className="label">Date &amp; time</label>
+              <label htmlFor="scheduledAt" className="label">Start date &amp; time</label>
               <input id="scheduledAt" name="scheduledAt" type="datetime-local" required className="input" />
+            </div>
+            <div>
+              <label htmlFor="endAt" className="label">End time (optional)</label>
+              <input id="endAt" name="endAt" type="datetime-local" className="input" />
             </div>
           </div>
           <div>

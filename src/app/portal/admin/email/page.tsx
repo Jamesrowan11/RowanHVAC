@@ -2,13 +2,14 @@ import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import EmailComposer from "@/components/portal/EmailComposer";
 import SentEmailList from "@/components/portal/SentEmailList";
+import { fmtDateTime } from "@/lib/queries";
 
-export const metadata = { title: "Email" };
+export const metadata = { title: "Email & SMS" };
 
 export default async function AdminEmail() {
   await requireRole("ADMIN");
 
-  const [users, logs] = await Promise.all([
+  const [users, logs, smsLogs] = await Promise.all([
     db.user.findMany({
       where: { active: true },
       orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -20,6 +21,7 @@ export default async function AdminEmail() {
       take: 100,
       include: { sender: { select: { name: true } } },
     }),
+    db.smsLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
 
   const groups = [
@@ -43,6 +45,29 @@ export default async function AdminEmail() {
         <div className="mt-4">
           <SentEmailList logs={logs} showSender />
         </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-bold text-navy">SMS History</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Automated text notifications. When Twilio isn&apos;t configured these are
+          logged in &ldquo;console mode&rdquo; (recorded here, printed to the server log).
+        </p>
+        <ul className="mt-4 space-y-2">
+          {smsLogs.length === 0 && <li className="text-sm text-gray-500">No texts yet.</li>}
+          {smsLogs.map((s) => (
+            <li key={s.id} className="rounded-lg bg-navy-50 p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-navy">To: {s.toNumbers}</span>
+                <span className={`badge ${s.status === "SENT" ? "bg-green-100 text-green-800" : s.status === "FAILED" ? "bg-red-100 text-red-700" : "bg-navy-100 text-navy-800"}`}>
+                  {s.status === "LOGGED" ? "Logged (console)" : s.status === "SENT" ? "Sent" : "Failed"}
+                </span>
+              </div>
+              <p className="mt-1 text-gray-700">{s.body}</p>
+              <p className="mt-1 text-xs text-gray-500">{fmtDateTime(s.createdAt)}</p>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

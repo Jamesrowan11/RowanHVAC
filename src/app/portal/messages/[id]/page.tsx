@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
 import { canAccessThread } from "@/lib/messaging";
 import { replyToThread, markThreadRead } from "@/lib/actions/messages";
+import Attachments, { PhotoInput } from "@/components/portal/Attachments";
 
 export const metadata = { title: "Conversation" };
 
@@ -20,7 +21,7 @@ export default async function ThreadView({ params }: { params: Promise<{ id: str
       participants: { include: { user: { select: { id: true, name: true, role: true } } } },
       messages: {
         orderBy: { createdAt: "asc" },
-        include: { author: { select: { id: true, name: true, role: true } } },
+        include: { author: { select: { id: true, name: true, role: true } }, attachments: true },
       },
     },
   });
@@ -58,6 +59,7 @@ export default async function ThreadView({ params }: { params: Promise<{ id: str
                   {m.viaEmail && " · via email"}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>
+                <Attachments items={m.attachments} />
                 <p className={`mt-2 text-xs ${mine ? "text-navy-300" : "text-gray-400"}`}>
                   {fmtDateTime(m.createdAt)}
                 </p>
@@ -70,8 +72,11 @@ export default async function ThreadView({ params }: { params: Promise<{ id: str
       <form action={replyToThread} className="card">
         <input type="hidden" name="threadId" value={thread.id} />
         <label htmlFor="body" className="label">Reply</label>
-        <textarea id="body" name="body" required rows={3} className="input" />
-        <button type="submit" className="btn-primary mt-3">Send reply</button>
+        <textarea id="body" name="body" rows={3} className="input" />
+        <div className="mt-3 flex items-center justify-between">
+          <PhotoInput />
+          <button type="submit" className="btn-primary">Send reply</button>
+        </div>
       </form>
     </div>
   );

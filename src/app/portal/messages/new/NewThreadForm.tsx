@@ -36,8 +36,12 @@ export default function NewThreadForm({ groups }: { groups: Group[] | null }) {
       </div>
       <div>
         <label htmlFor="body" className="label">Message</label>
-        <textarea id="body" name="body" required rows={5} className="input" />
+        <textarea id="body" name="body" rows={5} className="input" />
       </div>
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-navy-600">
+        <span className="rounded-md border border-navy-200 bg-white px-2 py-1 hover:bg-navy-50">📷 Add photos</span>
+        <input type="file" name="photos" multiple accept="image/*,application/pdf" className="text-xs text-gray-500" />
+      </label>
       {state.error && <p className="text-sm font-medium text-red-600">{state.error}</p>}
       <button type="submit" disabled={pending} className="btn-primary disabled:opacity-60">
         {pending ? "Sending…" : "Send message"}

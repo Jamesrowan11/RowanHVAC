@@ -27,7 +27,7 @@ export function isAllowedUpload(mimeType: string): boolean {
 export async function saveUpload(
   buffer: Buffer,
   originalName: string,
-  subdir: "documents" | "team"
+  subdir: "documents" | "team" | "attachments"
 ): Promise<string> {
   const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
   const key = `${subdir}/${crypto.randomUUID()}-${safeName}`;

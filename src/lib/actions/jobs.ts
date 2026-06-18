@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { actionRole, actionUser } from "@/lib/guards";
 import { notify } from "@/lib/email";
+import { notifySms } from "@/lib/sms";
+import { saveAttachments } from "@/lib/attachments";
 import { fmtDateTime } from "@/lib/queries";
 import { COMPANY } from "@/lib/constants";
 
@@ -14,7 +16,9 @@ const jobSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required").max(120),
   address: z.string().trim().min(1, "Address is required").max(300),
   service: z.string().trim().min(1, "Service is required").max(200),
+  kind: z.enum(["SERVICE", "PICKUP"]).default("SERVICE"),
   scheduledAt: z.coerce.date(),
+  endAt: z.coerce.date().optional(),
   technicianId: z.string().min(1, "Pick a technician"),
   clientId: z.string().optional(),
   requestId: z.string().optional(),
@@ -27,7 +31,9 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     customerName: formData.get("customerName"),
     address: formData.get("address"),
     service: formData.get("service"),
+    kind: formData.get("kind") || "SERVICE",
     scheduledAt: formData.get("scheduledAt"),
+    endAt: formData.get("endAt") || undefined,
     technicianId: formData.get("technicianId"),
     clientId: formData.get("clientId") || undefined,
     requestId: formData.get("requestId") || undefined,
@@ -55,12 +61,16 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       customerName: data.customerName,
       address: data.address,
       service: data.service,
+      kind: data.kind,
       scheduledAt: data.scheduledAt,
+      endAt: data.endAt ?? null,
       technicianId: tech.id,
       clientId,
     },
     include: { client: true },
   });
+
+  const label = data.kind === "PICKUP" ? "Pickup" : "Job";
 
   // If this job came from a quote request, mark the request handled.
   if (data.requestId) {
@@ -70,19 +80,31 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     });
   }
 
-  // Automation: notify the technician and (if linked) the client.
+  // Automation: notify the technician and (if linked) the client, by email + SMS.
   const when = fmtDateTime(job.scheduledAt);
   notify({
     to: [tech.email],
-    subject: `New job assigned: ${job.service} on ${when}`,
-    body: `Hi ${tech.name},\n\nA new job has been assigned to you.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
+    subject: `New ${label.toLowerCase()} assigned: ${job.service} on ${when}`,
+    body: `Hi ${tech.name},\n\nA new ${label.toLowerCase()} has been assigned to you.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
   });
+  if (tech.phone) {
+    notifySms({
+      to: [tech.phone],
+      body: `${COMPANY.shortName}: new ${label.toLowerCase()} ${when} — ${job.customerName}, ${job.service} at ${job.address}.`,
+    });
+  }
   if (job.client) {
     notify({
       to: [job.client.email],
       subject: `Your appointment with ${COMPANY.shortName} is scheduled`,
       body: `Hi ${job.client.name},\n\nYour appointment is scheduled.\n\nService: ${job.service}\nWhen: ${when}\nAddress: ${job.address}\n\nIf you need to make a change, call us at ${COMPANY.phone} or reply through the portal.`,
     });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} appointment is scheduled for ${when}. Questions? Call ${COMPANY.phone}.`,
+      });
+    }
   }
 
   revalidatePath("/portal", "layout");
@@ -122,13 +144,19 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
     },
   });
 
-  // Automation: tell the client when their job is finished.
+  // Automation: tell the client when their job is finished (email + SMS).
   if (status === "COMPLETED" && job.client) {
     notify({
       to: [job.client.email],
       subject: `Your ${job.service} service is complete`,
       body: `Hi ${job.client.name},\n\nGood news — today's service (${job.service}) at ${job.address} is complete.${summary ? `\n\nTechnician summary:\n${summary}` : ""}\n\nThank you for trusting ${COMPANY.name}.`,
     });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} service is complete. Thank you for choosing us!`,
+      });
+    }
   }
 
   revalidatePath("/portal", "layout");
@@ -138,7 +166,8 @@ export async function addJobNote(formData: FormData): Promise<void> {
   const user = await actionUser();
   const jobId = String(formData.get("jobId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
-  if (!body) return;
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!body && files.length === 0) return;
 
   const where =
     user.role === "ADMIN"
@@ -151,7 +180,10 @@ export async function addJobNote(formData: FormData): Promise<void> {
   const job = await db.job.findFirst({ where });
   if (!job) throw new Error("Not found");
 
-  await db.jobNote.create({ data: { jobId: job.id, authorId: user.id, body: body.slice(0, 5000) } });
+  const note = await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: body.slice(0, 5000) || "(photo)" },
+  });
+  await saveAttachments(files, { jobNoteId: note.id, uploadedById: user.id });
   revalidatePath("/portal", "layout");
 }
 
@@ -181,6 +213,12 @@ export async function cancelJob(formData: FormData): Promise<void> {
       subject: `Your appointment on ${fmtDateTime(job.scheduledAt)} was cancelled`,
       body: `Hi ${job.client.name},\n\nYour appointment (${job.service}) scheduled for ${fmtDateTime(job.scheduledAt)} has been cancelled.\n\nIf this is unexpected or you'd like to reschedule, call us at ${COMPANY.phone}.`,
     });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} appointment on ${fmtDateTime(job.scheduledAt)} was cancelled. To reschedule call ${COMPANY.phone}.`,
+      });
+    }
   }
 
   revalidatePath("/portal", "layout");

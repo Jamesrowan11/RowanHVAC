@@ -151,6 +151,19 @@ async function main() {
     },
   });
 
+  // A Pickup-type item, to show the calendar's two-week view + Pickup label.
+  await db.job.create({
+    data: {
+      customerName: "Supply House — Capitol",
+      address: "Parts pickup: condenser fan motor",
+      service: "Parts pickup",
+      kind: "PICKUP",
+      scheduledAt: daysFromNow(1, 8),
+      status: "SCHEDULED",
+      technicianId: dean.id,
+    },
+  });
+
   const completed = await db.job.create({
     data: {
       customerName: client.name,

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { actionUser } from "@/lib/guards";
 import { notify } from "@/lib/email";
+import { notifySms } from "@/lib/sms";
+import { saveAttachments } from "@/lib/attachments";
 import { COMPANY } from "@/lib/constants";
 import { canAccessThread } from "@/lib/messaging";
 import type { ActionState } from "@/lib/actions/jobs";
@@ -23,8 +25,9 @@ export async function startThread(_prev: ActionState, formData: FormData): Promi
 
   const subject = String(formData.get("subject") ?? "").trim().slice(0, 200);
   const body = String(formData.get("body") ?? "").trim().slice(0, 10000);
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
   if (!subject) return { ok: false, error: "Subject is required" };
-  if (!body) return { ok: false, error: "Message is required" };
+  if (!body && files.length === 0) return { ok: false, error: "Add a message or a photo" };
 
   let participantIds: string[];
 
@@ -56,11 +59,14 @@ export async function startThread(_prev: ActionState, formData: FormData): Promi
           ...participantIds.map((id) => ({ userId: id })),
         ],
       },
-      messages: { create: { authorId: user.id, body } },
     },
   });
+  const message = await db.message.create({
+    data: { threadId: thread.id, authorId: user.id, body: body || "(photo)" },
+  });
+  await saveAttachments(files, { messageId: message.id, uploadedById: user.id });
 
-  await notifyParticipants(thread.id, user, body);
+  await notifyParticipants(thread.id, user, body || "(sent a photo)");
 
   revalidatePath("/portal", "layout");
   redirect(`/portal/messages/${thread.id}`);
@@ -70,7 +76,8 @@ export async function replyToThread(formData: FormData): Promise<void> {
   const user = await actionUser();
   const threadId = String(formData.get("threadId") ?? "");
   const body = String(formData.get("body") ?? "").trim().slice(0, 10000);
-  if (!body) return;
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!body && files.length === 0) return;
 
   if (!(await canAccessThread(user, threadId))) throw new Error("Not found");
 
@@ -81,10 +88,13 @@ export async function replyToThread(formData: FormData): Promise<void> {
     update: { lastReadAt: new Date() },
   });
 
-  await db.message.create({ data: { threadId, authorId: user.id, body } });
+  const message = await db.message.create({
+    data: { threadId, authorId: user.id, body: body || "(photo)" },
+  });
+  await saveAttachments(files, { messageId: message.id, uploadedById: user.id });
   await db.thread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
 
-  await notifyParticipants(threadId, user, body);
+  await notifyParticipants(threadId, user, body || "(sent a photo)");
   revalidatePath("/portal", "layout");
 }
 
@@ -100,15 +110,24 @@ export async function markThreadRead(threadId: string): Promise<void> {
 async function notifyParticipants(threadId: string, author: User, body: string) {
   const others = await db.threadParticipant.findMany({
     where: { threadId, NOT: { userId: author.id } },
-    include: { user: { select: { email: true, active: true } } },
+    include: { user: { select: { email: true, phone: true, active: true } } },
   });
   const thread = await db.thread.findUnique({ where: { id: threadId } });
-  const emails = others.filter((p) => p.user.active).map((p) => p.user.email);
-  if (emails.length === 0 || !thread) return;
-
-  notify({
-    to: emails,
-    subject: `New message: ${thread.subject}`,
-    body: `You have a new message from ${author.name} on ${COMPANY.name}'s portal.\n\n"${body.slice(0, 500)}${body.length > 500 ? "…" : ""}"\n\nReply here: ${process.env.APP_URL || ""}/portal/messages/${threadId}`,
-  });
+  if (!thread) return;
+  const active = others.filter((p) => p.user.active);
+  const emails = active.map((p) => p.user.email);
+  if (emails.length > 0) {
+    notify({
+      to: emails,
+      subject: `New message: ${thread.subject}`,
+      body: `You have a new message from ${author.name} on ${COMPANY.name}'s portal.\n\n"${body.slice(0, 500)}${body.length > 500 ? "…" : ""}"\n\nReply here: ${process.env.APP_URL || ""}/portal/messages/${threadId}`,
+    });
+  }
+  const phones = active.map((p) => p.user.phone).filter((p): p is string => !!p);
+  if (phones.length > 0) {
+    notifySms({
+      to: phones,
+      body: `${COMPANY.shortName}: new message from ${author.name}. Reply in your portal: ${process.env.APP_URL || ""}/portal/messages`,
+    });
+  }
 }

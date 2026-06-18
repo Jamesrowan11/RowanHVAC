@@ -8,6 +8,7 @@ const navByRole = {
     { href: "/portal/admin", label: "Overview" },
     { href: "/portal/admin/requests", label: "Requests" },
     { href: "/portal/admin/schedule", label: "Schedule" },
+    { href: "/portal/calendar", label: "Calendar" },
     { href: "/portal/admin/users", label: "Users" },
     { href: "/portal/messages", label: "Messages", badge: true },
     { href: "/portal/admin/email", label: "Email" },
@@ -19,6 +20,7 @@ const navByRole = {
   ],
   EMPLOYEE: [
     { href: "/portal/employee", label: "My Schedule" },
+    { href: "/portal/calendar", label: "Calendar" },
     { href: "/portal/messages", label: "Messages", badge: true },
     { href: "/portal/employee/email", label: "Email" },
     { href: "/portal/employee/announcements", label: "Announcements" },

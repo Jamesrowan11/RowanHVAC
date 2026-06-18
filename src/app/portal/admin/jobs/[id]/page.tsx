@@ -6,6 +6,7 @@ import { fmtDateTime } from "@/lib/queries";
 import { updateJobStatus, addJobNote, cancelJob, reinstateJob } from "@/lib/actions/jobs";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
+import Attachments, { PhotoInput } from "@/components/portal/Attachments";
 
 export const metadata = { title: "Job Details" };
 
@@ -18,7 +19,10 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
     include: {
       technician: { select: { name: true, email: true } },
       client: { select: { id: true, name: true, email: true } },
-      notes: { orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } },
+      notes: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { name: true } }, attachments: true },
+      },
     },
   });
   if (!job) notFound();
@@ -36,7 +40,8 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
         <section className="card lg:col-span-1">
           <h2 className="font-bold text-navy">Details</h2>
           <dl className="mt-3 space-y-3 text-sm">
-            <div><dt className="font-medium text-gray-500">When</dt><dd>{fmtDateTime(job.scheduledAt)}</dd></div>
+            <div><dt className="font-medium text-gray-500">Type</dt><dd>{job.kind === "PICKUP" ? "Pickup" : "Service job"}</dd></div>
+            <div><dt className="font-medium text-gray-500">When</dt><dd>{fmtDateTime(job.scheduledAt)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
             <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
             <div><dt className="font-medium text-gray-500">Technician</dt><dd>{job.technician.name}</dd></div>
             <div>
@@ -103,22 +108,25 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
           <p className="mt-1 text-xs text-gray-500">
             Visible to admins and the assigned technician — never to the client.
           </p>
-          <form action={addJobNote} className="mt-4 flex items-start gap-2">
+          <form action={addJobNote} className="mt-4">
             <input type="hidden" name="jobId" value={job.id} />
             <textarea
               name="body"
-              required
               rows={2}
               placeholder="Add a note…"
-              className="input flex-1"
+              className="input"
             />
-            <button type="submit" className="btn-small">Add</button>
+            <div className="mt-2 flex items-center justify-between">
+              <PhotoInput />
+              <button type="submit" className="btn-small">Add</button>
+            </div>
           </form>
           <ul className="mt-4 space-y-3">
             {job.notes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
             {job.notes.map((n) => (
               <li key={n.id} className="rounded-lg bg-navy-50 p-3 text-sm">
                 <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                <Attachments items={n.attachments} />
                 <p className="mt-1 text-xs text-gray-500">
                   {n.author.name} · {fmtDateTime(n.createdAt)}
                 </p>
