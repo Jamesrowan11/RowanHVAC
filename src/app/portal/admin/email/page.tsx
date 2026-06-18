@@ -50,8 +50,9 @@ export default async function AdminEmail() {
       <section>
         <h2 className="text-lg font-bold text-navy">SMS History</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Automated text notifications. When Twilio isn&apos;t configured these are
-          logged in &ldquo;console mode&rdquo; (recorded here, printed to the server log).
+          Automated text notifications, sent from the company&apos;s RingCentral
+          number. Until RingCentral is connected these are logged in
+          &ldquo;console mode&rdquo; (recorded here, printed to the server log).
         </p>
         <ul className="mt-4 space-y-2">
           {smsLogs.length === 0 && <li className="text-sm text-gray-500">No texts yet.</li>}
