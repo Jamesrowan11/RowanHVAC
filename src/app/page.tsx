@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
 import ContactForm from "@/components/public/ContactForm";
 import ServiceAreaChecker from "@/components/public/ServiceAreaChecker";
-import { SERVICE_AREAS } from "@/lib/serviceArea";
+import { buildAreaData, groupByRegion } from "@/lib/serviceArea";
+import { getSiteContent, getServiceAreas } from "@/lib/siteContent";
 
 export const dynamic = "force-dynamic";
 
@@ -78,10 +79,18 @@ function Stars() {
 }
 
 export default async function HomePage() {
-  const techs = await db.teamMember.findMany({
-    where: { active: true },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const [techs, content, areas] = await Promise.all([
+    db.teamMember.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+    getSiteContent(),
+    getServiceAreas(),
+  ]);
+
+  const areaData = buildAreaData(areas);
+  const regions = groupByRegion(areas);
+  const phoneHref = `tel:${content.contactPhone.replace(/[^\d+]/g, "")}`;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -107,13 +116,10 @@ export default async function HomePage() {
       closes: "17:00",
     },
     areaServed: [
-      "Howard County, MD",
-      "Montgomery County, MD",
-      "Prince George's County, MD",
-      "Washington, DC",
-      ...SERVICE_AREAS.flatMap((a) =>
-        a.region === "Washington, DC" ? [] : a.cities.map((c) => `${c}, MD`)
-      ),
+      ...new Set([
+        ...regions.map((r) => r.region),
+        ...areas.filter((a) => a.region !== "Washington, DC").map((a) => `${a.town}, MD`),
+      ]),
     ].map((name) => ({ "@type": "Place", name })),
     url: process.env.APP_URL || "https://rowanhvac.com",
   };
@@ -150,16 +156,15 @@ export default async function HomePage() {
               {COMPANY.name}
             </p>
             <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">
-              Reliable Heating &amp; Cooling for Highland and Howard County
+              {content.heroHeadline}
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-lg text-navy-100">
-              Family-owned and operated in Howard County since 1958 — honest,
-              dependable heating and cooling you can trust.
+              {content.heroSubheading}
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a href="#contact" className="btn-primary w-full sm:w-auto">Request a Quote</a>
-              <a href={COMPANY.phoneHref} className="btn-secondary w-full sm:w-auto">
-                Call Now · {COMPANY.phone}
+              <a href={phoneHref} className="btn-secondary w-full sm:w-auto">
+                Call Now · {content.contactPhone}
               </a>
             </div>
           </div>
@@ -180,7 +185,7 @@ export default async function HomePage() {
             ))}
           </div>
           <p className="mt-8 text-center font-medium text-navy-600">
-            We service and install Trane, Carrier, and WaterFurnace systems.
+            {content.servicesBrandLine}
           </p>
         </section>
 
@@ -208,15 +213,14 @@ export default async function HomePage() {
         <section id="service-area" className="mx-auto max-w-6xl px-4 py-16 text-center sm:py-20">
           <h2 className="text-3xl font-bold text-navy">Our Service Area</h2>
           <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            Based in Howard County and proudly serving homes across central
-            Maryland and Washington, DC — plus some surrounding areas.
+            {content.serviceAreaIntro}
           </p>
           <div className="mt-10 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-4">
-            {SERVICE_AREAS.map((area) => (
+            {regions.map((area) => (
               <div key={area.region} className="card">
                 <h3 className="font-bold text-navy">{area.region}</h3>
                 <ul className="mt-3 flex flex-wrap gap-2">
-                  {area.cities.map((c) => (
+                  {area.towns.map((c) => (
                     <li key={c} className="rounded-full bg-navy-50 px-3 py-1 text-sm font-medium text-navy">
                       {c}
                     </li>
@@ -225,7 +229,7 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
-          <ServiceAreaChecker />
+          <ServiceAreaChecker data={areaData} phone={content.contactPhone} />
         </section>
 
         {/* Meet Our Techs — populated from the admin dashboard (Team page) */}
@@ -288,19 +292,19 @@ export default async function HomePage() {
               <dl className="mt-8 space-y-4 text-gray-700">
                 <div>
                   <dt className="font-semibold text-navy">Phone</dt>
-                  <dd><a href={COMPANY.phoneHref} className="hover:text-accent-600">{COMPANY.phone}</a></dd>
+                  <dd><a href={phoneHref} className="hover:text-accent-600">{content.contactPhone}</a></dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-navy">Email</dt>
-                  <dd><a href={`mailto:${COMPANY.email}`} className="hover:text-accent-600">{COMPANY.email}</a></dd>
+                  <dd><a href={`mailto:${content.contactEmail}`} className="hover:text-accent-600">{content.contactEmail}</a></dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-navy">Mailing Address</dt>
-                  <dd>{COMPANY.address}</dd>
+                  <dd>{content.contactAddress}</dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-navy">Hours</dt>
-                  <dd>{COMPANY.hours}</dd>
+                  <dd>{content.contactHours}</dd>
                 </div>
               </dl>
             </div>
@@ -314,18 +318,16 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
           <div>
             <p className="font-bold text-white">{COMPANY.name}</p>
-            <p className="mt-2 text-sm">
-              Reliable, honest HVAC service for Highland and Howard County, Maryland.
-            </p>
+            <p className="mt-2 text-sm">{content.footerTagline}</p>
             <p className="mt-2 text-sm">Licensed &amp; Insured in Maryland</p>
           </div>
           <div className="text-sm">
             <p className="font-semibold text-white">Contact</p>
             <ul className="mt-2 space-y-1">
-              <li><a href={COMPANY.phoneHref} className="hover:text-white">{COMPANY.phone}</a></li>
-              <li><a href={`mailto:${COMPANY.email}`} className="hover:text-white">{COMPANY.email}</a></li>
-              <li>{COMPANY.address}</li>
-              <li>{COMPANY.hours}</li>
+              <li><a href={phoneHref} className="hover:text-white">{content.contactPhone}</a></li>
+              <li><a href={`mailto:${content.contactEmail}`} className="hover:text-white">{content.contactEmail}</a></li>
+              <li>{content.contactAddress}</li>
+              <li>{content.contactHours}</li>
             </ul>
           </div>
           <div className="text-sm">

@@ -21,8 +21,14 @@ export const SERVICE_OPTIONS = [
   "Other",
 ];
 
-// Sliding inactivity window and absolute session lifetime, in seconds.
+// Default (shared/computer) sessions: short, for security.
 export const SESSION_IDLE_SECONDS = 30 * 60;
 export const SESSION_MAX_SECONDS = 8 * 60 * 60;
+
+// "Keep me signed in" / installed-app sessions: long-lived on a trusted device.
+export const SESSION_REMEMBER_IDLE_SECONDS = 60 * 60 * 24 * 30; // 30 days idle
+export const SESSION_REMEMBER_MAX_SECONDS = 60 * 60 * 24 * 90; // 90 days absolute
+// Cookie lifetime must cover the longest possible session.
+export const SESSION_COOKIE_MAX_SECONDS = SESSION_REMEMBER_MAX_SECONDS;
 
 export const MAX_EMAIL_RECIPIENTS = 25;

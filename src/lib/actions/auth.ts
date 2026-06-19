@@ -10,6 +10,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      remember: formData.get("remember") === "on" ? "true" : "false",
       redirectTo: "/portal",
     });
     return {};

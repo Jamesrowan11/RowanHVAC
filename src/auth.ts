@@ -2,12 +2,19 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
-import { SESSION_IDLE_SECONDS, SESSION_MAX_SECONDS } from "@/lib/constants";
+import {
+  SESSION_IDLE_SECONDS,
+  SESSION_MAX_SECONDS,
+  SESSION_REMEMBER_IDLE_SECONDS,
+  SESSION_REMEMBER_MAX_SECONDS,
+  SESSION_COOKIE_MAX_SECONDS,
+} from "@/lib/constants";
 import type { Role } from "@prisma/client";
 
 declare module "next-auth" {
   interface User {
     role: Role;
+    remember?: boolean;
   }
   interface Session {
     user: {
@@ -23,9 +30,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    // Cookie lifetime matches the inactivity window; it is refreshed on
-    // activity, so an idle browser is logged out after ~30 minutes.
-    maxAge: SESSION_IDLE_SECONDS,
+    // Cookie can live up to the longest possible ("keep me signed in") session;
+    // the jwt callback enforces the real idle/absolute limits per session.
+    maxAge: SESSION_COOKIE_MAX_SECONDS,
   },
   cookies: {
     sessionToken: {
@@ -42,7 +49,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { email: {}, password: {}, remember: {} },
       async authorize(credentials) {
         const email = String(credentials?.email ?? "").toLowerCase().trim();
         const password = String(credentials?.password ?? "");
@@ -54,7 +61,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await compare(password, user.passwordHash);
         if (!valid) return null;
 
-        return { id: user.id, name: user.name, email: user.email, role: user.role };
+        const remember = String(credentials?.remember ?? "") === "true";
+        return { id: user.id, name: user.name, email: user.email, role: user.role, remember };
       },
     }),
   ],
@@ -64,15 +72,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.uid = user.id;
         token.role = user.role;
+        token.remember = !!user.remember;
         token.loginAt = now;
         token.lastSeen = now;
         return token;
       }
       const lastSeen = (token.lastSeen as number) ?? 0;
       const loginAt = (token.loginAt as number) ?? 0;
-      // Inactivity timeout (~30 min) and absolute lifetime (~8 h).
-      if (now - lastSeen > SESSION_IDLE_SECONDS) return null;
-      if (now - loginAt > SESSION_MAX_SECONDS) return null;
+      // "Keep me signed in" (installed app / trusted device) gets a long
+      // window; everyone else keeps the strict 30-min idle / 8-hour cap.
+      const remember = token.remember === true;
+      const idleLimit = remember ? SESSION_REMEMBER_IDLE_SECONDS : SESSION_IDLE_SECONDS;
+      const maxLimit = remember ? SESSION_REMEMBER_MAX_SECONDS : SESSION_MAX_SECONDS;
+      if (now - lastSeen > idleLimit) return null;
+      if (now - loginAt > maxLimit) return null;
       token.lastSeen = now;
       return token;
     },

@@ -144,6 +144,21 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
     },
   });
 
+  // Automation: tell the client when work starts (email + SMS).
+  if (status === "IN_PROGRESS" && job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your ${job.service} service is underway`,
+      body: `Hi ${job.client.name},\n\nOur technician has started work on your ${job.service} at ${job.address}. We'll let you know as soon as it's complete.\n\nThank you for choosing ${COMPANY.name}.`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: our technician has started your ${job.service}. We'll update you when it's done.`,
+      });
+    }
+  }
+
   // Automation: tell the client when their job is finished (email + SMS).
   if (status === "COMPLETED" && job.client) {
     notify({
@@ -159,6 +174,89 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
     }
   }
 
+  revalidatePath("/portal", "layout");
+}
+
+/** Quick "on my way" update a tech (or admin) sends the customer en route. */
+export async function notifyOnMyWay(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  const eta = String(formData.get("eta") ?? "").trim().slice(0, 60);
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, technicianId: user.id }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) throw new Error("Not found");
+
+  const etaText = eta ? ` We expect to arrive in about ${eta}.` : "";
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your ${COMPANY.shortName} technician is on the way`,
+      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nSee you soon!`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText}`,
+      });
+    }
+  }
+  // Log it on the job so the office sees the customer was notified.
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}` },
+  });
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Ask the customer to confirm being the technician's next stop. Sends a
+ * tokenized link by email + SMS with two choices: ready now, or wait.
+ */
+export async function askNextUp(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, technicianId: user.id }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) throw new Error("Not found");
+
+  const token = crypto.randomUUID();
+  await db.job.update({
+    where: { id: job.id },
+    data: { confirmToken: token, confirmStatus: "ASKED", confirmAskedAt: new Date(), confirmRespondedAt: null },
+  });
+
+  const link = `${process.env.APP_URL || ""}/confirm/${token}`;
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `You're next — ready for your ${job.service} appointment?`,
+      body: `Hi ${job.client.name},\n\nOur technician is about ready to head your way for your ${job.service} appointment. Are you all set for us to come now, or would you prefer to wait for a later time?\n\nPlease let us know here:\n${link}\n\nThanks!\n${COMPANY.name}`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: you're next for your ${job.service}. OK to come now, or wait? Tap to let us know: ${link}`,
+      });
+    }
+  }
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: "📨 Asked customer to confirm being next." },
+  });
   revalidatePath("/portal", "layout");
 }
 

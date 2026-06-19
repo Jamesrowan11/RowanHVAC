@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
-import { updateJobStatus, addJobNote } from "@/lib/actions/jobs";
+import { updateJobStatus, addJobNote, notifyOnMyWay, askNextUp } from "@/lib/actions/jobs";
 import { addCustomerNote } from "@/lib/actions/clients";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -76,6 +76,38 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
               </div>
               <button type="submit" className="btn-small">Save</button>
             </form>
+          )}
+
+          {job.status !== "CANCELLED" && job.status !== "COMPLETED" && job.client && (
+            <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+              <form action={notifyOnMyWay}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <label htmlFor="eta" className="label">Let the customer know you&apos;re on the way</label>
+                <div className="flex items-end gap-2">
+                  <input id="eta" name="eta" placeholder="ETA e.g. 20 minutes (optional)" className="input flex-1" />
+                  <button type="submit" className="btn-small">On my way</button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Sends the customer an email and text.</p>
+              </form>
+
+              <form action={askNextUp}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <label className="label">Confirm before you head over</label>
+                {job.confirmStatus === "READY" ? (
+                  <p className="text-sm font-medium text-green-700">✅ Customer confirmed: ready now.</p>
+                ) : job.confirmStatus === "WAIT" ? (
+                  <p className="text-sm font-medium text-amber-700">⏳ Customer asked to wait — follow up before going.</p>
+                ) : job.confirmStatus === "ASKED" ? (
+                  <p className="text-sm text-gray-500">Asked — waiting for the customer to respond.</p>
+                ) : null}
+                <button type="submit" className="btn-small mt-1">
+                  {job.confirmStatus ? "Ask again: are you next-ready?" : "Ask customer: ready to be next?"}
+                </button>
+                <p className="mt-1 text-xs text-gray-500">
+                  Texts/emails the customer a link to confirm now or ask to wait.
+                </p>
+              </form>
+            </div>
           )}
         </section>
 

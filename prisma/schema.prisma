@@ -109,6 +109,12 @@ model Job {
   cancelledAt  DateTime?
   completedAt  DateTime?
 
+  // "You're next — okay now, or wait?" customer confirmation
+  confirmToken       String?   @unique
+  confirmStatus      String?   // ASKED | READY | WAIT
+  confirmAskedAt     DateTime?
+  confirmRespondedAt DateTime?
+
   technicianId String
   technician   User      @relation("JobTechnician", fields: [technicianId], references: [id])
   clientId     String?
@@ -287,4 +293,15 @@ model TeamMember {
 model Setting {
   key   String @id
   value String @db.Text
+}
+
+model ServiceArea {
+  id        String  @id @default(cuid())
+  region    String
+  town      String
+  zips      String  @db.Text // space/comma-separated ZIP codes
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
+
+  @@index([active])
 }
