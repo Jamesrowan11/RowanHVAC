@@ -1,18 +1,12 @@
 import { db } from "@/lib/db";
 
 /**
- * Pluggable SMS layer. Sends through Nextiva (the phone system used here) when
- * configured, so texts come from the company's own business number. If Nextiva
- * isn't configured, the message is logged to the console so the app runs fully
- * without an SMS account. Every send is recorded in SmsLog.
+ * Pluggable SMS layer. Sends through Twilio when configured, otherwise logs
+ * the message to the console so the app runs fully without an SMS account.
+ * Every send is recorded in SmsLog.
  *
- * Nextiva's programmatic SMS is account-gated, so the endpoint is configurable
- * rather than hardcoded:
- *   NEXTIVA_API_URL    — the SMS send endpoint from your Nextiva developer account
- *   NEXTIVA_API_KEY    — bearer token / API key for that endpoint
- *   NEXTIVA_FROM       — your SMS-enabled Nextiva number (e.g. +14105310008)
- * Confirm the exact URL and payload with Nextiva; adjust buildPayload() below
- * if their API expects a different shape.
+ *   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN — from your Twilio console
+ *   TWILIO_FROM — your SMS-enabled Twilio number (e.g. +14105310008)
  */
 
 export type SendSmsInput = {
@@ -29,31 +23,29 @@ function normalizeUS(phone: string): string | null {
   return null; // unrecognizable — skip rather than send junk
 }
 
-function nextivaConfigured(): boolean {
-  return !!(process.env.NEXTIVA_API_URL && process.env.NEXTIVA_API_KEY && process.env.NEXTIVA_FROM);
+function twilioConfigured(): boolean {
+  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM);
 }
 
-// Default request body for Nextiva's SMS endpoint. Adjust here if Nextiva's
-// API expects different field names.
-function buildPayload(from: string, to: string, text: string) {
-  return { from, to, text };
-}
-
-async function sendViaNextiva(from: string, to: string[], text: string) {
-  const url = process.env.NEXTIVA_API_URL as string;
-  const key = process.env.NEXTIVA_API_KEY as string;
+async function sendViaTwilio(from: string, to: string[], text: string) {
+  const sid = process.env.TWILIO_ACCOUNT_SID as string;
+  const token = process.env.TWILIO_AUTH_TOKEN as string;
+  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
   // One request per recipient — keeps this as individual notifications.
   for (const number of to) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(buildPayload(from, number, text)),
-    });
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ To: number, From: from, Body: text }),
+      }
+    );
     if (!res.ok) {
-      throw new Error(`Nextiva SMS ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      throw new Error(`Twilio ${res.status}: ${(await res.text()).slice(0, 300)}`);
     }
   }
 }
@@ -67,9 +59,9 @@ export async function sendSms(input: SendSmsInput) {
   let status: "SENT" | "LOGGED" | "FAILED" = "LOGGED";
   let error: string | null = null;
 
-  if (nextivaConfigured()) {
+  if (twilioConfigured()) {
     try {
-      await sendViaNextiva(process.env.NEXTIVA_FROM as string, numbers, input.body);
+      await sendViaTwilio(process.env.TWILIO_FROM as string, numbers, input.body);
       status = "SENT";
     } catch (e) {
       status = "FAILED";
@@ -78,8 +70,8 @@ export async function sendSms(input: SendSmsInput) {
   } else {
     console.log(
       [
-        "================ SMS (console mode — Nextiva not configured) ================",
-        `From: ${process.env.NEXTIVA_FROM || "(Nextiva number)"}`,
+        "================ SMS (console mode — Twilio not configured) =================",
+        `From: ${process.env.TWILIO_FROM || "(Twilio number)"}`,
         `To:   ${numbers.join(", ")}`,
         "----------------------------------------------------------------------------",
         input.body,
