@@ -1,6 +1,6 @@
 {
   "packageId": "com.rowanhvac.app",
-  "host": "rowanhvac.com",
+  "host": "rowanhvac.rowancopy.com",
   "name": "Rowan Heating & Air Conditioning",
   "launcherName": "Rowan HVAC",
   "display": "standalone",
@@ -14,9 +14,9 @@
   "backgroundColor": "#1a2b4a",
   "enableNotifications": true,
   "startUrl": "/portal",
-  "iconUrl": "https://rowanhvac.com/icon-512.png",
-  "maskableIconUrl": "https://rowanhvac.com/icon-512.png",
-  "monochromeIconUrl": "https://rowanhvac.com/icon-512.png",
+  "iconUrl": "https://rowanhvac.rowancopy.com/icon-512.png",
+  "maskableIconUrl": "https://rowanhvac.rowancopy.com/icon-512.png",
+  "monochromeIconUrl": "https://rowanhvac.rowancopy.com/icon-512.png",
   "splashScreenFadeOutDuration": 300,
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
@@ -26,22 +26,22 @@
       "name": "Messages",
       "shortName": "Messages",
       "url": "/portal/messages",
-      "chosenIconUrl": "https://rowanhvac.com/icon-192.png"
+      "chosenIconUrl": "https://rowanhvac.rowancopy.com/icon-192.png"
     },
     {
       "name": "Calendar",
       "shortName": "Calendar",
       "url": "/portal/calendar",
-      "chosenIconUrl": "https://rowanhvac.com/icon-192.png"
+      "chosenIconUrl": "https://rowanhvac.rowancopy.com/icon-192.png"
     }
   ],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://rowanhvac.com/manifest.webmanifest",
+  "webManifestUrl": "https://rowanhvac.rowancopy.com/manifest.webmanifest",
   "fallbackType": "customtabs",
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://rowanhvac.com/",
+  "fullScopeUrl": "https://rowanhvac.rowancopy.com/",
   "fingerprints": [],
-  "additionalTrustedOrigins": ["rowanhvac.rowancopy.com"]
+  "additionalTrustedOrigins": ["rowanhvac.com"]
 }
