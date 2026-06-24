@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { actionUser } from "@/lib/guards";
 import { notify } from "@/lib/email";
 import { notifySms } from "@/lib/sms";
+import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
 import { COMPANY } from "@/lib/constants";
 import { canAccessThread } from "@/lib/messaging";
@@ -110,11 +111,19 @@ export async function markThreadRead(threadId: string): Promise<void> {
 async function notifyParticipants(threadId: string, author: User, body: string) {
   const others = await db.threadParticipant.findMany({
     where: { threadId, NOT: { userId: author.id } },
-    include: { user: { select: { email: true, phone: true, active: true } } },
+    include: { user: { select: { id: true, email: true, phone: true, active: true } } },
   });
   const thread = await db.thread.findUnique({ where: { id: threadId } });
   if (!thread) return;
   const active = others.filter((p) => p.user.active);
+  notifyPush(
+    active.map((p) => p.user.id),
+    {
+      title: `New message from ${author.name}`,
+      body: body.slice(0, 140),
+      url: `/portal/messages/${threadId}`,
+    }
+  );
   const emails = active.map((p) => p.user.email);
   if (emails.length > 0) {
     notify({

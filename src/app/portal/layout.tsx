@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/guards";
 import { unreadMessageCount } from "@/lib/queries";
 import { logoutAction } from "@/lib/actions/auth";
+import MobileNav from "@/components/portal/MobileNav";
+import NotificationsSetup from "@/components/portal/NotificationsSetup";
 
 const navByRole = {
   ADMIN: [
@@ -67,7 +69,8 @@ export default async function PortalLayout({ children }: { children: React.React
             </form>
           </div>
         </div>
-        <nav aria-label="Portal navigation" className="mx-auto max-w-6xl overflow-x-auto px-4">
+        {/* Desktop tab nav — hidden on phones, where the bottom bar takes over */}
+        <nav aria-label="Portal navigation" className="mx-auto hidden max-w-6xl overflow-x-auto px-4 sm:block">
           <ul className="flex gap-1 pb-2">
             {nav.map((item) => (
               <li key={item.href}>
@@ -87,9 +90,13 @@ export default async function PortalLayout({ children }: { children: React.React
           </ul>
         </nav>
       </header>
-      <main id="main" className="mx-auto max-w-6xl px-4 py-8">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8 pb-28 sm:pb-8">
+        <NotificationsSetup />
         {children}
       </main>
+
+      {/* App-style bottom navigation on phones */}
+      <MobileNav role={user.role} unread={unread} />
     </div>
   );
 }

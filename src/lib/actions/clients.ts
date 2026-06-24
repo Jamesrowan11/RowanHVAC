@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { actionRole, actionUser } from "@/lib/guards";
 import { notify } from "@/lib/email";
+import { notifyPush } from "@/lib/push";
 import { saveUpload, deleteUpload, isAllowedUpload } from "@/lib/storage";
 import { COMPANY } from "@/lib/constants";
 import type { ActionState } from "@/lib/actions/jobs";
@@ -45,6 +46,11 @@ export async function addPaymentLink(_prev: ActionState, formData: FormData): Pr
     to: [client.email],
     subject: `Payment link from ${COMPANY.shortName}`,
     body: `Hi ${client.name},\n\nWe've sent you a payment link${parsed.data.label ? ` for: ${parsed.data.label}` : ""}.\n\nPay securely here: ${parsed.data.url}\n\nYou can also find this link any time under Documents & Payments in your portal: ${process.env.APP_URL || ""}/portal/client/billing\n\nQuestions? Call us at ${COMPANY.phone}.`,
+  });
+  notifyPush([client.id], {
+    title: "New payment link",
+    body: parsed.data.label ? `For: ${parsed.data.label}` : "A payment link is ready for you.",
+    url: "/portal/client/billing",
   });
 
   revalidatePath("/portal", "layout");
@@ -102,6 +108,11 @@ export async function uploadDocument(_prev: ActionState, formData: FormData): Pr
     to: [client.email],
     subject: `New document from ${COMPANY.shortName}`,
     body: `Hi ${client.name},\n\nWe've shared a new document with you: ${file.name}\n\nView and download it under Documents & Payments in your portal: ${process.env.APP_URL || ""}/portal/client/billing`,
+  });
+  notifyPush([client.id], {
+    title: "New document shared",
+    body: file.name,
+    url: "/portal/client/billing",
   });
 
   revalidatePath("/portal", "layout");

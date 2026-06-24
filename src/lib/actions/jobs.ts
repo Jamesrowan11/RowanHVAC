@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { actionRole, actionUser } from "@/lib/guards";
 import { notify } from "@/lib/email";
 import { notifySms } from "@/lib/sms";
+import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
 import { fmtDateTime } from "@/lib/queries";
 import { COMPANY } from "@/lib/constants";
@@ -93,6 +94,11 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       body: `${COMPANY.shortName}: new ${label.toLowerCase()} ${when} — ${job.customerName}, ${job.service} at ${job.address}.`,
     });
   }
+  notifyPush([tech.id], {
+    title: `New ${label.toLowerCase()} assigned`,
+    body: `${when} — ${job.customerName}, ${job.service}`,
+    url: `/portal/employee/jobs/${job.id}`,
+  });
   if (job.client) {
     notify({
       to: [job.client.email],
@@ -105,6 +111,11 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
         body: `${COMPANY.shortName}: your ${job.service} appointment is scheduled for ${when}. Questions? Call ${COMPANY.phone}.`,
       });
     }
+    notifyPush([job.client.id], {
+      title: "Appointment scheduled",
+      body: `${job.service} — ${when}`,
+      url: "/portal/client",
+    });
   }
 
   revalidatePath("/portal", "layout");
@@ -172,6 +183,11 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
         body: `${COMPANY.shortName}: your ${job.service} service is complete. Thank you for choosing us!`,
       });
     }
+    notifyPush([job.client.id], {
+      title: "Service complete",
+      body: `Your ${job.service} is done.`,
+      url: "/portal/client/history",
+    });
   }
 
   revalidatePath("/portal", "layout");
@@ -317,6 +333,11 @@ export async function cancelJob(formData: FormData): Promise<void> {
         body: `${COMPANY.shortName}: your ${job.service} appointment on ${fmtDateTime(job.scheduledAt)} was cancelled. To reschedule call ${COMPANY.phone}.`,
       });
     }
+    notifyPush([job.client.id], {
+      title: "Appointment cancelled",
+      body: `Your ${job.service} on ${fmtDateTime(job.scheduledAt)} was cancelled.`,
+      url: "/portal/client",
+    });
   }
 
   revalidatePath("/portal", "layout");
