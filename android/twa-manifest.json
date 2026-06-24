@@ -42,6 +42,10 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://rowanhvac.rowancopy.com/",
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
   "fingerprints": [],
   "additionalTrustedOrigins": ["rowanhvac.com"]
 }
