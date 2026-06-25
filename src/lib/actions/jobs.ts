@@ -193,6 +193,59 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
   revalidatePath("/portal", "layout");
 }
 
+/**
+ * A tech who's free picks up a teammate's not-yet-started job for today.
+ * Reassigns the job to themselves and notifies the original tech + office.
+ */
+export async function pickUpJob(formData: FormData): Promise<void> {
+  const user = await actionRole("EMPLOYEE", "ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay); endOfDay.setDate(endOfDay.getDate() + 1);
+
+  // Only a teammate's still-scheduled (unstarted) job for today can be grabbed.
+  const job = await db.job.findFirst({
+    where: {
+      id: jobId,
+      status: "SCHEDULED",
+      technicianId: { not: user.id },
+      scheduledAt: { gte: startOfDay, lt: endOfDay },
+    },
+    include: { technician: true },
+  });
+  if (!job) throw new Error("This job isn't available to pick up");
+
+  const previousTech = job.technician;
+
+  await db.job.update({ where: { id: job.id }, data: { technicianId: user.id } });
+  await db.jobNote.create({
+    data: {
+      jobId: job.id,
+      authorId: user.id,
+      body: `🤝 Picked up by ${user.name} (was assigned to ${previousTech.name}).`,
+    },
+  });
+
+  // Let the original tech and the office know about the reassignment.
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", active: true },
+    select: { id: true, email: true },
+  });
+  notify({
+    to: [previousTech.email, ...admins.map((a) => a.email)],
+    subject: `Job picked up: ${job.service} for ${job.customerName}`,
+    body: `${user.name} picked up the ${job.service} job for ${job.customerName} (${fmtDateTime(job.scheduledAt)}) — previously assigned to ${previousTech.name}.`,
+  });
+  notifyPush([previousTech.id, ...admins.map((a) => a.id)], {
+    title: "Job picked up",
+    body: `${user.name} took the ${job.service} for ${job.customerName}.`,
+    url: "/portal/employee",
+  });
+
+  revalidatePath("/portal", "layout");
+}
+
 /** Quick "on my way" update a tech (or admin) sends the customer en route. */
 export async function notifyOnMyWay(formData: FormData): Promise<void> {
   const user = await actionUser();
