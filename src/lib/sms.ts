@@ -1,12 +1,15 @@
 import { db } from "@/lib/db";
 
 /**
- * Pluggable SMS layer. Sends through Twilio when configured, otherwise logs
- * the message to the console so the app runs fully without an SMS account.
- * Every send is recorded in SmsLog.
+ * Pluggable SMS layer with selectable provider. Set SMS_PROVIDER to "twilio"
+ * (default) or "nextiva". If the chosen provider isn't fully configured, the
+ * message is logged to the console so the app always runs. Every send is
+ * recorded in SmsLog.
  *
- *   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN — from your Twilio console
- *   TWILIO_FROM — your SMS-enabled Twilio number (e.g. +14105310008)
+ * Twilio:  TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM
+ * Nextiva: NEXTIVA_API_URL, NEXTIVA_API_KEY, NEXTIVA_FROM
+ *          (Nextiva's SMS API is account-gated — get the endpoint + key from
+ *           Nextiva; adjust buildNextivaPayload() if their API differs.)
  */
 
 export type SendSmsInput = {
@@ -14,6 +17,10 @@ export type SendSmsInput = {
   to: string[]; // phone numbers
   body: string;
 };
+
+function provider(): "twilio" | "nextiva" {
+  return (process.env.SMS_PROVIDER || "twilio").toLowerCase() === "nextiva" ? "nextiva" : "twilio";
+}
 
 function normalizeUS(phone: string): string | null {
   const digits = phone.replace(/[^\d]/g, "");
@@ -23,32 +30,53 @@ function normalizeUS(phone: string): string | null {
   return null; // unrecognizable — skip rather than send junk
 }
 
+/* ------------------------------- Twilio ---------------------------------- */
+
 function twilioConfigured(): boolean {
   return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM);
 }
 
-async function sendViaTwilio(from: string, to: string[], text: string) {
+async function sendViaTwilio(to: string[], text: string) {
   const sid = process.env.TWILIO_ACCOUNT_SID as string;
   const token = process.env.TWILIO_AUTH_TOKEN as string;
+  const from = process.env.TWILIO_FROM as string;
   const auth = Buffer.from(`${sid}:${token}`).toString("base64");
-  // One request per recipient — keeps this as individual notifications.
   for (const number of to) {
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ To: number, From: from, Body: text }),
-      }
-    );
-    if (!res.ok) {
-      throw new Error(`Twilio ${res.status}: ${(await res.text()).slice(0, 300)}`);
-    }
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ To: number, From: from, Body: text }),
+    });
+    if (!res.ok) throw new Error(`Twilio ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
 }
+
+/* ------------------------------- Nextiva --------------------------------- */
+
+function nextivaConfigured(): boolean {
+  return !!(process.env.NEXTIVA_API_URL && process.env.NEXTIVA_API_KEY && process.env.NEXTIVA_FROM);
+}
+
+// Adjust this if Nextiva's API expects different field names.
+function buildNextivaPayload(from: string, to: string, text: string) {
+  return { from, to, text };
+}
+
+async function sendViaNextiva(to: string[], text: string) {
+  const url = process.env.NEXTIVA_API_URL as string;
+  const key = process.env.NEXTIVA_API_KEY as string;
+  const from = process.env.NEXTIVA_FROM as string;
+  for (const number of to) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(buildNextivaPayload(from, number, text)),
+    });
+    if (!res.ok) throw new Error(`Nextiva ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+}
+
+/* ------------------------------- Dispatch -------------------------------- */
 
 export async function sendSms(input: SendSmsInput) {
   const numbers = [...new Set(input.to.map(normalizeUS).filter((n): n is string => !!n))];
@@ -56,12 +84,16 @@ export async function sendSms(input: SendSmsInput) {
     return { ok: false, status: "FAILED" as const, error: "No valid phone numbers" };
   }
 
+  const chosen = provider();
+  const ready = chosen === "nextiva" ? nextivaConfigured() : twilioConfigured();
+
   let status: "SENT" | "LOGGED" | "FAILED" = "LOGGED";
   let error: string | null = null;
 
-  if (twilioConfigured()) {
+  if (ready) {
     try {
-      await sendViaTwilio(process.env.TWILIO_FROM as string, numbers, input.body);
+      if (chosen === "nextiva") await sendViaNextiva(numbers, input.body);
+      else await sendViaTwilio(numbers, input.body);
       status = "SENT";
     } catch (e) {
       status = "FAILED";
@@ -70,12 +102,11 @@ export async function sendSms(input: SendSmsInput) {
   } else {
     console.log(
       [
-        "================ SMS (console mode — Twilio not configured) =================",
-        `From: ${process.env.TWILIO_FROM || "(Twilio number)"}`,
+        `================ SMS (console mode — ${chosen} not configured) ================`,
         `To:   ${numbers.join(", ")}`,
-        "----------------------------------------------------------------------------",
+        "-------------------------------------------------------------------------------",
         input.body,
-        "============================================================================",
+        "===============================================================================",
       ].join("\n")
     );
   }
