@@ -2,7 +2,8 @@ import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import {
-  startOfWeek, addDays, twoWeekGrid, dayKey, fmtDayHeader, fmtTime, isToday,
+  WEEKDAYS, easternKey, todayKey, shiftKey, startOfWeekKey, twoWeekGrid,
+  rangeLabel, safeKey, fmtTime,
 } from "@/lib/calendar";
 import type { Job } from "@prisma/client";
 
@@ -23,36 +24,49 @@ export default async function CalendarPage({
   const user = await requireRole("ADMIN", "EMPLOYEE");
   const { start: startParam } = await searchParams;
 
-  // Two-week window; navigable in 14-day steps via ?start=YYYY-MM-DD.
-  const base = startParam ? new Date(startParam + "T12:00:00") : new Date();
-  const start = startOfWeek(base);
-  const end = addDays(start, 14);
-  const grid = twoWeekGrid(start);
+  // Two-week window, navigable in 14-day steps via ?start=YYYY-MM-DD.
+  const startKey = startOfWeekKey(safeKey(startParam));
+  const grid = twoWeekGrid(startKey);
 
-  // Admins see all work; technicians see only their own.
+  // Generous instant bounds (±1 day) so timezone edges and multi-day jobs are
+  // captured; exact placement is done by Eastern calendar date below.
+  const windowStart = new Date(shiftKey(startKey, -1) + "T00:00:00.000Z");
+  const windowEnd = new Date(shiftKey(startKey, 15) + "T00:00:00.000Z");
+
   const jobs = await db.job.findMany({
     where: {
-      scheduledAt: { gte: start, lt: end },
       ...(user.role === "EMPLOYEE" ? { technicianId: user.id } : {}),
+      OR: [
+        { scheduledAt: { gte: windowStart, lt: windowEnd } },
+        { endAt: { gte: windowStart, lt: windowEnd } },
+        { AND: [{ scheduledAt: { lt: windowStart } }, { endAt: { gte: windowEnd } }] },
+      ],
     },
     orderBy: { scheduledAt: "asc" },
     include: { technician: { select: { name: true } } },
   });
 
-  // Bucket jobs by Eastern day.
-  const byDay = new Map<string, (Job & { technician: { name: string } })[]>();
-  for (const job of jobs) {
-    const k = dayKey(job.scheduledAt);
-    if (!byDay.has(k)) byDay.set(k, []);
-    byDay.get(k)!.push(job);
+  type JobRow = Job & { technician: { name: string } };
+
+  // Bucket each job onto every Eastern day it covers (start..end).
+  const byDay = new Map<string, { job: JobRow; isStart: boolean; spanning: boolean }[]>();
+  for (const job of jobs as JobRow[]) {
+    const sKey = easternKey(job.scheduledAt);
+    const eKey = job.endAt ? easternKey(job.endAt) : sKey;
+    const spanning = eKey !== sKey;
+    for (const cell of grid) {
+      if (cell.key >= sKey && cell.key <= eKey) {
+        if (!byDay.has(cell.key)) byDay.set(cell.key, []);
+        byDay.get(cell.key)!.push({ job, isStart: cell.key === sKey, spanning });
+      }
+    }
   }
 
   const jobHref = (id: string) =>
     user.role === "ADMIN" ? `/portal/admin/jobs/${id}` : `/portal/employee/jobs/${id}`;
 
-  const prev = dayKey(addDays(start, -14));
-  const next = dayKey(addDays(start, 14));
-  const rangeLabel = `${fmtDayHeader(start).month} ${fmtDayHeader(start).day} – ${fmtDayHeader(addDays(start, 13)).month} ${fmtDayHeader(addDays(start, 13)).day}`;
+  const prev = shiftKey(startKey, -14);
+  const next = shiftKey(startKey, 14);
 
   return (
     <div className="space-y-6">
@@ -64,42 +78,43 @@ export default async function CalendarPage({
           <Link href={`/portal/calendar?start=${next}`} className="btn-small-outline">Next →</Link>
         </div>
       </div>
-      <p className="text-sm font-medium text-gray-600">{rangeLabel} · two-week view</p>
+      <p className="text-sm font-medium text-gray-600">{rangeLabel(startKey)} · two-week view</p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
-        {/* weekday headers (desktop) */}
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="hidden text-center text-xs font-semibold uppercase tracking-wide text-gray-400 sm:block">
+      <div className="grid grid-cols-7 gap-2">
+        {/* weekday headers */}
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="text-center text-xs font-semibold uppercase tracking-wide text-gray-400">
             {d}
           </div>
         ))}
 
-        {grid.map(({ date, key }) => {
-          const dayJobs = byDay.get(key) ?? [];
-          const head = fmtDayHeader(date);
+        {grid.map((day) => {
+          const items = byDay.get(day.key) ?? [];
           return (
             <div
-              key={key}
-              className={`min-h-[110px] rounded-lg border p-2 ${isToday(date) ? "border-accent bg-accent-50/40" : "border-gray-200 bg-white"}`}
+              key={day.key}
+              className={`min-h-[110px] rounded-lg border p-1.5 ${day.isToday ? "border-accent bg-accent-50/40" : "border-gray-200 bg-white"}`}
             >
-              <div className="mb-1 flex items-baseline justify-between">
-                <span className="text-xs font-semibold text-gray-500 sm:hidden">{head.weekday}</span>
-                <span className={`text-sm font-bold ${isToday(date) ? "text-accent-700" : "text-navy"}`}>
-                  {head.month} {head.day}
+              <div className="mb-1 text-right text-sm font-bold">
+                <span className={day.isToday ? "text-accent-700" : "text-navy"}>
+                  {day.monthShort} {day.dayNum}
                 </span>
               </div>
               <ul className="space-y-1">
-                {dayJobs.length === 0 && <li className="text-[11px] text-gray-300">—</li>}
-                {dayJobs.map((job) => (
+                {items.length === 0 && <li className="text-[11px] text-gray-300">—</li>}
+                {items.map(({ job, isStart, spanning }) => (
                   <li key={job.id}>
                     <Link
                       href={jobHref(job.id)}
                       className={`block rounded px-1.5 py-1 text-[11px] leading-tight ${chipStyle[job.status]}`}
                     >
-                      <span className="font-semibold">{fmtTime(job.scheduledAt)}</span>
+                      <span className="font-semibold">
+                        {spanning && !isStart ? "↳ cont." : fmtTime(job.scheduledAt)}
+                      </span>
                       {job.kind === "PICKUP" && (
                         <span className="ml-1 rounded bg-white/70 px-1 text-[9px] font-bold uppercase">Pickup</span>
                       )}
+                      {spanning && isStart && <span className="ml-1 text-[9px]">→</span>}
                       <span className="block truncate">{job.customerName} · {job.service}</span>
                       {user.role === "ADMIN" && (
                         <span className="block truncate text-[10px] opacity-75">{job.technician.name}</span>

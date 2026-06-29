@@ -1,47 +1,82 @@
-/** Date helpers for the custom two-week calendar (no third-party library). */
+/**
+ * Date helpers for the custom two-week calendar (no third-party library).
+ *
+ * All grid math is done on calendar-date *keys* (YYYY-MM-DD) anchored to UTC
+ * midnight, so weekday columns always line up regardless of the server's
+ * timezone. Job timestamps are mapped to their Eastern calendar date for
+ * bucketing, so the business sees its own day.
+ */
 
 const TZ = "America/New_York";
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Local (Eastern) midnight for the Sunday on/before the given date. */
-export function startOfWeek(d: Date): Date {
-  // Work in Eastern time so the grid lines up with the business's day.
-  const eastern = new Date(d.toLocaleString("en-US", { timeZone: TZ }));
-  eastern.setHours(0, 0, 0, 0);
-  eastern.setDate(eastern.getDate() - eastern.getDay()); // back up to Sunday
-  return eastern;
-}
+export { WEEKDAYS };
 
-export function addDays(d: Date, n: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
-}
-
-/** Build an array of 14 day-buckets starting at `start`. */
-export function twoWeekGrid(start: Date): { date: Date; key: string }[] {
-  return Array.from({ length: 14 }, (_, i) => {
-    const date = addDays(start, i);
-    return { date, key: dayKey(date) };
-  });
-}
-
-/** YYYY-MM-DD in Eastern time, used to bucket jobs into days. */
-export function dayKey(d: Date): string {
+/** Eastern calendar date (YYYY-MM-DD) for an instant — used to bucket jobs. */
+export function easternKey(d: Date): string {
   return d.toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
-export function fmtDayHeader(d: Date): { weekday: string; day: string; month: string } {
-  return {
-    weekday: d.toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" }),
-    day: d.toLocaleDateString("en-US", { timeZone: TZ, day: "numeric" }),
-    month: d.toLocaleDateString("en-US", { timeZone: TZ, month: "short" }),
-  };
+export function todayKey(): string {
+  return easternKey(new Date());
+}
+
+/** A UTC-anchored Date for a YYYY-MM-DD key, so getUTC* equals the calendar parts. */
+function keyToDate(key: string): Date {
+  return new Date(key + "T00:00:00.000Z");
+}
+
+function dateToKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Shift a date key by N days (DST-safe, since it stays at UTC midnight). */
+export function shiftKey(key: string, days: number): string {
+  return dateToKey(new Date(keyToDate(key).getTime() + days * 86_400_000));
+}
+
+/** The Sunday on or before the given key. */
+export function startOfWeekKey(key: string): string {
+  const weekday = keyToDate(key).getUTCDay(); // 0 = Sunday
+  return shiftKey(key, -weekday);
+}
+
+export type GridDay = {
+  key: string;
+  weekday: number; // 0-6, matches column
+  dayNum: number;
+  monthShort: string;
+  isToday: boolean;
+};
+
+/** 14 day cells starting at startKey (which must be a Sunday). */
+export function twoWeekGrid(startKey: string): GridDay[] {
+  const today = todayKey();
+  return Array.from({ length: 14 }, (_, i) => {
+    const key = shiftKey(startKey, i);
+    const d = keyToDate(key);
+    return {
+      key,
+      weekday: d.getUTCDay(),
+      dayNum: d.getUTCDate(),
+      monthShort: MONTHS[d.getUTCMonth()],
+      isToday: key === today,
+    };
+  });
+}
+
+export function rangeLabel(startKey: string): string {
+  const a = keyToDate(startKey);
+  const b = keyToDate(shiftKey(startKey, 13));
+  return `${MONTHS[a.getUTCMonth()]} ${a.getUTCDate()} – ${MONTHS[b.getUTCMonth()]} ${b.getUTCDate()}, ${b.getUTCFullYear()}`;
+}
+
+/** Validate a ?start=YYYY-MM-DD param; fall back to today. */
+export function safeKey(input: string | undefined): string {
+  return input && /^\d{4}-\d{2}-\d{2}$/.test(input) ? input : todayKey();
 }
 
 export function fmtTime(d: Date): string {
   return d.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
-}
-
-export function isToday(d: Date): boolean {
-  return dayKey(d) === dayKey(new Date());
 }
