@@ -26,6 +26,49 @@ export async function updateSiteContent(_prev: ActionState, formData: FormData):
   return { ok: true };
 }
 
+/* --------------------------- Hero background photo ------------------------ */
+
+export async function updateHeroImage(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a photo" };
+  if (file.size > 10 * 1024 * 1024) return { ok: false, error: "Photo too large (10 MB max)" };
+  const { isAllowedUpload, saveUpload, deleteUpload } = await import("@/lib/storage");
+  if (!isAllowedUpload(file.type) || file.type === "application/pdf") {
+    return { ok: false, error: "Photo must be an image (JPG, PNG, WebP, HEIC)" };
+  }
+
+  const old = await db.setting.findUnique({ where: { key: "heroImagePath" } });
+  const storagePath = await saveUpload(Buffer.from(await file.arrayBuffer()), file.name, "site");
+
+  await db.setting.upsert({
+    where: { key: "heroImagePath" },
+    create: { key: "heroImagePath", value: storagePath },
+    update: { value: storagePath },
+  });
+  await db.setting.upsert({
+    where: { key: "heroImageMime" },
+    create: { key: "heroImageMime", value: file.type },
+    update: { value: file.type },
+  });
+  if (old?.value) await deleteUpload(old.value);
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function removeHeroImage(): Promise<void> {
+  await actionRole("ADMIN");
+  const old = await db.setting.findUnique({ where: { key: "heroImagePath" } });
+  await db.setting.deleteMany({ where: { key: { in: ["heroImagePath", "heroImageMime"] } } });
+  if (old?.value) {
+    const { deleteUpload } = await import("@/lib/storage");
+    await deleteUpload(old.value);
+  }
+  revalidatePath("/", "layout");
+}
+
 /* ---------------------------- Service areas ------------------------------- */
 
 export async function addServiceArea(_prev: ActionState, formData: FormData): Promise<ActionState> {

@@ -6,7 +6,7 @@ import { SERVICE_OPTIONS } from "@/lib/constants";
 
 const initialState: QuoteFormState = { ok: false };
 
-export default function ContactForm() {
+export default function ContactForm({ submitLabel = "Request a Service" }: { submitLabel?: string }) {
   const [state, formAction, pending] = useActionState(submitQuoteRequest, initialState);
 
   if (state.ok) {
@@ -52,7 +52,7 @@ export default function ContactForm() {
       </div>
       {state.error && <p className="text-sm font-medium text-red-600">{state.error}</p>}
       <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
-        {pending ? "Sending…" : "Request a Quote"}
+        {pending ? "Sending…" : submitLabel}
       </button>
     </form>
   );

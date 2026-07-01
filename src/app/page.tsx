@@ -5,7 +5,7 @@ import ContactForm from "@/components/public/ContactForm";
 import ServiceAreaChecker from "@/components/public/ServiceAreaChecker";
 import AnalyticsTracker from "@/components/public/AnalyticsTracker";
 import { buildAreaData, groupByRegion } from "@/lib/serviceArea";
-import { getSiteContent, getServiceAreas } from "@/lib/siteContent";
+import { getSiteContent, getServiceAreas, getHeroImage } from "@/lib/siteContent";
 
 export const dynamic = "force-dynamic";
 
@@ -80,13 +80,14 @@ function Stars() {
 }
 
 export default async function HomePage() {
-  const [techs, content, areas] = await Promise.all([
+  const [techs, content, areas, heroImage] = await Promise.all([
     db.teamMember.findMany({
       where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
     getSiteContent(),
     getServiceAreas(),
+    getHeroImage(),
   ]);
 
   const areaData = buildAreaData(areas);
@@ -151,9 +152,20 @@ export default async function HomePage() {
       </header>
 
       <main id="main">
-        {/* Hero */}
-        <section className="bg-navy text-white">
-          <div className="mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
+        {/* Hero — with optional team photo background (Admin → Website),
+            dimmed by default so the headline stays readable */}
+        <section className="relative bg-navy text-white">
+          {heroImage && (
+            <>
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url(/api/site-images/hero)" }}
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-navy-950/65" />
+            </>
+          )}
+          <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
             <p className="text-sm font-semibold uppercase tracking-widest text-accent-300">
               {COMPANY.name}
             </p>
@@ -164,7 +176,7 @@ export default async function HomePage() {
               {content.heroSubheading}
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a href="#contact" data-track="quote" className="btn-primary w-full sm:w-auto">Request a Quote</a>
+              <a href="#contact" data-track="quote" className="btn-primary w-full sm:w-auto">{content.ctaLabel}</a>
               <a href={phoneHref} data-track="call" className="btn-secondary w-full sm:w-auto">
                 Call Now · {content.contactPhone}
               </a>
@@ -286,7 +298,7 @@ export default async function HomePage() {
         <section id="contact" className="bg-navy-50">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:py-20 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold text-navy">Request a Quote</h2>
+              <h2 className="text-3xl font-bold text-navy">{content.ctaLabel}</h2>
               <p className="mt-3 max-w-md text-gray-600">
                 Tell us what you need and we&apos;ll get back to you — usually the
                 same business day.
@@ -310,7 +322,7 @@ export default async function HomePage() {
                 </div>
               </dl>
             </div>
-            <ContactForm />
+            <ContactForm submitLabel={content.ctaLabel} />
           </div>
         </section>
       </main>
@@ -337,7 +349,7 @@ export default async function HomePage() {
             <ul className="mt-2 space-y-1">
               <li><a href="#services" className="hover:text-white">Services</a></li>
               <li><a href="#reviews" className="hover:text-white">Reviews</a></li>
-              <li><a href="#contact" data-track="quote" className="hover:text-white">Request a Quote</a></li>
+              <li><a href="#contact" data-track="quote" className="hover:text-white">{content.ctaLabel}</a></li>
               <li><Link href="/login" className="hover:text-white">Portal Login</Link></li>
             </ul>
           </div>

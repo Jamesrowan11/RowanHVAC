@@ -11,6 +11,7 @@ import { DEFAULT_AREAS, type AreaTown } from "@/lib/serviceArea";
 export type SiteContent = {
   heroHeadline: string;
   heroSubheading: string;
+  ctaLabel: string;
   servicesBrandLine: string;
   serviceAreaIntro: string;
   footerTagline: string;
@@ -24,6 +25,7 @@ export const CONTENT_DEFAULTS: SiteContent = {
   heroHeadline: "Reliable Heating & Cooling for Highland and Howard County",
   heroSubheading:
     "Family-owned and operated in Howard County since 1958 — honest, dependable heating and cooling you can trust.",
+  ctaLabel: "Request a Service",
   servicesBrandLine: "We service and install Trane, Carrier, and WaterFurnace systems.",
   serviceAreaIntro:
     "Based in Howard County and proudly serving homes across central Maryland and Washington, DC — plus some surrounding areas.",
@@ -37,6 +39,7 @@ export const CONTENT_DEFAULTS: SiteContent = {
 export const CONTENT_FIELDS: { key: keyof SiteContent; label: string; multiline?: boolean }[] = [
   { key: "heroHeadline", label: "Hero headline" },
   { key: "heroSubheading", label: "Hero subheading", multiline: true },
+  { key: "ctaLabel", label: "Main button text (e.g. Request a Service)" },
   { key: "servicesBrandLine", label: "Brands line (under Services)" },
   { key: "serviceAreaIntro", label: "Service area intro", multiline: true },
   { key: "footerTagline", label: "Footer tagline", multiline: true },
@@ -45,6 +48,16 @@ export const CONTENT_FIELDS: { key: keyof SiteContent; label: string; multiline?
   { key: "contactAddress", label: "Mailing address" },
   { key: "contactHours", label: "Business hours" },
 ];
+
+/** Hero background photo (stored in Setting rows outside the content.* text fields). */
+export async function getHeroImage(): Promise<{ path: string; mime: string } | null> {
+  const rows = await db.setting.findMany({
+    where: { key: { in: ["heroImagePath", "heroImageMime"] } },
+  });
+  const path = rows.find((r) => r.key === "heroImagePath")?.value;
+  const mime = rows.find((r) => r.key === "heroImageMime")?.value;
+  return path ? { path, mime: mime || "image/jpeg" } : null;
+}
 
 export async function getSiteContent(): Promise<SiteContent> {
   const rows = await db.setting.findMany({
