@@ -8,6 +8,7 @@ import NotificationsSetup from "@/components/portal/NotificationsSetup";
 const navByRole = {
   ADMIN: [
     { href: "/portal/admin", label: "Overview" },
+    { href: "/portal/admin/analytics", label: "Analytics" },
     { href: "/portal/admin/requests", label: "Requests" },
     { href: "/portal/admin/schedule", label: "Schedule" },
     { href: "/portal/calendar", label: "Calendar" },

@@ -296,6 +296,14 @@ model Setting {
   value String @db.Text
 }
 
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String   @db.VarChar(40) // PAGE_VIEW | CALL_CLICK | QUOTE_CLICK
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String

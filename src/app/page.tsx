@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
 import ContactForm from "@/components/public/ContactForm";
 import ServiceAreaChecker from "@/components/public/ServiceAreaChecker";
+import AnalyticsTracker from "@/components/public/AnalyticsTracker";
 import { buildAreaData, groupByRegion } from "@/lib/serviceArea";
 import { getSiteContent, getServiceAreas } from "@/lib/siteContent";
 
@@ -130,6 +131,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <AnalyticsTracker />
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-navy-100 bg-white/95 backdrop-blur">
@@ -162,8 +164,8 @@ export default async function HomePage() {
               {content.heroSubheading}
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a href="#contact" className="btn-primary w-full sm:w-auto">Request a Quote</a>
-              <a href={phoneHref} className="btn-secondary w-full sm:w-auto">
+              <a href="#contact" data-track="quote" className="btn-primary w-full sm:w-auto">Request a Quote</a>
+              <a href={phoneHref} data-track="call" className="btn-secondary w-full sm:w-auto">
                 Call Now · {content.contactPhone}
               </a>
             </div>
@@ -292,7 +294,7 @@ export default async function HomePage() {
               <dl className="mt-8 space-y-4 text-gray-700">
                 <div>
                   <dt className="font-semibold text-navy">Phone</dt>
-                  <dd><a href={phoneHref} className="hover:text-accent-600">{content.contactPhone}</a></dd>
+                  <dd><a href={phoneHref} data-track="call" className="hover:text-accent-600">{content.contactPhone}</a></dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-navy">Email</dt>
@@ -324,7 +326,7 @@ export default async function HomePage() {
           <div className="text-sm">
             <p className="font-semibold text-white">Contact</p>
             <ul className="mt-2 space-y-1">
-              <li><a href={phoneHref} className="hover:text-white">{content.contactPhone}</a></li>
+              <li><a href={phoneHref} data-track="call" className="hover:text-white">{content.contactPhone}</a></li>
               <li><a href={`mailto:${content.contactEmail}`} className="hover:text-white">{content.contactEmail}</a></li>
               <li>{content.contactAddress}</li>
               <li>{content.contactHours}</li>
@@ -335,7 +337,7 @@ export default async function HomePage() {
             <ul className="mt-2 space-y-1">
               <li><a href="#services" className="hover:text-white">Services</a></li>
               <li><a href="#reviews" className="hover:text-white">Reviews</a></li>
-              <li><a href="#contact" className="hover:text-white">Request a Quote</a></li>
+              <li><a href="#contact" data-track="quote" className="hover:text-white">Request a Quote</a></li>
               <li><Link href="/login" className="hover:text-white">Portal Login</Link></li>
             </ul>
           </div>
