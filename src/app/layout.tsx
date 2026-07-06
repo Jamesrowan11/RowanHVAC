@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { COMPANY } from "@/lib/constants";
 import ServiceWorker from "@/components/ServiceWorker";
@@ -50,9 +51,27 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Google tag (Ads/Analytics) — set GTAG_ID in .env (e.g. AW-XXXXXXXXXXX).
+  // Read at request time on the server, so changing it needs only a restart.
+  const gtagId = process.env.GTAG_ID;
+
   return (
     <html lang="en">
       <body>
+        {gtagId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gtagId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gtagId}');`}
+            </Script>
+          </>
+        )}
         <a href="#main" className="skip-link">
           Skip to main content
         </a>

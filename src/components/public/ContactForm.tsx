@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { submitQuoteRequest, type QuoteFormState } from "@/lib/actions/public";
 import { SERVICE_OPTIONS } from "@/lib/constants";
 
@@ -8,6 +8,13 @@ const initialState: QuoteFormState = { ok: false };
 
 export default function ContactForm({ submitLabel = "Request a Service" }: { submitLabel?: string }) {
   const [state, formAction, pending] = useActionState(submitQuoteRequest, initialState);
+
+  // A submitted request is a lead — report it to the Google tag if installed.
+  useEffect(() => {
+    if (!state.ok) return;
+    const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+    g?.("event", "generate_lead");
+  }, [state.ok]);
 
   if (state.ok) {
     return (

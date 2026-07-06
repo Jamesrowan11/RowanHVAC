@@ -8,6 +8,11 @@ import { useEffect } from "react";
  * data-track="quote". Uses sendBeacon so events aren't lost when a tel: link
  * or in-page jump navigates away.
  */
+const GTAG_EVENTS: Record<string, string> = {
+  CALL_CLICK: "call_click",
+  QUOTE_CLICK: "quote_click",
+};
+
 function send(type: string) {
   try {
     const body = JSON.stringify({ type });
@@ -16,6 +21,9 @@ function send(type: string) {
     } else {
       fetch("/api/track", { method: "POST", body, keepalive: true, headers: { "Content-Type": "application/json" } });
     }
+    // Mirror CTA clicks to the Google tag (Ads conversions), when installed.
+    const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+    if (g && GTAG_EVENTS[type]) g("event", GTAG_EVENTS[type]);
   } catch {
     /* analytics must never break the page */
   }
