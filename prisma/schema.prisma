@@ -80,6 +80,7 @@ model User {
   employeeNotes      EmployeeNote[]      @relation("EmployeeNoteSubject")
   employeeNotesMade  EmployeeNote[]      @relation("EmployeeNoteAuthor")
   pushSubscriptions  PushSubscription[]
+  mailboxLink        MailboxLink?
 }
 
 model QuoteRequest {
@@ -294,6 +295,16 @@ model TeamMember {
 model Setting {
   key   String @id
   value String @db.Text
+}
+
+model MailboxLink {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address           String   @db.VarChar(255)
+  encryptedPassword String   @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model AnalyticsEvent {

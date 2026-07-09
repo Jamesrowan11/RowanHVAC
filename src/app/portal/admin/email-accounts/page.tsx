@@ -1,8 +1,10 @@
 import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
 import { pleskConfigured, listMailboxes, mailDomain } from "@/lib/plesk";
 import {
   createMailboxAction, deleteMailboxAction, resetMailboxPasswordAction, setForwardingAction,
 } from "@/lib/actions/pleskMail";
+import { adminLinkMailboxAction, unlinkMailboxAction } from "@/lib/actions/mailboxLink";
 import ActionForm from "@/components/portal/ActionForm";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 
@@ -40,6 +42,17 @@ export default async function AdminEmailAccounts() {
   }
 
   const domain = mailDomain();
+
+  // Staff who could be linked to a mailbox, and who's linked to what (matched
+  // by address, since Plesk doesn't know about our portal's user records).
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "EMPLOYEE"] } },
+    orderBy: [{ role: "asc" }, { name: "asc" }],
+    include: { mailboxLink: true },
+  });
+  const linkedByAddress = new Map(
+    staff.filter((s) => s.mailboxLink).map((s) => [s.mailboxLink!.address.toLowerCase(), s])
+  );
 
   return (
     <div className="space-y-8">
@@ -83,59 +96,105 @@ export default async function AdminEmailAccounts() {
           <p className="card mt-3 text-sm text-gray-500">No mailboxes yet.</p>
         )}
         <div className="mt-3 space-y-4">
-          {mailboxes.map((m) => (
-            <div key={m.name} className="card">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-bold text-navy">{m.email}</p>
-                  <p className="text-xs text-gray-500">
-                    {m.enabled ? "Active" : "Disabled"}
-                    {m.forwarding.length > 0 && <> · forwards to {m.forwarding.join(", ")}</>}
-                  </p>
+          {mailboxes.map((m) => {
+            const linkedUser = linkedByAddress.get(m.email.toLowerCase());
+            return (
+              <div key={m.name} className="card">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-navy">{m.email}</p>
+                    <p className="text-xs text-gray-500">
+                      {m.enabled ? "Active" : "Disabled"}
+                      {m.forwarding.length > 0 && <> · forwards to {m.forwarding.join(", ")}</>}
+                    </p>
+                  </div>
+                  <ConfirmForm
+                    action={deleteMailboxAction}
+                    confirmText={`Delete ${m.email}? This can't be undone.`}
+                  >
+                    <input type="hidden" name="name" value={m.name} />
+                    <button type="submit" className="btn-danger">Delete</button>
+                  </ConfirmForm>
                 </div>
-                <ConfirmForm
-                  action={deleteMailboxAction}
-                  confirmText={`Delete ${m.email}? This can't be undone.`}
-                >
-                  <input type="hidden" name="name" value={m.name} />
-                  <button type="submit" className="btn-danger">Delete</button>
-                </ConfirmForm>
-              </div>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <ActionForm
-                  action={resetMailboxPasswordAction}
-                  submitLabel="Set password"
-                  successMessage="Password updated."
-                  className="space-y-2"
-                >
-                  <input type="hidden" name="name" value={m.name} />
-                  <label htmlFor={`pw-${m.name}`} className="label">New password</label>
-                  <input id={`pw-${m.name}`} name="password" type="password" required minLength={8} className="input" />
-                </ActionForm>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <ActionForm
+                    action={resetMailboxPasswordAction}
+                    submitLabel="Set password"
+                    successMessage="Password updated."
+                    className="space-y-2"
+                  >
+                    <input type="hidden" name="name" value={m.name} />
+                    <label htmlFor={`pw-${m.name}`} className="label">New password</label>
+                    <input id={`pw-${m.name}`} name="password" type="password" required minLength={8} className="input" />
+                  </ActionForm>
 
-                <ActionForm
-                  action={setForwardingAction}
-                  submitLabel="Save forwarding"
-                  successMessage="Forwarding updated."
-                  resetOnSuccess={false}
-                  className="space-y-2"
-                >
-                  <input type="hidden" name="name" value={m.name} />
-                  <label htmlFor={`fwd-${m.name}`} className="label">
-                    Forward to (comma-separated, leave blank to stop forwarding)
-                  </label>
-                  <input
-                    id={`fwd-${m.name}`}
-                    name="targets"
-                    defaultValue={m.forwarding.join(", ")}
-                    placeholder="teresa@rowanhvac.com, james@rowanhvac.com"
-                    className="input"
-                  />
-                </ActionForm>
+                  <ActionForm
+                    action={setForwardingAction}
+                    submitLabel="Save forwarding"
+                    successMessage="Forwarding updated."
+                    resetOnSuccess={false}
+                    className="space-y-2"
+                  >
+                    <input type="hidden" name="name" value={m.name} />
+                    <label htmlFor={`fwd-${m.name}`} className="label">
+                      Forward to (comma-separated, leave blank to stop forwarding)
+                    </label>
+                    <input
+                      id={`fwd-${m.name}`}
+                      name="targets"
+                      defaultValue={m.forwarding.join(", ")}
+                      placeholder="teresa@rowanhvac.com, james@rowanhvac.com"
+                      className="input"
+                    />
+                  </ActionForm>
+                </div>
+
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <p className="label">Portal account link</p>
+                  {linkedUser ? (
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="text-gray-700">
+                        🔗 Linked to <span className="font-medium text-navy">{linkedUser.name}</span> — they can read
+                        and send this mailbox from their own Profile page.
+                      </span>
+                      <form action={unlinkMailboxAction}>
+                        <input type="hidden" name="userId" value={linkedUser.id} />
+                        <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
+                          Unlink
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <ActionForm
+                      action={adminLinkMailboxAction}
+                      submitLabel="Link & verify"
+                      pendingLabel="Verifying…"
+                      successMessage="Linked — they'll see it on their Profile page."
+                      className="mt-2 space-y-2"
+                    >
+                      <input type="hidden" name="address" value={m.email} />
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <select name="userId" required className="input" defaultValue="">
+                          <option value="" disabled>Link to…</option>
+                          {staff.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.role === "ADMIN" ? "Admin" : "Employee"})</option>
+                          ))}
+                        </select>
+                        <input
+                          name="password"
+                          type="password"
+                          required
+                          placeholder="Mailbox password"
+                          className="input sm:col-span-2"
+                        />
+                      </div>
+                    </ActionForm>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>
