@@ -50,8 +50,8 @@ export default async function AdminEmail() {
       <section>
         <h2 className="text-lg font-bold text-navy">SMS History</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Automated text notifications, sent from the company&apos;s Twilio
-          number. Until Twilio is connected these are logged in
+          Automated text notifications, sent from the company&apos;s configured
+          SMS provider. Until a provider is connected these are logged in
           &ldquo;console mode&rdquo; (recorded here, printed to the server log).
         </p>
         <ul className="mt-4 space-y-2">
@@ -65,6 +65,9 @@ export default async function AdminEmail() {
                 </span>
               </div>
               <p className="mt-1 text-gray-700">{s.body}</p>
+              {s.status === "FAILED" && s.error && (
+                <p className="mt-1 text-xs text-red-700">{s.error}</p>
+              )}
               <p className="mt-1 text-xs text-gray-500">{fmtDateTime(s.createdAt)}</p>
             </li>
           ))}
