@@ -54,10 +54,13 @@ export async function submitPortalRequest(
     },
   });
 
-  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true }, select: { email: true } });
-  if (admins.length > 0) {
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "EMPLOYEE"] }, active: true },
+    select: { email: true },
+  });
+  if (staff.length > 0) {
     notify({
-      to: admins.map((a) => a.email),
+      to: staff.map((s) => s.email),
       subject: `Portal request from ${user.name}: ${parsed.data.service}`,
       body: `${user.name} submitted a new request from the client portal.\n\nService: ${parsed.data.service}\n\nMessage:\n${parsed.data.message}\n\nReview it here: ${process.env.APP_URL || ""}/portal/admin/requests`,
     });
@@ -94,10 +97,13 @@ export async function scheduleMaintenance(
     },
   });
 
-  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true }, select: { email: true } });
-  if (admins.length > 0) {
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "EMPLOYEE"] }, active: true },
+    select: { email: true },
+  });
+  if (staff.length > 0) {
     notify({
-      to: admins.map((a) => a.email),
+      to: staff.map((s) => s.email),
       subject: `Maintenance request from ${user.name}`,
       body: `${user.name} (active maintenance policy) requested a maintenance visit.\n\nPreferred time: ${preferred || "no preference"}\n${notes ? `Notes: ${notes}\n` : ""}\nTurn it into a job here: ${process.env.APP_URL || ""}/portal/admin/requests`,
     });

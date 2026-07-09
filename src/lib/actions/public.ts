@@ -33,14 +33,14 @@ export async function submitQuoteRequest(
   const data = parsed.data;
   await db.quoteRequest.create({ data: { ...data, source: "PUBLIC" } });
 
-  // Automation: alert active admins about the new request.
-  const admins = await db.user.findMany({
-    where: { role: "ADMIN", active: true },
+  // Automation: alert active staff (admins and technicians) about the new request.
+  const staff = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "EMPLOYEE"] }, active: true },
     select: { email: true },
   });
-  if (admins.length > 0) {
+  if (staff.length > 0) {
     notify({
-      to: admins.map((a) => a.email),
+      to: staff.map((s) => s.email),
       subject: `New quote request from ${data.name}`,
       body: `A new quote request just came in on ${COMPANY.name}'s website.\n\nName: ${data.name}\nPhone: ${data.phone}\nEmail: ${data.email}\nService: ${data.service}\n\nMessage:\n${data.message}\n\nView it in the admin dashboard: ${process.env.APP_URL || ""}/portal/admin/requests`,
     });
