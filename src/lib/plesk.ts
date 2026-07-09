@@ -36,7 +36,10 @@ async function sendPacket(packet: Record<string, unknown>): Promise<Record<strin
   }
   const host = process.env.PLESK_API_HOST as string; // e.g. https://server-ip:8443
   const url = `${host.replace(/\/$/, "")}/enterprise/control/agent.php`;
-  const xmlBody = builder.build({ packet: { "@_version": "1.6.3.5", ...packet } });
+  // No version attribute: since Plesk 12, omitting it makes Plesk use its own
+  // latest supported protocol version, instead of pinning to one that may be
+  // too old for newer operations (this caused a hard failure previously).
+  const xmlBody = builder.build({ packet });
 
   // Plesk's panel certificate for the bare host/IP is often not a match for
   // any of the hosted domains' certs. Only this client, and only when
