@@ -16,6 +16,7 @@ const navByRole = {
     { href: "/portal/messages", label: "Messages", badge: true },
     { href: "/portal/admin/email", label: "Email" },
     { href: "/portal/admin/announcements", label: "Announcements" },
+    { href: "/portal/admin/email-accounts", label: "Email Accounts" },
     { href: "/portal/admin/content", label: "Website" },
     { href: "/portal/admin/content/areas", label: "Service Areas" },
     { href: "/portal/admin/team", label: "Our Techs" },
