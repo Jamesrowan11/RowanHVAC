@@ -99,11 +99,17 @@ export type MailAccount = {
 };
 
 export async function listMailboxes(): Promise<MailAccount[]> {
+  // Per Plesk's documented get_info schema: the requested-data flags (mailbox,
+  // forwarding, ...) are direct siblings of <filter>, NOT nested in a
+  // <dataset> wrapper — and the response nests each account's fields under
+  // <mailname>, not under a <data> object. (An earlier version of this
+  // function guessed both of those wrong.)
   const packet = await sendPacket({
     mail: {
       get_info: {
         filter: { "site-id": siteId() },
-        dataset: { limits: {}, prefs: {} },
+        mailbox: {},
+        forwarding: {},
       },
     },
   });
@@ -117,19 +123,19 @@ export async function listMailboxes(): Promise<MailAccount[]> {
     .map((r) => r as Record<string, unknown>)
     .filter((r) => r.status === "ok")
     .map((r) => {
-      const data = (r.data ?? {}) as Record<string, unknown>;
-      const mailbox = (data.mailbox ?? {}) as Record<string, unknown>;
-      const fwd = (data.forwarding ?? {}) as Record<string, unknown>;
+      const mailname = (r.mailname ?? {}) as Record<string, unknown>;
+      const mailbox = (mailname.mailbox ?? {}) as Record<string, unknown>;
+      const fwd = (mailname.forwarding ?? {}) as Record<string, unknown>;
       const addresses = fwd.address
         ? Array.isArray(fwd.address)
           ? (fwd.address as string[])
           : [String(fwd.address)]
         : [];
-      const name = String(r.name ?? "");
+      const name = String(mailname.name ?? "");
       return {
         name,
         email: `${name}@${mailDomain()}`,
-        enabled: String(mailbox.status ?? "true") !== "false",
+        enabled: String(mailbox.enabled ?? "true") !== "false",
         forwarding: addresses,
       };
     });
