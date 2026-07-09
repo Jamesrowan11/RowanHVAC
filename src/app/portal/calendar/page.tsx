@@ -46,7 +46,7 @@ export default async function CalendarPage({
     include: { technician: { select: { name: true } } },
   });
 
-  type JobRow = Job & { technician: { name: string } };
+  type JobRow = Job & { technician: { name: string } | null };
 
   // Bucket each job onto every Eastern day it covers (start..end).
   const byDay = new Map<string, { job: JobRow; isStart: boolean; spanning: boolean }[]>();
@@ -117,7 +117,9 @@ export default async function CalendarPage({
                       {spanning && isStart && <span className="ml-1 text-[9px]">→</span>}
                       <span className="block truncate">{job.customerName} · {job.service}</span>
                       {user.role === "ADMIN" && (
-                        <span className="block truncate text-[10px] opacity-75">{job.technician.name}</span>
+                        <span className="block truncate text-[10px] opacity-75">
+                          {job.technician ? job.technician.name : "Unassigned"}
+                        </span>
                       )}
                     </Link>
                   </li>

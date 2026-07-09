@@ -52,7 +52,7 @@ export default async function AdminSchedule({
           action={createJob}
           submitLabel="Create job"
           pendingLabel="Creating…"
-          successMessage="Job created — the technician (and client, if linked) have been emailed."
+          successMessage="Job created — assign a technician anytime from the job page."
           buttonClassName="btn-primary"
           className="mt-4 space-y-4"
         >
@@ -105,9 +105,9 @@ export default async function AdminSchedule({
               </select>
             </div>
             <div>
-              <label htmlFor="technicianId" className="label">Assign technician</label>
-              <select id="technicianId" name="technicianId" required className="input" defaultValue="">
-                <option value="" disabled>Select…</option>
+              <label htmlFor="technicianId" className="label">Assign technician (optional)</label>
+              <select id="technicianId" name="technicianId" className="input" defaultValue="">
+                <option value="">— Assign later (day of) —</option>
                 <optgroup label="Employees">
                   {employees.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
@@ -158,7 +158,9 @@ export default async function AdminSchedule({
                   <td className="px-4 py-3 whitespace-nowrap">{fmtDateTime(j.scheduledAt)}</td>
                   <td className="px-4 py-3 font-medium text-navy">{j.customerName}</td>
                   <td className="px-4 py-3">{j.service}</td>
-                  <td className="px-4 py-3">{j.technician.name}</td>
+                  <td className="px-4 py-3">
+                    {j.technician ? j.technician.name : <span className="italic text-gray-400">Unassigned</span>}
+                  </td>
                   <td className="px-4 py-3"><JobStatusBadge status={j.status} /></td>
                   <td className="px-4 py-3 text-right">
                     <Link href={`/portal/admin/jobs/${j.id}`} className="font-medium text-accent-600 hover:underline">

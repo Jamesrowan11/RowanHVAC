@@ -78,7 +78,7 @@ export default async function AdminOverview() {
                     {j.customerName} · {j.service}
                   </Link>
                   <p className="mt-0.5 text-gray-500">
-                    {fmtDateTime(j.scheduledAt)} · {j.technician.name}
+                    {fmtDateTime(j.scheduledAt)} · {j.technician ? j.technician.name : "Unassigned"}
                   </p>
                 </div>
                 <JobStatusBadge status={j.status} />

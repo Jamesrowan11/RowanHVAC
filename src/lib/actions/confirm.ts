@@ -34,10 +34,15 @@ export async function respondNextUp(formData: FormData): Promise<void> {
       ? `${who} is ready — okay to come now.`
       : `${who} would prefer to WAIT for a later time. Please follow up.`;
 
-  // Tell the assigned technician and the office.
+  // Tell the assigned technician (if any) and the office.
   const recipients = await db.user.findMany({
-    where: { OR: [{ id: job.technicianId }, { role: "ADMIN", active: true }] },
-    select: { email: true, phone: true },
+    where: {
+      OR: [
+        ...(job.technicianId ? [{ id: job.technicianId }] : []),
+        { role: "ADMIN" as const, active: true },
+      ],
+    },
+    select: { id: true, email: true, phone: true },
   });
   const emails = [...new Set(recipients.map((r) => r.email))];
   const phones = [...new Set(recipients.map((r) => r.phone).filter((p): p is string => !!p))];
@@ -51,13 +56,19 @@ export async function respondNextUp(formData: FormData): Promise<void> {
     notifySms({ to: phones, body: `${COMPANY.shortName}: ${verdict} (${job.service})` });
   }
 
-  await db.jobNote.create({
-    data: {
-      jobId: job.id,
-      authorId: job.technicianId,
-      body: choice === "READY" ? "✅ Customer confirmed: ready now." : "⏳ Customer asked to wait for a later time.",
-    },
-  });
+  // Attribute the auto-generated note to the assigned tech if there is one,
+  // otherwise to whichever admin was notified (the job always has an admin
+  // recipient, so this is only null if there are no active admins at all).
+  const noteAuthorId = job.technicianId ?? recipients[0]?.id;
+  if (noteAuthorId) {
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: noteAuthorId,
+        body: choice === "READY" ? "✅ Customer confirmed: ready now." : "⏳ Customer asked to wait for a later time.",
+      },
+    });
+  }
 
   revalidatePath("/portal", "layout");
 }

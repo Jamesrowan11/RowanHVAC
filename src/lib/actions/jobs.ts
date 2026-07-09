@@ -20,7 +20,7 @@ const jobSchema = z.object({
   kind: z.enum(["SERVICE", "PICKUP"]).default("SERVICE"),
   scheduledAt: z.coerce.date(),
   endAt: z.coerce.date().optional(),
-  technicianId: z.string().min(1, "Pick a technician"),
+  technicianId: z.string().optional(), // optional — often assigned day-of
   clientId: z.string().optional(),
   requestId: z.string().optional(),
 });
@@ -44,11 +44,16 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
   }
   const data = parsed.data;
 
-  // Technicians must be active staff (employee or admin).
-  const tech = await db.user.findFirst({
-    where: { id: data.technicianId, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
-  });
-  if (!tech) return { ok: false, error: "Invalid technician" };
+  // Technician is optional — many jobs get assigned the day of. If one was
+  // picked, it must be active staff (employee or admin).
+  let tech: { id: string; name: string; email: string; phone: string | null } | null = null;
+  if (data.technicianId) {
+    tech = await db.user.findFirst({
+      where: { id: data.technicianId, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+      select: { id: true, name: true, email: true, phone: true },
+    });
+    if (!tech) return { ok: false, error: "Invalid technician" };
+  }
 
   let clientId: string | null = null;
   if (data.clientId) {
@@ -65,7 +70,7 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       kind: data.kind,
       scheduledAt: data.scheduledAt,
       endAt: data.endAt ?? null,
-      technicianId: tech.id,
+      technicianId: tech?.id ?? null,
       clientId,
     },
     include: { client: true },
@@ -81,24 +86,27 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     });
   }
 
-  // Automation: notify the technician and (if linked) the client, by email + SMS.
+  // Automation: notify the technician (if one was assigned already) and, if
+  // linked, the client — by email + SMS.
   const when = fmtDateTime(job.scheduledAt);
-  notify({
-    to: [tech.email],
-    subject: `New ${label.toLowerCase()} assigned: ${job.service} on ${when}`,
-    body: `Hi ${tech.name},\n\nA new ${label.toLowerCase()} has been assigned to you.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
-  });
-  if (tech.phone) {
-    notifySms({
-      to: [tech.phone],
-      body: `${COMPANY.shortName}: new ${label.toLowerCase()} ${when} — ${job.customerName}, ${job.service} at ${job.address}.`,
+  if (tech) {
+    notify({
+      to: [tech.email],
+      subject: `New ${label.toLowerCase()} assigned: ${job.service} on ${when}`,
+      body: `Hi ${tech.name},\n\nA new ${label.toLowerCase()} has been assigned to you.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
+    });
+    if (tech.phone) {
+      notifySms({
+        to: [tech.phone],
+        body: `${COMPANY.shortName}: new ${label.toLowerCase()} ${when} — ${job.customerName}, ${job.service} at ${job.address}.`,
+      });
+    }
+    notifyPush([tech.id], {
+      title: `New ${label.toLowerCase()} assigned`,
+      body: `${when} — ${job.customerName}, ${job.service}`,
+      url: `/portal/employee/jobs/${job.id}`,
     });
   }
-  notifyPush([tech.id], {
-    title: `New ${label.toLowerCase()} assigned`,
-    body: `${when} — ${job.customerName}, ${job.service}`,
-    url: `/portal/employee/jobs/${job.id}`,
-  });
   if (job.client) {
     notify({
       to: [job.client.email],
@@ -194,8 +202,9 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
 }
 
 /**
- * A tech who's free picks up a teammate's not-yet-started job for today.
- * Reassigns the job to themselves and notifies the original tech + office.
+ * A tech who's free claims a job for today — either a teammate's still-
+ * unstarted job, or one nobody's assigned yet. Reassigns it to themselves
+ * and notifies whoever previously had it (if anyone) plus the office.
  */
 export async function pickUpJob(formData: FormData): Promise<void> {
   const user = await actionRole("EMPLOYEE", "ADMIN");
@@ -204,17 +213,16 @@ export async function pickUpJob(formData: FormData): Promise<void> {
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay); endOfDay.setDate(endOfDay.getDate() + 1);
 
-  // Only a teammate's still-scheduled (unstarted) job for today can be grabbed.
+  // Any still-scheduled (unstarted) job for today — a teammate's, or unassigned.
   const job = await db.job.findFirst({
     where: {
       id: jobId,
       status: "SCHEDULED",
-      technicianId: { not: user.id },
       scheduledAt: { gte: startOfDay, lt: endOfDay },
     },
     include: { technician: true },
   });
-  if (!job) throw new Error("This job isn't available to pick up");
+  if (!job || job.technicianId === user.id) throw new Error("This job isn't available to pick up");
 
   const previousTech = job.technician;
 
@@ -223,24 +231,67 @@ export async function pickUpJob(formData: FormData): Promise<void> {
     data: {
       jobId: job.id,
       authorId: user.id,
-      body: `🤝 Picked up by ${user.name} (was assigned to ${previousTech.name}).`,
+      body: previousTech
+        ? `🤝 Picked up by ${user.name} (was assigned to ${previousTech.name}).`
+        : `🤝 Picked up by ${user.name} (was unassigned).`,
     },
   });
 
-  // Let the original tech and the office know about the reassignment.
+  // Let the original tech (if any) and the office know about the reassignment.
   const admins = await db.user.findMany({
     where: { role: "ADMIN", active: true },
     select: { id: true, email: true },
   });
+  const emailTargets = [...(previousTech ? [previousTech.email] : []), ...admins.map((a) => a.email)];
   notify({
-    to: [previousTech.email, ...admins.map((a) => a.email)],
+    to: emailTargets,
     subject: `Job picked up: ${job.service} for ${job.customerName}`,
-    body: `${user.name} picked up the ${job.service} job for ${job.customerName} (${fmtDateTime(job.scheduledAt)}) — previously assigned to ${previousTech.name}.`,
+    body: `${user.name} picked up the ${job.service} job for ${job.customerName} (${fmtDateTime(job.scheduledAt)})${previousTech ? ` — previously assigned to ${previousTech.name}` : " — it was unassigned"}.`,
   });
-  notifyPush([previousTech.id, ...admins.map((a) => a.id)], {
+  notifyPush([...(previousTech ? [previousTech.id] : []), ...admins.map((a) => a.id)], {
     title: "Job picked up",
     body: `${user.name} took the ${job.service} for ${job.customerName}.`,
     url: "/portal/employee",
+  });
+
+  revalidatePath("/portal", "layout");
+}
+
+/** Admin assigns (or reassigns) a technician on any job — the usual "day of" step. */
+export async function assignTechnician(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const technicianId = String(formData.get("technicianId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  const tech = await db.user.findFirst({
+    where: { id: technicianId, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+  });
+  if (!tech) throw new Error("Invalid technician");
+
+  await db.job.update({ where: { id: job.id }, data: { technicianId: tech.id } });
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: tech.id, body: `📌 Assigned to ${tech.name}.` },
+  });
+
+  const when = fmtDateTime(job.scheduledAt);
+  notify({
+    to: [tech.email],
+    subject: `Job assigned: ${job.service} on ${when}`,
+    body: `Hi ${tech.name},\n\nYou've been assigned a job.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
+  });
+  if (tech.phone) {
+    notifySms({
+      to: [tech.phone],
+      body: `${COMPANY.shortName}: you've been assigned ${job.service} for ${job.customerName} at ${when}.`,
+    });
+  }
+  notifyPush([tech.id], {
+    title: "Job assigned",
+    body: `${when} — ${job.customerName}, ${job.service}`,
+    url: `/portal/employee/jobs/${job.id}`,
   });
 
   revalidatePath("/portal", "layout");
@@ -368,12 +419,14 @@ export async function cancelJob(formData: FormData): Promise<void> {
     data: { status: "CANCELLED", cancelReason: reason.slice(0, 1000), cancelledAt: new Date() },
   });
 
-  // Automation: the tech's schedule changed; the client should know too.
-  notify({
-    to: [job.technician.email],
-    subject: `Job cancelled: ${job.service} for ${job.customerName}`,
-    body: `Hi ${job.technician.name},\n\nThe following job has been cancelled and removed from your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWas scheduled for: ${fmtDateTime(job.scheduledAt)}\nReason: ${reason}`,
-  });
+  // Automation: the tech's schedule changed (if one was assigned); the client should know too.
+  if (job.technician) {
+    notify({
+      to: [job.technician.email],
+      subject: `Job cancelled: ${job.service} for ${job.customerName}`,
+      body: `Hi ${job.technician.name},\n\nThe following job has been cancelled and removed from your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWas scheduled for: ${fmtDateTime(job.scheduledAt)}\nReason: ${reason}`,
+    });
+  }
   if (job.client) {
     notify({
       to: [job.client.email],
@@ -408,11 +461,13 @@ export async function reinstateJob(formData: FormData): Promise<void> {
     data: { status: "SCHEDULED", cancelReason: null, cancelledAt: null },
   });
 
-  notify({
-    to: [job.technician.email],
-    subject: `Job reinstated: ${job.service} for ${job.customerName}`,
-    body: `Hi ${job.technician.name},\n\nA previously cancelled job is back on your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWhen: ${fmtDateTime(job.scheduledAt)}`,
-  });
+  if (job.technician) {
+    notify({
+      to: [job.technician.email],
+      subject: `Job reinstated: ${job.service} for ${job.customerName}`,
+      body: `Hi ${job.technician.name},\n\nA previously cancelled job is back on your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWhen: ${fmtDateTime(job.scheduledAt)}`,
+    });
+  }
 
   revalidatePath("/portal", "layout");
 }

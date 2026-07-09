@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
-import { updateJobStatus, addJobNote, cancelJob, reinstateJob } from "@/lib/actions/jobs";
+import { updateJobStatus, addJobNote, cancelJob, reinstateJob, assignTechnician } from "@/lib/actions/jobs";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -14,18 +14,26 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
   await requireRole("ADMIN");
   const { id } = await params;
 
-  const job = await db.job.findUnique({
-    where: { id },
-    include: {
-      technician: { select: { name: true, email: true } },
-      client: { select: { id: true, name: true, email: true } },
-      notes: {
-        orderBy: { createdAt: "desc" },
-        include: { author: { select: { name: true } }, attachments: true },
+  const [job, technicians] = await Promise.all([
+    db.job.findUnique({
+      where: { id },
+      include: {
+        technician: { select: { name: true, email: true } },
+        client: { select: { id: true, name: true, email: true } },
+        notes: {
+          orderBy: { createdAt: "desc" },
+          include: { author: { select: { name: true } }, attachments: true },
+        },
       },
-    },
-  });
+    }),
+    db.user.findMany({
+      where: { active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+    }),
+  ]);
   if (!job) notFound();
+  const employees = technicians.filter((t) => t.role === "EMPLOYEE");
+  const admins = technicians.filter((t) => t.role === "ADMIN");
 
   return (
     <div className="space-y-6">
@@ -43,7 +51,10 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
             <div><dt className="font-medium text-gray-500">Type</dt><dd>{job.kind === "PICKUP" ? "Pickup" : "Service job"}</dd></div>
             <div><dt className="font-medium text-gray-500">When</dt><dd>{fmtDateTime(job.scheduledAt)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
             <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
-            <div><dt className="font-medium text-gray-500">Technician</dt><dd>{job.technician.name}</dd></div>
+            <div>
+              <dt className="font-medium text-gray-500">Technician</dt>
+              <dd>{job.technician ? job.technician.name : <span className="italic text-gray-400">Unassigned</span>}</dd>
+            </div>
             <div>
               <dt className="font-medium text-gray-500">Portal client</dt>
               <dd>
@@ -69,6 +80,29 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
 
           {job.status !== "CANCELLED" ? (
             <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
+              <form action={assignTechnician} className="flex items-end gap-2">
+                <input type="hidden" name="jobId" value={job.id} />
+                <div className="flex-1">
+                  <label htmlFor="technicianId" className="label">
+                    {job.technician ? "Reassign technician" : "Assign technician"}
+                  </label>
+                  <select id="technicianId" name="technicianId" required className="input" defaultValue="">
+                    <option value="" disabled>Select…</option>
+                    <optgroup label="Employees">
+                      {employees.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Admins">
+                      {admins.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+                <button type="submit" className="btn-small">Save</button>
+              </form>
+
               <form action={updateJobStatus} className="flex items-end gap-2">
                 <input type="hidden" name="jobId" value={job.id} />
                 <div className="flex-1">

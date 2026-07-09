@@ -63,13 +63,15 @@ export default async function EmployeeSchedule() {
       orderBy: { scheduledAt: "desc" },
       take: 10,
     }),
-    // Teammates' still-unstarted jobs for today, available to pick up.
+    // Jobs available to claim today: unassigned, or a teammate's still-unstarted job.
     db.job.findMany({
       where: {
-        technicianId: { not: user.id },
         status: "SCHEDULED",
         scheduledAt: { gte: startOfDay, lt: endOfDay },
-        technician: { active: true },
+        OR: [
+          { technicianId: null },
+          { technicianId: { not: user.id }, technician: { active: true } },
+        ],
       },
       orderBy: { scheduledAt: "asc" },
       include: { technician: { select: { name: true } } },
@@ -113,8 +115,8 @@ export default async function EmployeeSchedule() {
       <section className="card border-l-4 border-accent">
         <h2 className="font-bold text-navy">Available to pick up today</h2>
         <p className="mt-1 text-xs text-gray-500">
-          Done with yours and a teammate still has jobs? Grab one to help out — it
-          moves to your schedule and the office is notified.
+          Unassigned jobs and teammates' still-open jobs for today — grab one to
+          help out. It moves to your schedule and the office is notified.
         </p>
         {available.length === 0 ? (
           <p className="mt-3 text-sm text-gray-500">No open jobs to pick up right now.</p>
@@ -130,7 +132,9 @@ export default async function EmployeeSchedule() {
                   <p className="mt-0.5 text-xs text-gray-500">
                     {fmtDateTime(j.scheduledAt)} · {j.address}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-500">Currently: {j.technician.name}</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {j.technician ? <>Currently: {j.technician.name}</> : <span className="italic">Unassigned</span>}
+                  </p>
                 </div>
                 <ConfirmForm
                   action={pickUpJob}

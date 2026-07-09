@@ -117,8 +117,10 @@ model Job {
   confirmAskedAt     DateTime?
   confirmRespondedAt DateTime?
 
-  technicianId String
-  technician   User      @relation("JobTechnician", fields: [technicianId], references: [id])
+  // Assignment is optional at scheduling time — many jobs get a technician
+  // assigned the day of, either by an admin or by a tech claiming it.
+  technicianId String?
+  technician   User?     @relation("JobTechnician", fields: [technicianId], references: [id])
   clientId     String?
   client       User?     @relation("JobClient", fields: [clientId], references: [id], onDelete: SetNull)
 
