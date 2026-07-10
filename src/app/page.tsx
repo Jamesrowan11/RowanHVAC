@@ -166,10 +166,10 @@ export default async function HomePage() {
             </>
           )}
           <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
-            <p className="text-xl font-extrabold uppercase tracking-wider text-accent-300 sm:text-3xl">
+            <p className="text-3xl font-extrabold uppercase tracking-wider text-accent-300 sm:text-5xl">
               {COMPANY.name}
             </p>
-            <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl">
+            <h1 className="mx-auto mt-4 max-w-3xl text-2xl font-extrabold leading-tight sm:text-3xl">
               {content.heroHeadline}
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-lg text-navy-100">
