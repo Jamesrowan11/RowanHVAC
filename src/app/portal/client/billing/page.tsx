@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDate, fmtDateTime } from "@/lib/queries";
 import { PaymentStatusBadge } from "@/components/portal/StatusBadge";
 
 export const metadata = { title: "Documents & Payments" };
@@ -8,14 +8,35 @@ export const metadata = { title: "Documents & Payments" };
 export default async function ClientBilling() {
   const user = await requireRole("CLIENT");
 
-  const [payments, documents] = await Promise.all([
+  const [payments, documents, proposals] = await Promise.all([
     db.paymentLink.findMany({ where: { clientId: user.id }, orderBy: { createdAt: "desc" } }),
     db.document.findMany({ where: { clientId: user.id }, orderBy: { createdAt: "desc" } }),
+    db.proposal.findMany({ where: { clientId: user.id }, orderBy: { date: "desc" } }),
   ]);
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-navy">Documents &amp; Payments</h1>
+
+      {proposals.length > 0 && (
+        <section className="card">
+          <h2 className="font-bold text-navy">Proposals</h2>
+          <p className="mt-1 text-xs text-gray-500">Installation proposals we&apos;ve prepared for you.</p>
+          <ul className="mt-3 space-y-2">
+            {proposals.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium text-navy">{p.title}</p>
+                  <p className="text-xs text-gray-500">{fmtDate(p.date)}{p.price ? ` · ${p.price}` : ""}</p>
+                </div>
+                <a href={`/print/proposal/${p.id}`} target="_blank" rel="noreferrer" className="btn-small-outline shrink-0">
+                  View / download
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card">
         <h2 className="font-bold text-navy">Payment links</h2>

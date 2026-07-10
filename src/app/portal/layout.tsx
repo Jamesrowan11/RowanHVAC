@@ -12,6 +12,7 @@ const navByRole = {
     { href: "/portal/admin/requests", label: "Requests" },
     { href: "/portal/admin/schedule", label: "Schedule" },
     { href: "/portal/admin/tickets", label: "Tickets" },
+    { href: "/portal/admin/proposals", label: "Proposals" },
     { href: "/portal/admin/pricebook", label: "Price Book" },
     { href: "/portal/calendar", label: "Calendar" },
     { href: "/portal/admin/users", label: "Users" },

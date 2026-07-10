@@ -105,6 +105,8 @@ model User {
   mailboxAccess      MailboxAccess[]
   ticketsAsTech      ServiceTicket[]     @relation("TicketTech")
   ticketsAsClient    ServiceTicket[]     @relation("TicketClient")
+  proposals          Proposal[]          @relation("ProposalClient")
+  proposalsCreated   Proposal[]          @relation("ProposalCreator")
 }
 
 model QuoteRequest {
@@ -505,6 +507,31 @@ model MailboxAccess {
 
   @@unique([userId, mailboxId])
   @@index([mailboxId])
+}
+
+/** An installation proposal document (letterhead, scope of work, price,
+ * payment terms, signature block) — edited in the portal with a live
+ * preview, assignable to a client, and printable/saved as PDF. */
+model Proposal {
+  id           String   @id @default(cuid())
+  title        String   @default("Proposal")
+  date         DateTime @default(now())
+  clientId     String?
+  client       User?    @relation("ProposalClient", fields: [clientId], references: [id], onDelete: SetNull)
+  customerName String   @default("")
+  phone        String?
+  email        String?
+  address      String   @default("") @db.VarChar(400)
+  body         String   @db.Text // "We hereby propose to furnish and install…"
+  price        String? // free-form, e.g. "$14,500.00"
+  paymentTerms String?  @db.Text
+  note         String?  @db.Text
+  createdById  String
+  createdBy    User     @relation("ProposalCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
 }
 
 model AnalyticsEvent {
