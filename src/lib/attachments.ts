@@ -55,6 +55,17 @@ export async function canViewAttachment(user: User, attachmentId: string): Promi
     return !!note && note.job.assignments.some((a) => a.userId === user.id);
   }
 
+  if (att.serviceTicketId) {
+    // Ticket photos are staff-only: admins, or the tech who owns the ticket.
+    if (user.role === "ADMIN") return true;
+    if (user.role !== "EMPLOYEE") return false;
+    const ticket = await db.serviceTicket.findUnique({
+      where: { id: att.serviceTicketId },
+      select: { techId: true },
+    });
+    return !!ticket && ticket.techId === user.id;
+  }
+
   if (att.messageId) {
     if (user.role === "ADMIN") return true;
     const msg = await db.message.findUnique({

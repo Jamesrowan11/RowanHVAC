@@ -28,6 +28,7 @@ const navByRole: Record<Role, Item[]> = {
   ],
   EMPLOYEE: [
     { href: "/portal/employee", label: "Schedule", icon: "wrench" },
+    { href: "/portal/employee/tickets", label: "Tickets", icon: "doc" },
     { href: "/portal/calendar", label: "Calendar", icon: "calendar" },
     { href: "/portal/messages", label: "Messages", icon: "chat", badge: true },
     { href: "/portal/profile", label: "Profile", icon: "user" },
