@@ -9,6 +9,12 @@ export const COMPANY = {
   foundingYear: 1958,
 };
 
+// Where customers leave reviews — sent after a job is completed.
+export const REVIEW_LINKS = {
+  google: "https://g.page/r/CasogBhYScnHEAE/review",
+  yelp: "https://www.yelp.com/biz/rowan-highland-2",
+};
+
 export const SERVICE_OPTIONS = [
   "Heating (furnace or boiler)",
   "Air Conditioning",

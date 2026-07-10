@@ -11,7 +11,7 @@ import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
 import { placeAnnouncementCall } from "@/lib/voice";
 import { fmtDateTime, fmtDate, fmtWhen } from "@/lib/queries";
-import { COMPANY } from "@/lib/constants";
+import { COMPANY, REVIEW_LINKS } from "@/lib/constants";
 
 export type ActionState = { ok: boolean; error?: string };
 
@@ -243,17 +243,18 @@ export async function updateJobStatus(formData: FormData): Promise<void> {
     }
   }
 
-  // Automation: tell the client when their job is finished (email + SMS).
+  // Automation: tell the client when their job is finished (email + SMS),
+  // and ask for a review while the good experience is fresh.
   if (status === "COMPLETED" && job.client) {
     notify({
       to: [job.client.email],
       subject: `Your ${job.service} service is complete`,
-      body: `Hi ${job.client.name},\n\nGood news — today's service (${job.service}) at ${job.address} is complete.${summary ? `\n\nTechnician summary:\n${summary}` : ""}\n\nThank you for trusting ${COMPANY.name}.`,
+      body: `Hi ${job.client.name},\n\nGood news — today's service (${job.service}) at ${job.address} is complete.${summary ? `\n\nTechnician summary:\n${summary}` : ""}\n\nThank you for trusting ${COMPANY.name}.\n\nIf you were happy with our work, we'd really appreciate a review — it means a lot to our family business:\nGoogle: ${REVIEW_LINKS.google}\nYelp: ${REVIEW_LINKS.yelp}`,
     });
     if (job.client.phone) {
       notifySms({
         to: [job.client.phone],
-        body: `${COMPANY.shortName}: your ${job.service} service is complete. Thank you for choosing us!`,
+        body: `${COMPANY.shortName}: your ${job.service} service is complete. Thank you for choosing us! We'd love a review: Google ${REVIEW_LINKS.google} or Yelp ${REVIEW_LINKS.yelp}`,
       });
     }
     notifyPush([job.client.id], {
