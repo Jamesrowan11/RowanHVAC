@@ -54,7 +54,7 @@ export async function adminLinkMailboxAction(_prev: ActionState, formData: FormD
   if (!password.success) return { ok: false, error: password.error.errors[0]?.message };
 
   const result = await saveLink(target.id, address.data, password.data);
-  if (result.ok) revalidatePath("/portal/admin/email-accounts");
+  if (result.ok) revalidatePath("/portal/admin/emails/accounts");
   return result;
 }
 
@@ -68,7 +68,7 @@ export async function unlinkMailboxAction(formData: FormData): Promise<void> {
   }
   await db.mailboxLink.deleteMany({ where: { userId: targetUserId } });
   revalidatePath("/portal/profile");
-  revalidatePath("/portal/admin/email-accounts");
+  revalidatePath("/portal/admin/emails/accounts");
 }
 
 /** Send a message through the CURRENT user's own linked mailbox. */

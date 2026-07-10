@@ -32,7 +32,7 @@ export default async function AdminEmail() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-navy">Email</h1>
+      <h1 className="text-2xl font-bold text-navy">Compose &amp; History</h1>
       <section className="card max-w-2xl">
         <h2 className="font-bold text-navy">Compose</h2>
         <div className="mt-4">

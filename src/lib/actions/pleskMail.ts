@@ -32,7 +32,7 @@ export async function createMailboxAction(_prev: ActionState, formData: FormData
     return { ok: false, error: e instanceof Error ? e.message : "Failed to create mailbox" };
   }
 
-  revalidatePath("/portal/admin/email-accounts");
+  revalidatePath("/portal/admin/emails/accounts");
   return { ok: true };
 }
 
@@ -41,7 +41,7 @@ export async function deleteMailboxAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Missing mailbox name");
   await deleteMailbox(name);
-  revalidatePath("/portal/admin/email-accounts");
+  revalidatePath("/portal/admin/emails/accounts");
 }
 
 export async function resetMailboxPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -58,7 +58,7 @@ export async function resetMailboxPasswordAction(_prev: ActionState, formData: F
     return { ok: false, error: e instanceof Error ? e.message : "Failed to reset password" };
   }
 
-  revalidatePath("/portal/admin/email-accounts");
+  revalidatePath("/portal/admin/emails/accounts");
   return { ok: true };
 }
 
@@ -81,7 +81,7 @@ export async function setForwardingAction(_prev: ActionState, formData: FormData
     return { ok: false, error: e instanceof Error ? e.message : "Failed to update forwarding" };
   }
 
-  revalidatePath("/portal/admin/email-accounts");
+  revalidatePath("/portal/admin/emails/accounts");
   return { ok: true };
 }
 
