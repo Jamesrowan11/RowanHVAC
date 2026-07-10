@@ -35,7 +35,7 @@ export default async function CalendarPage({
 
   const jobs = await db.job.findMany({
     where: {
-      ...(user.role === "EMPLOYEE" ? { technicianId: user.id } : {}),
+      ...(user.role === "EMPLOYEE" ? { assignments: { some: { userId: user.id } } } : {}),
       OR: [
         { scheduledAt: { gte: windowStart, lt: windowEnd } },
         { endAt: { gte: windowStart, lt: windowEnd } },
@@ -43,10 +43,10 @@ export default async function CalendarPage({
       ],
     },
     orderBy: { scheduledAt: "asc" },
-    include: { technician: { select: { name: true } } },
+    include: { assignments: { include: { user: { select: { name: true } } } } },
   });
 
-  type JobRow = Job & { technician: { name: string } | null };
+  type JobRow = Job & { assignments: { user: { name: string } }[] };
 
   // Bucket each job onto every Eastern day it covers (start..end).
   const byDay = new Map<string, { job: JobRow; isStart: boolean; spanning: boolean }[]>();
@@ -118,7 +118,7 @@ export default async function CalendarPage({
                       <span className="block truncate">{job.customerName} · {job.service}</span>
                       {user.role === "ADMIN" && (
                         <span className="block truncate text-[10px] opacity-75">
-                          {job.technician ? job.technician.name : "Unassigned"}
+                          {job.assignments.length > 0 ? job.assignments.map((a) => a.user.name).join(", ") : "Unassigned"}
                         </span>
                       )}
                     </Link>

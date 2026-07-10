@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
-import { updateJobStatus, addJobNote, cancelJob, reinstateJob, assignTechnician } from "@/lib/actions/jobs";
+import {
+  updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
+} from "@/lib/actions/jobs";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -18,7 +20,7 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
     db.job.findUnique({
       where: { id },
       include: {
-        technician: { select: { name: true, email: true } },
+        assignments: { include: { user: { select: { id: true, name: true, email: true } } } },
         client: { select: { id: true, name: true, email: true } },
         notes: {
           orderBy: { createdAt: "desc" },
@@ -34,6 +36,7 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
   if (!job) notFound();
   const employees = technicians.filter((t) => t.role === "EMPLOYEE");
   const admins = technicians.filter((t) => t.role === "ADMIN");
+  const assignedIds = new Set(job.assignments.map((a) => a.user.id));
 
   return (
     <div className="space-y-6">
@@ -52,8 +55,14 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
             <div><dt className="font-medium text-gray-500">When</dt><dd>{fmtDateTime(job.scheduledAt)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
             <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
             <div>
-              <dt className="font-medium text-gray-500">Technician</dt>
-              <dd>{job.technician ? job.technician.name : <span className="italic text-gray-400">Unassigned</span>}</dd>
+              <dt className="font-medium text-gray-500">Technicians</dt>
+              <dd>
+                {job.assignments.length > 0 ? (
+                  job.assignments.map((a) => a.user.name).join(", ")
+                ) : (
+                  <span className="italic text-gray-400">Unassigned</span>
+                )}
+              </dd>
             </div>
             <div>
               <dt className="font-medium text-gray-500">Portal client</dt>
@@ -80,27 +89,30 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
 
           {job.status !== "CANCELLED" ? (
             <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
-              <form action={assignTechnician} className="flex items-end gap-2">
+              <form action={assignTechnicians} className="space-y-2">
                 <input type="hidden" name="jobId" value={job.id} />
-                <div className="flex-1">
-                  <label htmlFor="technicianId" className="label">
-                    {job.technician ? "Reassign technician" : "Assign technician"}
-                  </label>
-                  <select id="technicianId" name="technicianId" required className="input" defaultValue="">
-                    <option value="" disabled>Select…</option>
-                    <optgroup label="Employees">
-                      {employees.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Admins">
-                      {admins.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-                <button type="submit" className="btn-small">Save</button>
+                <label htmlFor="technicianIds" className="label">Assign technicians (any number)</label>
+                <select
+                  id="technicianIds"
+                  name="technicianIds"
+                  multiple
+                  size={5}
+                  className="input"
+                  defaultValue={[...assignedIds]}
+                >
+                  <optgroup label="Employees">
+                    {employees.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Admins">
+                    {admins.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </optgroup>
+                </select>
+                <p className="text-xs text-gray-500">Cmd/Ctrl-click to select several. Saving replaces the current list.</p>
+                <button type="submit" className="btn-small">Save assignments</button>
               </form>
 
               <form action={updateJobStatus} className="flex items-end gap-2">
@@ -118,7 +130,7 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
 
               <ConfirmForm
                 action={cancelJob}
-                confirmText="Cancel this job? It will leave the technician's schedule and show as Cancelled for the client."
+                confirmText="Cancel this job? It will leave every assigned technician's schedule and show as Cancelled for the client."
                 className="space-y-2"
               >
                 <input type="hidden" name="jobId" value={job.id} />
@@ -128,19 +140,29 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
               </ConfirmForm>
             </div>
           ) : (
-            <div className="mt-6 border-t border-gray-100 pt-4">
+            <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
               <form action={reinstateJob}>
                 <input type="hidden" name="jobId" value={job.id} />
                 <button type="submit" className="btn-small">Reinstate to Scheduled</button>
               </form>
             </div>
           )}
+
+          <div className="mt-6 border-t border-gray-100 pt-4">
+            <ConfirmForm
+              action={deleteJob}
+              confirmText={`Permanently delete this job for ${job.customerName}? This removes it and all its notes/photos for good — it can't be undone. Cancel it instead if you just want it off the active schedule.`}
+            >
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="btn-danger">Delete job permanently</button>
+            </ConfirmForm>
+          </div>
         </section>
 
         <section className="card lg:col-span-2">
           <h2 className="font-bold text-navy">Job Notes</h2>
           <p className="mt-1 text-xs text-gray-500">
-            Visible to admins and the assigned technician — never to the client.
+            Visible to admins and assigned technicians — never to the client.
           </p>
           <form action={addJobNote} className="mt-4">
             <input type="hidden" name="jobId" value={job.id} />
@@ -159,7 +181,15 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
             {job.notes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
             {job.notes.map((n) => (
               <li key={n.id} className="rounded-lg bg-navy-50 p-3 text-sm">
-                <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                  <form action={deleteJobNote}>
+                    <input type="hidden" name="noteId" value={n.id} />
+                    <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
+                      Delete
+                    </button>
+                  </form>
+                </div>
                 <Attachments items={n.attachments} />
                 <p className="mt-1 text-xs text-gray-500">
                   {n.author.name} · {fmtDateTime(n.createdAt)}

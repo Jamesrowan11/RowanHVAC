@@ -99,6 +99,20 @@ export async function replyToThread(formData: FormData): Promise<void> {
   revalidatePath("/portal", "layout");
 }
 
+/** Admins can delete any message; everyone else only their own. Attachments cascade with it. */
+export async function deleteMessage(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const messageId = String(formData.get("messageId") ?? "");
+
+  const message = await db.message.findUnique({ where: { id: messageId } });
+  if (!message) throw new Error("Not found");
+  if (user.role !== "ADMIN" && message.authorId !== user.id) throw new Error("Forbidden");
+  if (!(await canAccessThread(user, message.threadId))) throw new Error("Not found");
+
+  await db.message.delete({ where: { id: messageId } });
+  revalidatePath(`/portal/messages/${message.threadId}`);
+}
+
 export async function markThreadRead(threadId: string): Promise<void> {
   const user = await actionUser();
   await db.threadParticipant.updateMany({

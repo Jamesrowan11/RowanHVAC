@@ -50,9 +50,9 @@ export async function canViewAttachment(user: User, attachmentId: string): Promi
     if (user.role === "ADMIN") return true;
     const note = await db.jobNote.findUnique({
       where: { id: att.jobNoteId },
-      include: { job: { select: { technicianId: true } } },
+      include: { job: { select: { assignments: { select: { userId: true } } } } },
     });
-    return !!note && note.job.technicianId === user.id;
+    return !!note && note.job.assignments.some((a) => a.userId === user.id);
   }
 
   if (att.messageId) {

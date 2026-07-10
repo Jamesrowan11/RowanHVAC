@@ -63,7 +63,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  jobsAsTechnician   Job[]               @relation("JobTechnician")
+  jobsAsTechnician   JobAssignment[]
   jobsAsClient       Job[]               @relation("JobClient")
   jobNotes           JobNote[]
   quoteRequests      QuoteRequest[]
@@ -117,19 +117,33 @@ model Job {
   confirmAskedAt     DateTime?
   confirmRespondedAt DateTime?
 
-  // Assignment is optional at scheduling time — many jobs get a technician
-  // assigned the day of, either by an admin or by a tech claiming it.
-  technicianId String?
-  technician   User?     @relation("JobTechnician", fields: [technicianId], references: [id])
-  clientId     String?
-  client       User?     @relation("JobClient", fields: [clientId], references: [id], onDelete: SetNull)
+  // Assignment is optional at scheduling time, and not limited to one person —
+  // many jobs get one or more technicians assigned the day of, either by an
+  // admin or by techs claiming it themselves. See JobAssignment.
+  assignments JobAssignment[]
+  clientId    String?
+  client      User?           @relation("JobClient", fields: [clientId], references: [id], onDelete: SetNull)
 
   notes     JobNote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([technicianId, status])
   @@index([clientId])
+}
+
+/** Join table: assigns one technician (employee or admin) to one job. A job
+ * can have any number of assigned technicians, and a technician can be
+ * assigned to any number of jobs. */
+model JobAssignment {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([jobId, userId])
+  @@index([userId])
 }
 
 model JobNote {

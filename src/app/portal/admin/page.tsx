@@ -18,7 +18,7 @@ export default async function AdminOverview() {
       db.job.findMany({
         orderBy: { scheduledAt: "desc" },
         take: 6,
-        include: { technician: { select: { name: true } } },
+        include: { assignments: { include: { user: { select: { name: true } } } } },
       }),
       db.quoteRequest.findMany({ where: { status: "NEW" }, orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
@@ -78,7 +78,7 @@ export default async function AdminOverview() {
                     {j.customerName} · {j.service}
                   </Link>
                   <p className="mt-0.5 text-gray-500">
-                    {fmtDateTime(j.scheduledAt)} · {j.technician ? j.technician.name : "Unassigned"}
+                    {fmtDateTime(j.scheduledAt)} · {j.assignments.length > 0 ? j.assignments.map((a) => a.user.name).join(", ") : "Unassigned"}
                   </p>
                 </div>
                 <JobStatusBadge status={j.status} />

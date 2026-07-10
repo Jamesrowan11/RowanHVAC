@@ -116,7 +116,7 @@ export async function deleteUser(formData: FormData): Promise<void> {
 
   // Jobs reference users with required relations; deactivation is preferred.
   const jobCount = await db.job.count({
-    where: { OR: [{ technicianId: id }, { clientId: id }] },
+    where: { OR: [{ assignments: { some: { userId: id } } }, { clientId: id }] },
   });
   if (jobCount > 0) {
     throw new Error("This user has job history — deactivate instead of deleting");

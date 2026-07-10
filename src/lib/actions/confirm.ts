@@ -19,7 +19,7 @@ export async function respondNextUp(formData: FormData): Promise<void> {
 
   const job = await db.job.findUnique({
     where: { confirmToken: token },
-    include: { technician: true, client: true },
+    include: { assignments: true, client: true },
   });
   if (!job) return;
 
@@ -34,11 +34,12 @@ export async function respondNextUp(formData: FormData): Promise<void> {
       ? `${who} is ready — okay to come now.`
       : `${who} would prefer to WAIT for a later time. Please follow up.`;
 
-  // Tell the assigned technician (if any) and the office.
+  // Tell the assigned technicians (if any) and the office.
+  const assignedIds = job.assignments.map((a) => a.userId);
   const recipients = await db.user.findMany({
     where: {
       OR: [
-        ...(job.technicianId ? [{ id: job.technicianId }] : []),
+        ...(assignedIds.length ? [{ id: { in: assignedIds } }] : []),
         { role: "ADMIN" as const, active: true },
       ],
     },
@@ -56,10 +57,10 @@ export async function respondNextUp(formData: FormData): Promise<void> {
     notifySms({ to: phones, body: `${COMPANY.shortName}: ${verdict} (${job.service})` });
   }
 
-  // Attribute the auto-generated note to the assigned tech if there is one,
+  // Attribute the auto-generated note to an assigned tech if there is one,
   // otherwise to whichever admin was notified (the job always has an admin
   // recipient, so this is only null if there are no active admins at all).
-  const noteAuthorId = job.technicianId ?? recipients[0]?.id;
+  const noteAuthorId = assignedIds[0] ?? recipients[0]?.id;
   if (noteAuthorId) {
     await db.jobNote.create({
       data: {

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
-import { updateJobStatus, addJobNote, notifyOnMyWay, askNextUp } from "@/lib/actions/jobs";
+import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp } from "@/lib/actions/jobs";
 import { addCustomerNote } from "@/lib/actions/clients";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -16,12 +16,12 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
   // Scoped lookup: a job id that isn't assigned to this employee is a 404 —
   // the data never leaves the server.
   const job = await db.job.findFirst({
-    where: user.role === "ADMIN" ? { id } : { id, technicianId: user.id },
+    where: user.role === "ADMIN" ? { id } : { id, assignments: { some: { userId: user.id } } },
     include: {
       client: { select: { id: true, name: true, phone: true, email: true } },
       notes: {
         orderBy: { createdAt: "desc" },
-        include: { author: { select: { name: true } }, attachments: true },
+        include: { author: { select: { id: true, name: true } }, attachments: true },
       },
     },
   });
@@ -126,7 +126,17 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
             {job.notes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
             {job.notes.map((n) => (
               <li key={n.id} className="rounded-lg bg-navy-50 p-3 text-sm">
-                <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                  {(user.role === "ADMIN" || n.author.id === user.id) && (
+                    <form action={deleteJobNote}>
+                      <input type="hidden" name="noteId" value={n.id} />
+                      <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
+                        Delete
+                      </button>
+                    </form>
+                  )}
+                </div>
                 <Attachments items={n.attachments} />
                 <p className="mt-1 text-xs text-gray-500">{n.author.name} · {fmtDateTime(n.createdAt)}</p>
               </li>

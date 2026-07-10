@@ -134,7 +134,7 @@ async function main() {
       service: "Air Conditioning — seasonal tune-up",
       scheduledAt: daysFromNow(3, 9),
       status: "SCHEDULED",
-      technicianId: jake.id,
+      assignments: { create: { userId: jake.id } },
       clientId: client.id,
     },
   });
@@ -146,7 +146,7 @@ async function main() {
       service: "Heat Pump — repair",
       scheduledAt: daysFromNow(0, 13),
       status: "IN_PROGRESS",
-      technicianId: dean.id,
+      assignments: { create: { userId: dean.id } },
       clientId: client2.id,
     },
   });
@@ -160,7 +160,7 @@ async function main() {
       kind: "PICKUP",
       scheduledAt: daysFromNow(1, 8),
       status: "SCHEDULED",
-      technicianId: dean.id,
+      assignments: { create: { userId: dean.id } },
     },
   });
 
@@ -174,7 +174,7 @@ async function main() {
       completedAt: daysFromNow(-30, 11),
       summary:
         "Replaced failed hot surface ignitor and cleaned flame sensor. System cycled three times, heating normally. Recommended fall maintenance.",
-      technicianId: jake.id,
+      assignments: { create: { userId: jake.id } },
       clientId: client.id,
     },
   });
@@ -188,7 +188,7 @@ async function main() {
       status: "CANCELLED",
       cancelReason: "Customer asked to postpone until after their kitchen renovation.",
       cancelledAt: daysFromNow(-9),
-      technicianId: dean.id,
+      assignments: { create: { userId: dean.id } },
       clientId: client2.id,
     },
   });

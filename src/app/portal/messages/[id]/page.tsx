@@ -3,7 +3,8 @@ import { requireUser } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
 import { canAccessThread } from "@/lib/messaging";
-import { replyToThread, markThreadRead } from "@/lib/actions/messages";
+import { replyToThread, markThreadRead, deleteMessage } from "@/lib/actions/messages";
+import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
 
 export const metadata = { title: "Conversation" };
@@ -51,13 +52,27 @@ export default async function ThreadView({ params }: { params: Promise<{ id: str
             : user.role === "CLIENT" && m.author.role !== "CLIENT"
               ? "Rowan Heating & Air"
               : m.author.name;
+          const canDelete = mine || user.role === "ADMIN";
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[85%] rounded-xl p-4 shadow-card ${mine ? "bg-navy text-white" : "bg-white"}`}>
-                <p className={`text-xs font-semibold ${mine ? "text-navy-200" : "text-gray-500"}`}>
-                  {displayName}
-                  {m.viaEmail && " · via email"}
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className={`text-xs font-semibold ${mine ? "text-navy-200" : "text-gray-500"}`}>
+                    {displayName}
+                    {m.viaEmail && " · via email"}
+                  </p>
+                  {canDelete && (
+                    <ConfirmForm action={deleteMessage} confirmText="Delete this message? This can't be undone.">
+                      <input type="hidden" name="messageId" value={m.id} />
+                      <button
+                        type="submit"
+                        className={`whitespace-nowrap text-xs font-medium hover:underline ${mine ? "text-navy-200" : "text-red-600"}`}
+                      >
+                        Delete
+                      </button>
+                    </ConfirmForm>
+                  )}
+                </div>
                 <p className="mt-1 whitespace-pre-wrap text-sm">{m.body}</p>
                 <Attachments items={m.attachments} />
                 <p className={`mt-2 text-xs ${mine ? "text-navy-300" : "text-gray-400"}`}>

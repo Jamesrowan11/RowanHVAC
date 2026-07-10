@@ -42,7 +42,7 @@ export default async function EmployeeSchedule() {
 
   // Employees only ever see jobs assigned to them. Cancelled jobs leave the
   // active schedule entirely.
-  const baseWhere = { technicianId: user.id, status: { not: "CANCELLED" as const } };
+  const baseWhere = { assignments: { some: { userId: user.id } }, status: { not: "CANCELLED" as const } };
 
   const [today, thisWeek, later, recentDone, available, announcements] = await Promise.all([
     db.job.findMany({
@@ -59,29 +59,27 @@ export default async function EmployeeSchedule() {
       take: 20,
     }),
     db.job.findMany({
-      where: { technicianId: user.id, status: "COMPLETED", scheduledAt: { lt: startOfDay } },
+      where: { assignments: { some: { userId: user.id } }, status: "COMPLETED", scheduledAt: { lt: startOfDay } },
       orderBy: { scheduledAt: "desc" },
       take: 10,
     }),
-    // Jobs available to claim today: unassigned, or a teammate's still-unstarted job.
+    // Jobs available to help on today: anything this tech isn't already on
+    // (unassigned, or a teammate's still-unstarted job).
     db.job.findMany({
       where: {
         status: "SCHEDULED",
         scheduledAt: { gte: startOfDay, lt: endOfDay },
-        OR: [
-          { technicianId: null },
-          { technicianId: { not: user.id }, technician: { active: true } },
-        ],
+        NOT: { assignments: { some: { userId: user.id } } },
       },
       orderBy: { scheduledAt: "asc" },
-      include: { technician: { select: { name: true } } },
+      include: { assignments: { include: { user: { select: { name: true } } } } },
     }),
     db.announcement.findMany({ orderBy: { createdAt: "desc" }, take: 3 }),
   ]);
 
   // Job picker for the "Upload your work" section — the tech's recent jobs.
   const myRecentJobs = await db.job.findMany({
-    where: { technicianId: user.id, status: { not: "CANCELLED" } },
+    where: { assignments: { some: { userId: user.id } }, status: { not: "CANCELLED" } },
     orderBy: { scheduledAt: "desc" },
     take: 25,
     select: { id: true, customerName: true, service: true, scheduledAt: true },
@@ -133,12 +131,16 @@ export default async function EmployeeSchedule() {
                     {fmtDateTime(j.scheduledAt)} · {j.address}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {j.technician ? <>Currently: {j.technician.name}</> : <span className="italic">Unassigned</span>}
+                    {j.assignments.length > 0 ? (
+                      <>Currently: {j.assignments.map((a) => a.user.name).join(", ")}</>
+                    ) : (
+                      <span className="italic">Unassigned</span>
+                    )}
                   </p>
                 </div>
                 <ConfirmForm
                   action={pickUpJob}
-                  confirmText={`Pick up ${j.customerName}'s ${j.service}? It will move to your schedule.`}
+                  confirmText={`Join ${j.customerName}'s ${j.service}? It will be added to your schedule.`}
                 >
                   <input type="hidden" name="jobId" value={j.id} />
                   <button type="submit" className="btn-small">Pick up</button>

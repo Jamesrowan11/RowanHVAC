@@ -141,7 +141,7 @@ export async function addCustomerNote(formData: FormData): Promise<void> {
 
   if (user.role === "EMPLOYEE") {
     // An employee may add notes only for a customer on one of their jobs.
-    const hasJob = await db.job.count({ where: { technicianId: user.id, clientId } });
+    const hasJob = await db.job.count({ where: { assignments: { some: { userId: user.id } }, clientId } });
     if (hasJob === 0) throw new Error("Forbidden");
   }
 

@@ -27,7 +27,7 @@ export default async function AdminSchedule({
     db.job.findMany({
       orderBy: { scheduledAt: "desc" },
       take: 100,
-      include: { technician: { select: { name: true } } },
+      include: { assignments: { include: { user: { select: { name: true } } } } },
     }),
     fromRequest
       ? db.quoteRequest.findUnique({ where: { id: fromRequest } })
@@ -105,9 +105,8 @@ export default async function AdminSchedule({
               </select>
             </div>
             <div>
-              <label htmlFor="technicianId" className="label">Assign technician (optional)</label>
-              <select id="technicianId" name="technicianId" className="input" defaultValue="">
-                <option value="">— Assign later (day of) —</option>
+              <label htmlFor="technicianIds" className="label">Assign technicians (optional, any number)</label>
+              <select id="technicianIds" name="technicianIds" multiple size={4} className="input">
                 <optgroup label="Employees">
                   {employees.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
@@ -119,6 +118,9 @@ export default async function AdminSchedule({
                   ))}
                 </optgroup>
               </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Cmd/Ctrl-click to select several, or none to assign later.
+              </p>
             </div>
           </div>
           <div>
@@ -159,7 +161,11 @@ export default async function AdminSchedule({
                   <td className="px-4 py-3 font-medium text-navy">{j.customerName}</td>
                   <td className="px-4 py-3">{j.service}</td>
                   <td className="px-4 py-3">
-                    {j.technician ? j.technician.name : <span className="italic text-gray-400">Unassigned</span>}
+                    {j.assignments.length > 0 ? (
+                      j.assignments.map((a) => a.user.name).join(", ")
+                    ) : (
+                      <span className="italic text-gray-400">Unassigned</span>
+                    )}
                   </td>
                   <td className="px-4 py-3"><JobStatusBadge status={j.status} /></td>
                   <td className="px-4 py-3 text-right">
