@@ -20,6 +20,7 @@ const navByRole = {
     { href: "/portal/admin/content/areas", label: "Service Areas" },
     { href: "/portal/admin/team", label: "Our Techs" },
     { href: "/portal/profile", label: "My Profile" },
+    { href: "/portal/mailbox", label: "My Mailbox" },
   ],
   EMPLOYEE: [
     { href: "/portal/employee", label: "My Schedule" },
@@ -28,6 +29,7 @@ const navByRole = {
     { href: "/portal/employee/email", label: "Email" },
     { href: "/portal/employee/announcements", label: "Announcements" },
     { href: "/portal/profile", label: "My Profile" },
+    { href: "/portal/mailbox", label: "My Mailbox" },
   ],
   CLIENT: [
     { href: "/portal/client", label: "Appointments" },

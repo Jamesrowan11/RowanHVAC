@@ -44,7 +44,7 @@ export async function linkMyMailboxAction(_prev: ActionState, formData: FormData
   if (!password.success) return { ok: false, error: password.error.errors[0]?.message };
 
   const result = await connectAndGrant(address.data, password.data, user.id);
-  if (result.ok) revalidatePath("/portal/profile");
+  if (result.ok) revalidatePath("/portal/mailbox");
   return result;
 }
 
@@ -97,7 +97,7 @@ export async function unlinkMailboxAction(formData: FormData): Promise<void> {
     throw new Error("Forbidden");
   }
   await db.mailboxAccess.deleteMany({ where: { userId: targetUserId, mailboxId } });
-  revalidatePath("/portal/profile");
+  revalidatePath("/portal/mailbox");
   revalidatePath("/portal/admin/emails/accounts");
 }
 

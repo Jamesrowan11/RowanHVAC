@@ -46,7 +46,7 @@ export async function deleteMailboxAction(formData: FormData): Promise<void> {
   // every portal account's access to it too (cascades via MailboxAccess).
   await db.mailbox.deleteMany({ where: { address: `${name.toLowerCase()}@${mailDomain()}` } });
   revalidatePath("/portal/admin/emails/accounts");
-  revalidatePath("/portal/profile");
+  revalidatePath("/portal/mailbox");
 }
 
 export async function resetMailboxPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
