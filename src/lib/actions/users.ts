@@ -40,12 +40,22 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
   const existing = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (existing) return { ok: false, error: "A user with that email already exists" };
 
-  // Clients get the next sequential customer number (starting at 1001) —
-  // shown on service tickets and used by the QuickBooks export.
+  // Clients get a customer number — shown on service tickets and used by the
+  // QuickBooks export. The admin can type one in (to match an existing
+  // QuickBooks customer); left blank, the next sequential number is assigned.
   let customerNumber: number | null = null;
   if (parsed.data.role === "CLIENT") {
-    const last = await db.user.aggregate({ _max: { customerNumber: true } });
-    customerNumber = Math.max(1000, last._max.customerNumber ?? 1000) + 1;
+    const raw = String(formData.get("customerNumber") ?? "").trim();
+    if (raw) {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n <= 0) return { ok: false, error: "Customer # must be a positive whole number" };
+      const numTaken = await db.user.findFirst({ where: { customerNumber: n } });
+      if (numTaken) return { ok: false, error: `Customer #${n} is already assigned to ${numTaken.name}` };
+      customerNumber = n;
+    } else {
+      const last = await db.user.aggregate({ _max: { customerNumber: true } });
+      customerNumber = Math.max(1000, last._max.customerNumber ?? 1000) + 1;
+    }
   }
 
   const user = await db.user.create({

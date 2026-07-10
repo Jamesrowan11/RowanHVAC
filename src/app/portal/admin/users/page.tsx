@@ -60,6 +60,13 @@ export default async function AdminUsers() {
             <input id="new-address" name="address" className="input" />
           </div>
           <div>
+            <label htmlFor="new-customerNumber" className="label">Customer # (clients — optional)</label>
+            <input id="new-customerNumber" name="customerNumber" type="number" min={1} className="input" />
+            <p className="mt-1 text-xs text-gray-500">
+              Type their QuickBooks customer number, or leave blank to auto-assign the next number.
+            </p>
+          </div>
+          <div>
             <label htmlFor="new-password" className="label">Initial password (min 8 characters)</label>
             <input id="new-password" name="password" type="password" required minLength={8} className="input" />
           </div>
