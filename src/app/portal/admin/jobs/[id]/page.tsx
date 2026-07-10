@@ -6,6 +6,7 @@ import { fmtDateTime } from "@/lib/queries";
 import {
   updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
 } from "@/lib/actions/jobs";
+import { createTicketDraft } from "@/lib/actions/tickets";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -22,6 +23,10 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
       include: {
         assignments: { include: { user: { select: { id: true, name: true, email: true } } } },
         client: { select: { id: true, name: true, email: true } },
+        tickets: {
+          orderBy: { createdAt: "asc" },
+          include: { tech: { select: { name: true } } },
+        },
         notes: {
           orderBy: { createdAt: "desc" },
           include: { author: { select: { name: true } }, attachments: true },
@@ -157,6 +162,39 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
               <button type="submit" className="btn-danger">Delete job permanently</button>
             </ConfirmForm>
           </div>
+        </section>
+
+        <section className="card lg:col-span-2">
+          <h2 className="font-bold text-navy">Service tickets</h2>
+          <ul className="mt-3 space-y-2">
+            {job.tickets.length === 0 && (
+              <li className="text-sm text-gray-500">No ticket filed for this job yet.</li>
+            )}
+            {job.tickets.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+                <div>
+                  <p className="font-semibold text-navy">Ticket #{t.ticketNumber} — {t.tech.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {t.status === "DRAFT" ? "Draft" : "Submitted"}
+                    {t.total != null && <> · ${Number(t.total).toFixed(2)}</>}
+                    {t.exportedAt && " · exported"}
+                  </p>
+                </div>
+                <Link
+                  href={t.status === "DRAFT" ? `/portal/employee/tickets/${t.id}` : `/portal/admin/tickets/${t.id}`}
+                  className="btn-small-outline whitespace-nowrap"
+                >
+                  Open
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {job.status !== "CANCELLED" && (
+            <form action={createTicketDraft} className="mt-3">
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="btn-small">Start ticket for this job</button>
+            </form>
+          )}
         </section>
 
         <section className="card lg:col-span-2">

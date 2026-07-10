@@ -29,10 +29,34 @@ async function editableTicket(user: User, id: string) {
   return ticket;
 }
 
-export async function createTicketDraft(): Promise<void> {
+export async function createTicketDraft(formData?: FormData): Promise<void> {
   const user = await actionRole("EMPLOYEE", "ADMIN");
+
+  // Starting a ticket from a schedule event prefills it from the job.
+  const jobId = formData ? String(formData.get("jobId") ?? "") : "";
+  let jobData: Prisma.ServiceTicketCreateInput | null = null;
+  if (jobId) {
+    const job = await db.job.findFirst({
+      where:
+        user.role === "ADMIN"
+          ? { id: jobId }
+          : { id: jobId, assignments: { some: { userId: user.id } } },
+    });
+    if (!job) throw new Error("Job not found");
+    jobData = {
+      tech: { connect: { id: user.id } },
+      job: { connect: { id: job.id } },
+      ...(job.clientId ? { client: { connect: { id: job.clientId } } } : {}),
+      customerName: job.customerName,
+      serviceAddress: job.address,
+      serviceDate: job.scheduledAt,
+      timeIn: job.scheduledAt,
+      timeOut: job.endAt,
+    };
+  }
+
   const ticket = await db.serviceTicket.create({
-    data: { techId: user.id, serviceDate: new Date() },
+    data: jobData ?? { tech: { connect: { id: user.id } }, serviceDate: new Date() },
   });
   redirect(`/portal/employee/tickets/${ticket.id}`);
 }

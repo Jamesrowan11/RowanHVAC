@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
+import Link from "next/link";
 import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp } from "@/lib/actions/jobs";
+import { createTicketDraft } from "@/lib/actions/tickets";
 import { addCustomerNote } from "@/lib/actions/clients";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -19,6 +21,10 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
     where: user.role === "ADMIN" ? { id } : { id, assignments: { some: { userId: user.id } } },
     include: {
       client: { select: { id: true, name: true, phone: true, email: true } },
+      tickets: {
+        orderBy: { createdAt: "asc" },
+        include: { tech: { select: { id: true, name: true } } },
+      },
       notes: {
         orderBy: { createdAt: "desc" },
         include: { author: { select: { id: true, name: true } }, attachments: true },
@@ -108,6 +114,42 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
                 </p>
               </form>
             </div>
+          )}
+        </section>
+
+        <section className="card">
+          <h2 className="font-bold text-navy">Service ticket</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            The field ticket for this visit — time, readings, work performed,
+            parts, and photos. It drives the bill.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {job.tickets.length === 0 && (
+              <li className="text-sm text-gray-500">No ticket yet for this job.</li>
+            )}
+            {job.tickets.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+                <div>
+                  <p className="font-semibold text-navy">Ticket #{t.ticketNumber}</p>
+                  <p className="text-xs text-gray-500">
+                    {t.tech.name} · {t.status === "DRAFT" ? "Draft" : `Submitted${t.total != null ? ` · $${Number(t.total).toFixed(2)}` : ""}`}
+                  </p>
+                </div>
+                {(user.role === "ADMIN" || t.tech.id === user.id) && (
+                  <Link href={`/portal/employee/tickets/${t.id}`} className="btn-small-outline whitespace-nowrap">
+                    {t.status === "DRAFT" ? "Continue" : "View"}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+          {job.status !== "CANCELLED" && (
+            <form action={createTicketDraft} className="mt-3">
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="btn-small">
+                Start ticket for this job
+              </button>
+            </form>
           )}
         </section>
 

@@ -146,6 +146,7 @@ model Job {
   client      User?           @relation("JobClient", fields: [clientId], references: [id], onDelete: SetNull)
 
   notes     JobNote[]
+  tickets   ServiceTicket[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -291,6 +292,11 @@ model ServiceTicket {
   techId String
   tech   User   @relation("TicketTech", fields: [techId], references: [id])
 
+  // The schedule event (calendar job) this ticket documents. Starting a
+  // ticket from a job prefills customer/address/date from it.
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
   // Customer & job
   clientId       String?
   client         User?    @relation("TicketClient", fields: [clientId], references: [id], onDelete: SetNull)
@@ -351,6 +357,7 @@ model ServiceTicket {
   @@index([techId, status])
   @@index([serviceDate])
   @@index([status, billingStatus])
+  @@index([jobId])
 }
 
 /** One line on a ticket's bill. PART lines are created as the tech picks
