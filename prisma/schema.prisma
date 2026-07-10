@@ -145,14 +145,16 @@ model Job {
   confirmAskedAt     DateTime?
   confirmRespondedAt DateTime?
 
-  // Price acceptance: a quoted price is sent to the customer when the job is
-  // scheduled; they must accept it (checkbox + typed signature) by one day
-  // before the appointment. The signature + timestamp are kept on record.
-  quotedPrice     Decimal?  @db.Decimal(10, 2)
+  // Terms acceptance: when a job/pickup is scheduled for a portal client,
+  // they're sent the hourly pricing terms + the current service agreement
+  // to accept (checkbox + typed signature) by one day before the visit.
+  // termsSnapshot keeps the exact agreement text they were shown, so later
+  // edits to the agreement never change what was signed.
   acceptToken     String?   @unique
-  priceSentAt     DateTime?
-  priceAcceptedAt DateTime?
-  priceSignature  String?
+  termsSentAt     DateTime?
+  termsAcceptedAt DateTime?
+  termsSignature  String?
+  termsSnapshot   String?   @db.Text
 
   // Assignment is optional at scheduling time, and not limited to one person —
   // many jobs get one or more technicians assigned the day of, either by an

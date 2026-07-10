@@ -142,14 +142,11 @@ export default async function AdminSchedule({
               ))}
             </select>
           </div>
-          <div>
-            <label htmlFor="quotedPrice" className="label">Quoted price ($, optional)</label>
-            <input id="quotedPrice" name="quotedPrice" type="number" step="0.01" min="0" className="input" />
-            <p className="mt-1 text-xs text-gray-500">
-              When set (and a portal client is linked), the customer is automatically
-              emailed/texted a link to accept the price — due one day before the appointment.
-            </p>
-          </div>
+          <p className="text-xs text-gray-500">
+            When a portal client is linked, they&apos;re automatically emailed/texted our
+            hourly pricing terms and service agreement to sign — due one day before the
+            appointment. Edit the agreement on the Price Book page.
+          </p>
         </ActionForm>
       </section>
 

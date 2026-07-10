@@ -4,6 +4,7 @@ import { getPricingSettings, fmtBracket } from "@/lib/pricing";
 import {
   upsertLaborRate, deleteLaborRate, updatePricingSettings,
   createPriceItem, updatePriceItem, setPriceItemActive, deletePriceItem,
+  updateAgreement, removeAgreementPdf,
 } from "@/lib/actions/pricebook";
 import ActionForm from "@/components/portal/ActionForm";
 import ConfirmForm from "@/components/portal/ConfirmForm";
@@ -14,10 +15,12 @@ export const dynamic = "force-dynamic";
 export default async function AdminPriceBook() {
   await requireRole("ADMIN");
 
-  const [rates, items, settings] = await Promise.all([
+  const [rates, items, settings, agreementText, agreementPdf] = await Promise.all([
     db.laborRate.findMany({ orderBy: [{ zone: "asc" }, { minutes: "asc" }] }),
     db.priceBookItem.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     getPricingSettings(),
+    db.setting.findUnique({ where: { key: "terms.agreementText" } }),
+    db.setting.findUnique({ where: { key: "terms.agreementPdf" } }),
   ]);
 
   const zones = [...new Set(rates.map((r) => r.zone))];
@@ -73,6 +76,47 @@ export default async function AdminPriceBook() {
           {fmtBracket(settings.minimumMinutes)} minimum. Anything over {fmtBracket(settings.maxMinutes)} is
           flagged for manual pricing instead of guessing.
         </p>
+      </section>
+
+      {/* Service agreement */}
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">Service agreement</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Sent to every customer (with the hourly rates above) when their job or
+          pickup is scheduled — they check a box and sign their name to accept.
+          Each job keeps a snapshot of the exact text it sent, so editing this
+          never changes what earlier customers signed.
+        </p>
+        <ActionForm
+          action={updateAgreement}
+          submitLabel="Save agreement"
+          successMessage="Saved — new appointments get this version."
+          resetOnSuccess={false}
+          className="mt-3 space-y-3"
+        >
+          <textarea
+            name="agreementText"
+            rows={10}
+            defaultValue={agreementText?.value ?? ""}
+            placeholder="Paste your service agreement text here…"
+            className="input font-mono text-xs"
+            aria-label="Agreement text"
+          />
+          <div>
+            <label htmlFor="agreementPdf" className="label">Attach as PDF too (optional)</label>
+            <input id="agreementPdf" name="agreementPdf" type="file" accept="application/pdf" className="input" />
+          </div>
+        </ActionForm>
+        {agreementPdf?.value && (
+          <div className="mt-2 flex items-center gap-4 text-sm">
+            <a href="/api/agreement" target="_blank" rel="noreferrer" className="font-medium text-accent-600 hover:underline">
+              Current PDF ↗
+            </a>
+            <form action={removeAgreementPdf}>
+              <button type="submit" className="text-xs font-medium text-red-600 hover:underline">Remove PDF</button>
+            </form>
+          </div>
+        )}
       </section>
 
       {/* Labor rate table */}

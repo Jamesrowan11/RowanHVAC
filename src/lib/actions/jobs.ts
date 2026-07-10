@@ -29,44 +29,48 @@ const jobSchema = z.object({
   technicianIds: z.array(z.string()).default([]), // optional — often assigned day-of, any number
   clientId: z.string().optional(),
   requestId: z.string().optional(),
-  quotedPrice: z.coerce.number().min(0).max(1000000).optional(),
 });
 
-/** Deadline for accepting the quoted price: one day before the appointment. */
+/** Deadline for accepting the pricing terms: one day before the appointment. */
 function acceptDeadline(scheduledAt: Date): Date {
   const d = new Date(scheduledAt);
   d.setDate(d.getDate() - 1);
   return d;
 }
 
-/** Email + text the customer their quoted price with the acceptance link. */
-function sendPriceAcceptance(
-  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null; quotedPrice: unknown },
+/** Email + text the customer the pricing-terms & agreement acceptance link. */
+function sendTermsRequest(
+  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null },
   client: { id: string; name: string; email: string; phone: string | null }
 ) {
-  if (!job.acceptToken || job.quotedPrice == null) return;
+  if (!job.acceptToken) return;
   const link = `${process.env.APP_URL || ""}/accept/${job.acceptToken}`;
-  const price = `$${Number(job.quotedPrice).toFixed(2)}`;
   // Window appointments have no exact time — the deadline is just the day before.
   const deadline = job.window
     ? fmtDate(acceptDeadline(job.scheduledAt))
     : fmtDateTime(acceptDeadline(job.scheduledAt));
   notify({
     to: [client.email],
-    subject: `Please review and accept your quote — ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}`,
-    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.\n\nQuoted price: ${price}\n\nPlease review and accept the price by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
+    subject: `Please review our pricing terms & service agreement — ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}`,
+    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.\n\nBefore we come out, please review and accept our hourly pricing terms and service agreement by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
   });
   if (client.phone) {
     notifySms({
       to: [client.phone],
-      body: `${COMPANY.shortName}: please accept your ${price} quote for ${job.service} by ${deadline}. Tap: ${link}`,
+      body: `${COMPANY.shortName}: please review & accept our pricing terms and service agreement for your ${job.service} visit by ${deadline}. Tap: ${link}`,
     });
   }
   notifyPush([client.id], {
-    title: "Please accept your quote",
-    body: `${job.service} — ${price}`,
+    title: "Please accept our pricing terms",
+    body: `${job.service} — review & sign before your appointment`,
     url: link,
   });
+}
+
+/** The current service agreement text (admin-editable on the Price Book page). */
+async function currentAgreementText(): Promise<string> {
+  const row = await db.setting.findUnique({ where: { key: "terms.agreementText" } });
+  return row?.value ?? "";
 }
 
 export async function createJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -83,7 +87,6 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     technicianIds: formData.getAll("technicianIds").map(String).filter(Boolean),
     clientId: formData.get("clientId") || undefined,
     requestId: formData.get("requestId") || undefined,
-    quotedPrice: formData.get("quotedPrice") || undefined,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
@@ -124,20 +127,23 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       endAt,
       clientId,
       assignments: { create: techs.map((t) => ({ userId: t.id })) },
-      // A quoted price triggers the acceptance flow the moment the job is
-      // scheduled (needs a linked portal client to send to).
-      ...(data.quotedPrice != null && clientId
-        ? { quotedPrice: data.quotedPrice, acceptToken: crypto.randomUUID(), priceSentAt: new Date() }
-        : data.quotedPrice != null
-          ? { quotedPrice: data.quotedPrice }
-          : {}),
+      // Every scheduled job/pickup for a portal client triggers the
+      // pricing-terms & agreement acceptance flow. The agreement text is
+      // snapshotted so later edits never change what this customer signs.
+      ...(clientId
+        ? {
+            acceptToken: crypto.randomUUID(),
+            termsSentAt: new Date(),
+            termsSnapshot: await currentAgreementText(),
+          }
+        : {}),
     },
     include: { client: true },
   });
 
-  // Automation: send the price-acceptance request as soon as it's scheduled.
+  // Automation: send the terms-acceptance request as soon as it's scheduled.
   if (job.acceptToken && job.client) {
-    sendPriceAcceptance(job, job.client);
+    sendTermsRequest(job, job.client);
   }
 
   const label = data.kind === "PICKUP" ? "Pickup" : "Job";
@@ -627,45 +633,32 @@ export async function reinstateJob(formData: FormData): Promise<void> {
 }
 
 /**
- * Admin sets or changes the quoted price on a job. Changing the price
- * invalidates any earlier acceptance (it was for a different number) and
- * re-sends the acceptance request to the customer.
+ * Admin (re-)sends the pricing-terms & agreement request. Also covers jobs
+ * that were created before a client was linked, or after the agreement text
+ * changed — a fresh snapshot is taken and any prior signature stands only
+ * for the version it signed (a re-send clears nothing unless the snapshot
+ * changed, in which case a new signature is required).
  */
-export async function setQuotedPrice(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function sendTermsAcceptance(formData: FormData): Promise<void> {
   await actionRole("ADMIN");
   const jobId = String(formData.get("jobId") ?? "");
-  const price = Number(formData.get("quotedPrice"));
-  if (!Number.isFinite(price) || price < 0) return { ok: false, error: "Enter a valid price" };
-
   const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
-  if (!job) return { ok: false, error: "Not found" };
-  if (!job.client) return { ok: false, error: "Link this job to a portal client first — the request is emailed to their account" };
+  if (!job?.client) throw new Error("Link this job to a portal client first — the request is emailed to their account");
+
+  const agreement = await currentAgreementText();
+  const agreementChanged = job.termsSnapshot !== null && job.termsSnapshot !== agreement;
 
   const updated = await db.job.update({
     where: { id: job.id },
     data: {
-      quotedPrice: price,
-      acceptToken: crypto.randomUUID(),
-      priceSentAt: new Date(),
-      priceAcceptedAt: null,
-      priceSignature: null,
+      acceptToken: job.acceptToken ?? crypto.randomUUID(),
+      termsSentAt: new Date(),
+      termsSnapshot: agreement,
+      // A signature only covers the exact text that was signed.
+      ...(agreementChanged ? { termsAcceptedAt: null, termsSignature: null } : {}),
     },
   });
-  sendPriceAcceptance(updated, job.client);
-
-  revalidatePath("/portal", "layout");
-  return { ok: true };
-}
-
-/** Admin re-sends the price-acceptance request (same price, same link). */
-export async function resendPriceAcceptance(formData: FormData): Promise<void> {
-  await actionRole("ADMIN");
-  const jobId = String(formData.get("jobId") ?? "");
-  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
-  if (!job?.client || !job.acceptToken || job.quotedPrice == null) throw new Error("Nothing to send");
-
-  await db.job.update({ where: { id: job.id }, data: { priceSentAt: new Date() } });
-  sendPriceAcceptance(job, job.client);
+  sendTermsRequest(updated, job.client);
   revalidatePath("/portal", "layout");
 }
 

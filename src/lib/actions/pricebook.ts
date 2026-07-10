@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { actionRole } from "@/lib/guards";
+import { saveUpload, deleteUpload } from "@/lib/storage";
 import type { ActionState } from "@/lib/actions/jobs";
 
 /** Admin-only price book management: labor rates, add-ons/rules, parts. */
@@ -72,6 +73,51 @@ export async function updatePricingSettings(_prev: ActionState, formData: FormDa
   }
   revalidate();
   return { ok: true };
+}
+
+/* --------------------------- Service agreement --------------------------- */
+
+/**
+ * The service agreement customers sign before appointments. It changes
+ * often, so it lives here as editable text (plus an optional PDF) — no code
+ * change needed. Jobs snapshot the text at send time, so editing it never
+ * alters what an earlier customer signed.
+ */
+export async function updateAgreement(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+
+  const text = String(formData.get("agreementText") ?? "").trim().slice(0, 60000);
+  await db.setting.upsert({
+    where: { key: "terms.agreementText" },
+    create: { key: "terms.agreementText", value: text },
+    update: { value: text },
+  });
+
+  const file = formData.get("agreementPdf");
+  if (file instanceof File && file.size > 0) {
+    if (file.type !== "application/pdf") return { ok: false, error: "The agreement upload must be a PDF" };
+    if (file.size > 10 * 1024 * 1024) return { ok: false, error: "PDF too large (10 MB max)" };
+
+    const old = await db.setting.findUnique({ where: { key: "terms.agreementPdf" } });
+    const storagePath = await saveUpload(Buffer.from(await file.arrayBuffer()), file.name, "site");
+    await db.setting.upsert({
+      where: { key: "terms.agreementPdf" },
+      create: { key: "terms.agreementPdf", value: storagePath },
+      update: { value: storagePath },
+    });
+    if (old?.value) await deleteUpload(old.value);
+  }
+
+  revalidate();
+  return { ok: true };
+}
+
+export async function removeAgreementPdf(): Promise<void> {
+  await actionRole("ADMIN");
+  const old = await db.setting.findUnique({ where: { key: "terms.agreementPdf" } });
+  if (old?.value) await deleteUpload(old.value);
+  await db.setting.deleteMany({ where: { key: "terms.agreementPdf" } });
+  revalidate();
 }
 
 /* ------------------------------ Parts book ------------------------------- */

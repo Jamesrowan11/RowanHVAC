@@ -1,16 +1,16 @@
 "use client";
 
 import { useActionState } from "react";
-import { acceptPrice } from "@/lib/actions/accept";
+import { acceptTerms } from "@/lib/actions/accept";
 
-/** Checkbox + typed-signature acceptance form on the public quote page. */
-export default function AcceptPriceForm({ token, price }: { token: string; price: string }) {
-  const [state, formAction, pending] = useActionState(acceptPrice, { ok: false });
+/** Checkbox + typed-signature acceptance form at the bottom of the terms page. */
+export default function AcceptTermsForm({ token }: { token: string }) {
+  const [state, formAction, pending] = useActionState(acceptTerms, { ok: false });
 
   if (state.ok) {
     return (
       <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800">
-        <p className="font-semibold">✓ Price accepted — thank you!</p>
+        <p className="font-semibold">✓ Accepted — thank you!</p>
         <p className="mt-1">We&apos;ll see you at your appointment. A copy of your acceptance is on file.</p>
       </div>
     );
@@ -23,7 +23,8 @@ export default function AcceptPriceForm({ token, price }: { token: string; price
       <label className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm">
         <input type="checkbox" name="agree" required className="mt-0.5 h-4 w-4" />
         <span>
-          I accept the quoted price of <span className="font-bold text-navy">{price}</span> for this service.
+          I have read and agree to the <span className="font-semibold text-navy">hourly pricing terms</span> and
+          the <span className="font-semibold text-navy">service agreement</span> above.
         </span>
       </label>
 
@@ -43,7 +44,7 @@ export default function AcceptPriceForm({ token, price }: { token: string; price
       {state.error && <p className="text-sm font-medium text-red-600">{state.error}</p>}
 
       <button type="submit" disabled={pending} className="btn-primary w-full">
-        {pending ? "Submitting…" : "Accept price"}
+        {pending ? "Submitting…" : "Accept & sign"}
       </button>
     </form>
   );
