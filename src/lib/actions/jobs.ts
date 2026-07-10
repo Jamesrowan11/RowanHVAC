@@ -25,7 +25,42 @@ const jobSchema = z.object({
   technicianIds: z.array(z.string()).default([]), // optional — often assigned day-of, any number
   clientId: z.string().optional(),
   requestId: z.string().optional(),
+  quotedPrice: z.coerce.number().min(0).max(1000000).optional(),
 });
+
+/** Deadline for accepting the quoted price: one day before the appointment. */
+function acceptDeadline(scheduledAt: Date): Date {
+  const d = new Date(scheduledAt);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/** Email + text the customer their quoted price with the acceptance link. */
+function sendPriceAcceptance(
+  job: { id: string; service: string; address: string; scheduledAt: Date; acceptToken: string | null; quotedPrice: unknown },
+  client: { id: string; name: string; email: string; phone: string | null }
+) {
+  if (!job.acceptToken || job.quotedPrice == null) return;
+  const link = `${process.env.APP_URL || ""}/accept/${job.acceptToken}`;
+  const price = `$${Number(job.quotedPrice).toFixed(2)}`;
+  const deadline = fmtDateTime(acceptDeadline(job.scheduledAt));
+  notify({
+    to: [client.email],
+    subject: `Please review and accept your quote — ${job.service} on ${fmtDateTime(job.scheduledAt)}`,
+    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtDateTime(job.scheduledAt)}.\n\nQuoted price: ${price}\n\nPlease review and accept the price by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
+  });
+  if (client.phone) {
+    notifySms({
+      to: [client.phone],
+      body: `${COMPANY.shortName}: please accept your ${price} quote for ${job.service} by ${deadline}. Tap: ${link}`,
+    });
+  }
+  notifyPush([client.id], {
+    title: "Please accept your quote",
+    body: `${job.service} — ${price}`,
+    url: link,
+  });
+}
 
 export async function createJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await actionRole("ADMIN");
@@ -40,6 +75,7 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     technicianIds: formData.getAll("technicianIds").map(String).filter(Boolean),
     clientId: formData.get("clientId") || undefined,
     requestId: formData.get("requestId") || undefined,
+    quotedPrice: formData.get("quotedPrice") || undefined,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
@@ -75,9 +111,21 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       endAt: data.endAt ?? null,
       clientId,
       assignments: { create: techs.map((t) => ({ userId: t.id })) },
+      // A quoted price triggers the acceptance flow the moment the job is
+      // scheduled (needs a linked portal client to send to).
+      ...(data.quotedPrice != null && clientId
+        ? { quotedPrice: data.quotedPrice, acceptToken: crypto.randomUUID(), priceSentAt: new Date() }
+        : data.quotedPrice != null
+          ? { quotedPrice: data.quotedPrice }
+          : {}),
     },
     include: { client: true },
   });
+
+  // Automation: send the price-acceptance request as soon as it's scheduled.
+  if (job.acceptToken && job.client) {
+    sendPriceAcceptance(job, job.client);
+  }
 
   const label = data.kind === "PICKUP" ? "Pickup" : "Job";
 
@@ -561,6 +609,49 @@ export async function reinstateJob(formData: FormData): Promise<void> {
     });
   }
 
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Admin sets or changes the quoted price on a job. Changing the price
+ * invalidates any earlier acceptance (it was for a different number) and
+ * re-sends the acceptance request to the customer.
+ */
+export async function setQuotedPrice(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const price = Number(formData.get("quotedPrice"));
+  if (!Number.isFinite(price) || price < 0) return { ok: false, error: "Enter a valid price" };
+
+  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!job) return { ok: false, error: "Not found" };
+  if (!job.client) return { ok: false, error: "Link this job to a portal client first — the request is emailed to their account" };
+
+  const updated = await db.job.update({
+    where: { id: job.id },
+    data: {
+      quotedPrice: price,
+      acceptToken: crypto.randomUUID(),
+      priceSentAt: new Date(),
+      priceAcceptedAt: null,
+      priceSignature: null,
+    },
+  });
+  sendPriceAcceptance(updated, job.client);
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/** Admin re-sends the price-acceptance request (same price, same link). */
+export async function resendPriceAcceptance(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!job?.client || !job.acceptToken || job.quotedPrice == null) throw new Error("Nothing to send");
+
+  await db.job.update({ where: { id: job.id }, data: { priceSentAt: new Date() } });
+  sendPriceAcceptance(job, job.client);
   revalidatePath("/portal", "layout");
 }
 

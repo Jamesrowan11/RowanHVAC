@@ -5,8 +5,10 @@ import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
 import {
   updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
+  setQuotedPrice, resendPriceAcceptance,
 } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
+import ActionForm from "@/components/portal/ActionForm";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -162,6 +164,66 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
               <button type="submit" className="btn-danger">Delete job permanently</button>
             </ConfirmForm>
           </div>
+        </section>
+
+        <section className="card lg:col-span-2">
+          <h2 className="font-bold text-navy">Quoted price &amp; acceptance</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            The customer must accept the quoted price (checkbox + typed signature) by one
+            day before the appointment. It sends automatically when a job is scheduled
+            with a price; changing the price re-sends and requires a fresh acceptance.
+          </p>
+
+          {job.quotedPrice != null ? (
+            <div className="mt-3 rounded-lg bg-navy-50 p-3 text-sm">
+              <p className="font-semibold text-navy">Quoted: ${Number(job.quotedPrice).toFixed(2)}</p>
+              {job.priceAcceptedAt ? (
+                <p className="mt-1 text-green-700">
+                  ✓ Accepted {fmtDateTime(job.priceAcceptedAt)} — signed <em>{job.priceSignature}</em>
+                </p>
+              ) : job.priceSentAt ? (
+                <p className={`mt-1 ${new Date() > new Date(new Date(job.scheduledAt).getTime() - 24 * 60 * 60 * 1000) ? "font-medium text-red-600" : "text-amber-800"}`}>
+                  ⏳ Sent {fmtDateTime(job.priceSentAt)} — not accepted yet
+                  {new Date() > new Date(new Date(job.scheduledAt).getTime() - 24 * 60 * 60 * 1000) && " (past the 1-day-before deadline!)"}
+                </p>
+              ) : (
+                <p className="mt-1 text-gray-500">Not sent — link a portal client to send it.</p>
+              )}
+              {!job.priceAcceptedAt && job.acceptToken && job.client && (
+                <form action={resendPriceAcceptance} className="mt-2">
+                  <input type="hidden" name="jobId" value={job.id} />
+                  <button type="submit" className="btn-small-outline">Re-send acceptance request</button>
+                </form>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-gray-500">No price quoted yet.</p>
+          )}
+
+          {job.status !== "CANCELLED" && (
+            <ActionForm
+              action={setQuotedPrice}
+              submitLabel={job.quotedPrice != null ? "Change price & re-send" : "Set price & send"}
+              successMessage="Sent to the customer for acceptance."
+              resetOnSuccess={false}
+              className="mt-3 flex max-w-xs items-end gap-2 [&>button]:mt-0"
+            >
+              <input type="hidden" name="jobId" value={job.id} />
+              <div className="flex-1">
+                <label htmlFor="quotedPrice" className="label">Quoted price ($)</label>
+                <input
+                  id="quotedPrice"
+                  name="quotedPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  defaultValue={job.quotedPrice != null ? Number(job.quotedPrice) : ""}
+                  className="input"
+                />
+              </div>
+            </ActionForm>
+          )}
         </section>
 
         <section className="card lg:col-span-2">
