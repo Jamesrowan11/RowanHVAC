@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/email";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 
 /**
  * Public, token-authenticated price acceptance. Like /confirm, the random
@@ -38,7 +38,7 @@ export async function acceptPrice(
     notify({
       to: admins.map((a) => a.email),
       subject: `Price accepted: ${job.customerName} — ${job.service}`,
-      body: `${job.customerName} accepted the quoted price of $${Number(job.quotedPrice).toFixed(2)} for ${job.service} on ${fmtDateTime(job.scheduledAt)}.\n\nSigned: ${signature}\nAccepted: ${fmtDateTime(new Date())}`,
+      body: `${job.customerName} accepted the quoted price of $${Number(job.quotedPrice).toFixed(2)} for ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}.\n\nSigned: ${signature}\nAccepted: ${fmtDateTime(new Date())}`,
     });
   }
 

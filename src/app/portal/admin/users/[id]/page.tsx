@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDate, fmtDateTime } from "@/lib/queries";
+import { fmtDate, fmtDateTime, fmtWhen } from "@/lib/queries";
 import { updateUser, setUserPassword, setUserActive, deleteUser, setMaintenancePolicy } from "@/lib/actions/users";
 import {
   addPaymentLink, markPaymentPaid, deletePaymentLink,
@@ -307,7 +307,7 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
                   <li key={j.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
                     <div>
                       <p className="font-medium text-navy">{j.service}</p>
-                      <p className="text-xs text-gray-500">{fmtDateTime(j.scheduledAt)}</p>
+                      <p className="text-xs text-gray-500">{fmtWhen(j.scheduledAt, j.window)}</p>
                     </div>
                     <JobStatusBadge status={j.status} />
                   </li>

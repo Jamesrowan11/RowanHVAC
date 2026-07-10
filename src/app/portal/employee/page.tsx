@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import { pickUpJob, addJobNote } from "@/lib/actions/jobs";
 import ConfirmForm from "@/components/portal/ConfirmForm";
@@ -22,7 +22,7 @@ function JobList({ jobs, empty }: { jobs: Job[]; empty: string }) {
           >
             <div>
               <p className="font-semibold text-navy">{j.customerName} · {j.service}</p>
-              <p className="mt-0.5 text-xs text-gray-500">{fmtDateTime(j.scheduledAt)} · {j.address}</p>
+              <p className="mt-0.5 text-xs text-gray-500">{fmtWhen(j.scheduledAt, j.window)} · {j.address}</p>
             </div>
             <JobStatusBadge status={j.status} />
           </Link>
@@ -82,7 +82,7 @@ export default async function EmployeeSchedule() {
     where: { assignments: { some: { userId: user.id } }, status: { not: "CANCELLED" } },
     orderBy: { scheduledAt: "desc" },
     take: 25,
-    select: { id: true, customerName: true, service: true, scheduledAt: true },
+    select: { id: true, customerName: true, service: true, scheduledAt: true, window: true },
   });
 
   return (
@@ -128,7 +128,7 @@ export default async function EmployeeSchedule() {
                 <div>
                   <p className="font-semibold text-navy">{j.customerName} · {j.service}</p>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {fmtDateTime(j.scheduledAt)} · {j.address}
+                    {fmtWhen(j.scheduledAt, j.window)} · {j.address}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
                     {j.assignments.length > 0 ? (
@@ -183,7 +183,7 @@ export default async function EmployeeSchedule() {
                 <option value="" disabled>Select a job…</option>
                 {myRecentJobs.map((j) => (
                   <option key={j.id} value={j.id}>
-                    {fmtDateTime(j.scheduledAt)} — {j.customerName} · {j.service}
+                    {fmtWhen(j.scheduledAt, j.window)} — {j.customerName} · {j.service}
                   </option>
                 ))}
               </select>

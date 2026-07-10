@@ -109,7 +109,7 @@ export default async function CalendarPage({
                       className={`block rounded px-1.5 py-1 text-[11px] leading-tight ${chipStyle[job.status]}`}
                     >
                       <span className="font-semibold">
-                        {spanning && !isStart ? "↳ cont." : fmtTime(job.scheduledAt)}
+                        {spanning && !isStart ? "↳ cont." : job.window ?? fmtTime(job.scheduledAt)}
                       </span>
                       {job.kind === "PICKUP" && (
                         <span className="ml-1 rounded bg-white/70 px-1 text-[9px] font-bold uppercase">Pickup</span>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDate, fmtDateTime } from "@/lib/queries";
+import { fmtDate, fmtDateTime, fmtWhen } from "@/lib/queries";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import { COMPANY } from "@/lib/constants";
 
@@ -62,7 +62,7 @@ export default async function ClientDashboard() {
             <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
               <div>
                 <p className="font-semibold text-navy">{j.service}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{fmtDateTime(j.scheduledAt)} · {j.address}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{fmtWhen(j.scheduledAt, j.window)} · {j.address}</p>
               </div>
               <JobStatusBadge status={j.status} />
             </li>
@@ -83,7 +83,7 @@ export default async function ClientDashboard() {
             <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
               <div>
                 <p className="font-semibold text-navy">{j.service}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{fmtDateTime(j.scheduledAt)}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{fmtWhen(j.scheduledAt, j.window)}</p>
               </div>
               <JobStatusBadge status={j.status} />
             </li>

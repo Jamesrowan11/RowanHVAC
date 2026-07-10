@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDate, fmtDateTime, fmtWhen } from "@/lib/queries";
 import AcceptPriceForm from "@/components/public/AcceptPriceForm";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +70,7 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-gray-500">Appointment</dt>
-          <dd className="text-right">{fmtDateTime(job.scheduledAt)}</dd>
+          <dd className="text-right">{fmtWhen(job.scheduledAt, job.window)}</dd>
         </div>
         <div className="flex justify-between gap-3 border-t border-gray-100 pt-2 text-base">
           <dt className="font-semibold text-gray-700">Quoted price</dt>
@@ -78,7 +78,7 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
         </div>
       </dl>
       <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
-        Please accept by <strong>{fmtDateTime(deadline)}</strong> — one day before your appointment.
+        Please accept by <strong>{job.window ? fmtDate(deadline) : fmtDateTime(deadline)}</strong> — one day before your appointment.
       </p>
       <div className="mt-4">
         <AcceptPriceForm token={token} price={price} />

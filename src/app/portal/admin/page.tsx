@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 
 export const metadata = { title: "Admin Overview" };
@@ -78,7 +78,7 @@ export default async function AdminOverview() {
                     {j.customerName} · {j.service}
                   </Link>
                   <p className="mt-0.5 text-gray-500">
-                    {fmtDateTime(j.scheduledAt)} · {j.assignments.length > 0 ? j.assignments.map((a) => a.user.name).join(", ") : "Unassigned"}
+                    {fmtWhen(j.scheduledAt, j.window)} · {j.assignments.length > 0 ? j.assignments.map((a) => a.user.name).join(", ") : "Unassigned"}
                   </p>
                 </div>
                 <JobStatusBadge status={j.status} />

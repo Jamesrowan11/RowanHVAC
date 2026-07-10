@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 
 export const metadata = { title: "Service History" };
@@ -16,6 +16,7 @@ export default async function ClientHistory() {
       id: true,
       service: true,
       scheduledAt: true,
+      window: true,
       status: true,
       summary: true,
       address: true,
@@ -33,7 +34,7 @@ export default async function ClientHistory() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="font-bold text-navy">{j.service}</h2>
-                <p className="mt-0.5 text-sm text-gray-500">{fmtDateTime(j.scheduledAt)} · {j.address}</p>
+                <p className="mt-0.5 text-sm text-gray-500">{fmtWhen(j.scheduledAt, j.window)} · {j.address}</p>
               </div>
               <JobStatusBadge status={j.status} />
             </div>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { notify } from "@/lib/email";
 import { notifySms } from "@/lib/sms";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { COMPANY } from "@/lib/constants";
 
 /**
@@ -51,7 +51,7 @@ export async function respondNextUp(formData: FormData): Promise<void> {
   notify({
     to: emails,
     subject: `Customer response: ${choice === "READY" ? "ready now" : "wants to wait"} — ${who}`,
-    body: `${verdict}\n\nJob: ${job.service}\nWhen: ${fmtDateTime(job.scheduledAt)}\nAddress: ${job.address}`,
+    body: `${verdict}\n\nJob: ${job.service}\nWhen: ${fmtWhen(job.scheduledAt, job.window)}\nAddress: ${job.address}`,
   });
   if (phones.length > 0) {
     notifySms({ to: phones, body: `${COMPANY.shortName}: ${verdict} (${job.service})` });

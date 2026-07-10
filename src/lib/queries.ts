@@ -41,3 +41,12 @@ export function fmtDate(d: Date): string {
     year: "numeric",
   });
 }
+
+/**
+ * How a job's "when" is displayed. Appointments are booked as AM/PM arrival
+ * windows, not exact times — so window jobs show "Jul 17, 2026 (AM)".
+ * Legacy jobs without a window fall back to the exact timestamp.
+ */
+export function fmtWhen(d: Date, window?: string | null): string {
+  return window ? `${fmtDate(d)} (${window})` : fmtDateTime(d);
+}

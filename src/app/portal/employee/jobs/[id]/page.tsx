@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import Link from "next/link";
 import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp, announceCallAction } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
@@ -57,7 +57,7 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
             <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
             <div><dt className="font-medium text-gray-500">Service needed</dt><dd>{job.service}</dd></div>
             <div><dt className="font-medium text-gray-500">Type</dt><dd>{job.kind === "PICKUP" ? "Pickup" : "Service job"}</dd></div>
-            <div><dt className="font-medium text-gray-500">Time</dt><dd>{fmtDateTime(job.scheduledAt)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
+            <div><dt className="font-medium text-gray-500">Time</dt><dd>{fmtWhen(job.scheduledAt, job.window)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
             {job.client && (
               <div>
                 <dt className="font-medium text-gray-500">Contact</dt>

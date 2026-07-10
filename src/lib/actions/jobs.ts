@@ -10,7 +10,7 @@ import { notifySms } from "@/lib/sms";
 import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
 import { placeAnnouncementCall } from "@/lib/voice";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtDate, fmtWhen } from "@/lib/queries";
 import { COMPANY } from "@/lib/constants";
 
 export type ActionState = { ok: boolean; error?: string };
@@ -20,8 +20,12 @@ const jobSchema = z.object({
   address: z.string().trim().min(1, "Address is required").max(300),
   service: z.string().trim().min(1, "Service is required").max(200),
   kind: z.enum(["SERVICE", "PICKUP"]).default("SERVICE"),
-  scheduledAt: z.coerce.date(),
-  endAt: z.coerce.date().optional(),
+  // Appointments are booked as a DAY plus an arrival window (AM, PM, or the
+  // whole day) — never an exact time. scheduledAt anchors sorting at 8:00
+  // (AM / all-day) or 13:00 (PM).
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
+  window: z.enum(["AM", "PM", "AM/PM"], { message: "Pick AM, PM, or AM/PM" }),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   technicianIds: z.array(z.string()).default([]), // optional — often assigned day-of, any number
   clientId: z.string().optional(),
   requestId: z.string().optional(),
@@ -37,17 +41,20 @@ function acceptDeadline(scheduledAt: Date): Date {
 
 /** Email + text the customer their quoted price with the acceptance link. */
 function sendPriceAcceptance(
-  job: { id: string; service: string; address: string; scheduledAt: Date; acceptToken: string | null; quotedPrice: unknown },
+  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null; quotedPrice: unknown },
   client: { id: string; name: string; email: string; phone: string | null }
 ) {
   if (!job.acceptToken || job.quotedPrice == null) return;
   const link = `${process.env.APP_URL || ""}/accept/${job.acceptToken}`;
   const price = `$${Number(job.quotedPrice).toFixed(2)}`;
-  const deadline = fmtDateTime(acceptDeadline(job.scheduledAt));
+  // Window appointments have no exact time — the deadline is just the day before.
+  const deadline = job.window
+    ? fmtDate(acceptDeadline(job.scheduledAt))
+    : fmtDateTime(acceptDeadline(job.scheduledAt));
   notify({
     to: [client.email],
-    subject: `Please review and accept your quote — ${job.service} on ${fmtDateTime(job.scheduledAt)}`,
-    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtDateTime(job.scheduledAt)}.\n\nQuoted price: ${price}\n\nPlease review and accept the price by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
+    subject: `Please review and accept your quote — ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}`,
+    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.\n\nQuoted price: ${price}\n\nPlease review and accept the price by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
   });
   if (client.phone) {
     notifySms({
@@ -70,8 +77,9 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     address: formData.get("address"),
     service: formData.get("service"),
     kind: formData.get("kind") || "SERVICE",
-    scheduledAt: formData.get("scheduledAt"),
-    endAt: formData.get("endAt") || undefined,
+    scheduledDate: formData.get("scheduledDate"),
+    window: formData.get("window"),
+    endDate: formData.get("endDate") || undefined,
     technicianIds: formData.getAll("technicianIds").map(String).filter(Boolean),
     clientId: formData.get("clientId") || undefined,
     requestId: formData.get("requestId") || undefined,
@@ -81,6 +89,10 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     return { ok: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
   }
   const data = parsed.data;
+
+  const scheduledAt = new Date(`${data.scheduledDate}T${data.window === "PM" ? "13:00" : "08:00"}:00`);
+  const endAt = data.endDate ? new Date(`${data.endDate}T17:00:00`) : null;
+  if (isNaN(scheduledAt.getTime())) return { ok: false, error: "Invalid date" };
 
   // Technicians are optional — many jobs get assigned the day of. Any picked
   // must be active staff (employee or admin).
@@ -107,8 +119,9 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       address: data.address,
       service: data.service,
       kind: data.kind,
-      scheduledAt: data.scheduledAt,
-      endAt: data.endAt ?? null,
+      scheduledAt,
+      window: data.window,
+      endAt,
       clientId,
       assignments: { create: techs.map((t) => ({ userId: t.id })) },
       // A quoted price triggers the acceptance flow the moment the job is
@@ -138,7 +151,7 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
   }
 
   // Automation: notify every assigned technician and, if linked, the client — by email + SMS.
-  const when = fmtDateTime(job.scheduledAt);
+  const when = fmtWhen(job.scheduledAt, job.window);
   for (const tech of techs) {
     notify({
       to: [tech.email],
@@ -302,7 +315,7 @@ export async function pickUpJob(formData: FormData): Promise<void> {
   notify({
     to: emailTargets,
     subject: `Job picked up: ${job.service} for ${job.customerName}`,
-    body: `${user.name} joined the ${job.service} job for ${job.customerName} (${fmtDateTime(job.scheduledAt)})${existingAssignees.length > 0 ? ` — already assigned: ${existingAssignees.map((t) => t.name).join(", ")}` : " — it was unassigned"}.`,
+    body: `${user.name} joined the ${job.service} job for ${job.customerName} (${fmtWhen(job.scheduledAt, job.window)})${existingAssignees.length > 0 ? ` — already assigned: ${existingAssignees.map((t) => t.name).join(", ")}` : " — it was unassigned"}.`,
   });
   notifyPush([...existingAssignees.map((t) => t.id), ...admins.map((a) => a.id)], {
     title: "Job picked up",
@@ -359,7 +372,7 @@ export async function assignTechnicians(formData: FormData): Promise<void> {
   }
 
   // Only notify newly-added technicians — the rest were already on the job.
-  const when = fmtDateTime(job.scheduledAt);
+  const when = fmtWhen(job.scheduledAt, job.window);
   for (const tech of added) {
     notify({
       to: [tech.email],
@@ -561,24 +574,24 @@ export async function cancelJob(formData: FormData): Promise<void> {
     notify({
       to: [tech.email],
       subject: `Job cancelled: ${job.service} for ${job.customerName}`,
-      body: `Hi ${tech.name},\n\nThe following job has been cancelled and removed from your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWas scheduled for: ${fmtDateTime(job.scheduledAt)}\nReason: ${reason}`,
+      body: `Hi ${tech.name},\n\nThe following job has been cancelled and removed from your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWas scheduled for: ${fmtWhen(job.scheduledAt, job.window)}\nReason: ${reason}`,
     });
   }
   if (job.client) {
     notify({
       to: [job.client.email],
-      subject: `Your appointment on ${fmtDateTime(job.scheduledAt)} was cancelled`,
-      body: `Hi ${job.client.name},\n\nYour appointment (${job.service}) scheduled for ${fmtDateTime(job.scheduledAt)} has been cancelled.\n\nIf this is unexpected or you'd like to reschedule, call us at ${COMPANY.phone}.`,
+      subject: `Your appointment on ${fmtWhen(job.scheduledAt, job.window)} was cancelled`,
+      body: `Hi ${job.client.name},\n\nYour appointment (${job.service}) scheduled for ${fmtWhen(job.scheduledAt, job.window)} has been cancelled.\n\nIf this is unexpected or you'd like to reschedule, call us at ${COMPANY.phone}.`,
     });
     if (job.client.phone) {
       notifySms({
         to: [job.client.phone],
-        body: `${COMPANY.shortName}: your ${job.service} appointment on ${fmtDateTime(job.scheduledAt)} was cancelled. To reschedule call ${COMPANY.phone}.`,
+        body: `${COMPANY.shortName}: your ${job.service} appointment on ${fmtWhen(job.scheduledAt, job.window)} was cancelled. To reschedule call ${COMPANY.phone}.`,
       });
     }
     notifyPush([job.client.id], {
       title: "Appointment cancelled",
-      body: `Your ${job.service} on ${fmtDateTime(job.scheduledAt)} was cancelled.`,
+      body: `Your ${job.service} on ${fmtWhen(job.scheduledAt, job.window)} was cancelled.`,
       url: "/portal/client",
     });
   }
@@ -605,7 +618,7 @@ export async function reinstateJob(formData: FormData): Promise<void> {
     notify({
       to: [tech.email],
       subject: `Job reinstated: ${job.service} for ${job.customerName}`,
-      body: `Hi ${tech.name},\n\nA previously cancelled job is back on your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWhen: ${fmtDateTime(job.scheduledAt)}`,
+      body: `Hi ${tech.name},\n\nA previously cancelled job is back on your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWhen: ${fmtWhen(job.scheduledAt, job.window)}`,
     });
   }
 

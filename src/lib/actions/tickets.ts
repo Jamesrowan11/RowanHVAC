@@ -50,8 +50,9 @@ export async function createTicketDraft(formData?: FormData): Promise<void> {
       customerName: job.customerName,
       serviceAddress: job.address,
       serviceDate: job.scheduledAt,
-      timeIn: job.scheduledAt,
-      timeOut: job.endAt,
+      // AM/PM-window jobs have no real times — the tech records actual
+      // time in/out on site. Legacy exact-time jobs still prefill.
+      ...(job.window ? {} : { timeIn: job.scheduledAt, timeOut: job.endAt }),
     };
   }
 

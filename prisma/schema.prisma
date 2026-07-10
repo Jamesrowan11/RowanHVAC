@@ -128,6 +128,10 @@ model Job {
   service      String    @db.VarChar(200)
   kind         JobKind   @default(SERVICE)
   scheduledAt  DateTime
+  // Appointments are booked as AM or PM arrival windows, not exact times.
+  // scheduledAt anchors the day (8:00 for AM, 13:00 for PM) so sorting and
+  // the calendar still work; window is what customers and staff see.
+  window       String? // AM | PM (null on legacy exact-time jobs)
   endAt        DateTime?
   status       JobStatus @default(SCHEDULED)
   summary      String?   @db.Text

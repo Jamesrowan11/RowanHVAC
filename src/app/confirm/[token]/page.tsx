@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { respondNextUp } from "@/lib/actions/confirm";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +62,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ token:
         {job.address ? <> at {job.address}</> : null}. Are you all set for us to
         come now, or would you prefer to wait for a later time?
       </p>
-      <p className="mt-1 text-xs text-gray-500">Originally scheduled for {fmtDateTime(job.scheduledAt)}.</p>
+      <p className="mt-1 text-xs text-gray-500">Originally scheduled for {fmtWhen(job.scheduledAt, job.window)}.</p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <form action={respondNextUp}>

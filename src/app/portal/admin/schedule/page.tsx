@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
-import { fmtDateTime } from "@/lib/queries";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import { createJob } from "@/lib/actions/jobs";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ActionForm from "@/components/portal/ActionForm";
@@ -76,12 +76,20 @@ export default async function AdminSchedule({
               />
             </div>
             <div>
-              <label htmlFor="scheduledAt" className="label">Start date &amp; time</label>
-              <input id="scheduledAt" name="scheduledAt" type="datetime-local" required className="input" />
+              <label htmlFor="scheduledDate" className="label">Date</label>
+              <input id="scheduledDate" name="scheduledDate" type="date" required className="input" />
             </div>
             <div>
-              <label htmlFor="endAt" className="label">End time (optional)</label>
-              <input id="endAt" name="endAt" type="datetime-local" className="input" />
+              <label htmlFor="window" className="label">Arrival window</label>
+              <select id="window" name="window" required className="input" defaultValue="AM">
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+                <option value="AM/PM">AM/PM (any time that day)</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="endDate" className="label">End date (multi-day, optional)</label>
+              <input id="endDate" name="endDate" type="date" className="input" />
             </div>
           </div>
           <div>
@@ -165,7 +173,7 @@ export default async function AdminSchedule({
               )}
               {jobs.map((j) => (
                 <tr key={j.id} className="hover:bg-navy-50/50">
-                  <td className="px-4 py-3 whitespace-nowrap">{fmtDateTime(j.scheduledAt)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{fmtWhen(j.scheduledAt, j.window)}</td>
                   <td className="px-4 py-3 font-medium text-navy">{j.customerName}</td>
                   <td className="px-4 py-3">{j.service}</td>
                   <td className="px-4 py-3">
