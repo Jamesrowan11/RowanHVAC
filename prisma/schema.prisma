@@ -48,12 +48,31 @@ enum SmsStatus {
   FAILED
 }
 
+enum TicketStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum BillingStatus {
+  BILLABLE
+  NO_CHARGE
+  NEEDS_REVIEW
+}
+
+enum PriceUnit {
+  EACH
+  PER_POUND
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
   email         String    @unique
   phone         String?
   address       String?   @db.VarChar(300)
+  // Short human-friendly account number, assigned to CLIENTs — used on
+  // service tickets and in the QuickBooks export.
+  customerNumber Int?     @unique
   passwordHash  String
   role          Role      @default(CLIENT)
   active        Boolean   @default(true)
@@ -81,6 +100,8 @@ model User {
   employeeNotesMade  EmployeeNote[]      @relation("EmployeeNoteAuthor")
   pushSubscriptions  PushSubscription[]
   mailboxAccess      MailboxAccess[]
+  ticketsAsTech      ServiceTicket[]     @relation("TicketTech")
+  ticketsAsClient    ServiceTicket[]     @relation("TicketClient")
 }
 
 model QuoteRequest {
@@ -240,20 +261,142 @@ model Message {
 }
 
 model Attachment {
-  id           String   @id @default(cuid())
-  jobNoteId    String?
-  jobNote      JobNote? @relation(fields: [jobNoteId], references: [id], onDelete: Cascade)
-  messageId    String?
-  message      Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  fileName     String
-  storagePath  String
-  mimeType     String
-  size         Int
-  uploadedById String
-  createdAt    DateTime @default(now())
+  id              String         @id @default(cuid())
+  jobNoteId       String?
+  jobNote         JobNote?       @relation(fields: [jobNoteId], references: [id], onDelete: Cascade)
+  messageId       String?
+  message         Message?       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  serviceTicketId String?
+  serviceTicket   ServiceTicket? @relation(fields: [serviceTicketId], references: [id], onDelete: Cascade)
+  fileName        String
+  storagePath     String
+  mimeType        String
+  size            Int
+  uploadedById    String
+  createdAt       DateTime       @default(now())
 
   @@index([jobNoteId])
   @@index([messageId])
+  @@index([serviceTicketId])
+}
+
+/** A field service ticket, filled out section-by-section (wizard) by a tech.
+ * Pricing totals and line items are SNAPSHOTS frozen at submit time — later
+ * price-book edits never change past tickets. */
+model ServiceTicket {
+  id           String        @id @default(cuid())
+  ticketNumber Int           @unique @default(autoincrement())
+  status       TicketStatus  @default(DRAFT)
+
+  techId String
+  tech   User   @relation("TicketTech", fields: [techId], references: [id])
+
+  // Customer & job
+  clientId       String?
+  client         User?    @relation("TicketClient", fields: [clientId], references: [id], onDelete: SetNull)
+  customerName   String   @default("")
+  serviceAddress String   @default("") @db.VarChar(300)
+  serviceDate    DateTime @default(now())
+
+  // Time & labor (drives pricing)
+  timeIn           DateTime?
+  timeOut          DateTime?
+  zone             String? // matches LaborRate.zone
+  techCount        Int       @default(1)
+  ladderUsed       Boolean   @default(false)
+  maintenanceVisit Boolean   @default(false)
+
+  // Equipment
+  systemType   String?
+  brand        String?
+  modelNumber  String?
+  serialNumber String?
+  ageYears     Int?
+
+  // Readings / measurements (optional; strings keep formats like "35/5" easy)
+  capRated        String?
+  capTested       String?
+  suctionBefore   String?
+  suctionAfter    String?
+  liquidBefore    String?
+  liquidAfter     String?
+  superheat       String?
+  subcooling      String?
+  compressorAmps  String?
+  fanAmps         String?
+  supplyAirTemp   String?
+  refrigerantType String?
+  refrigerantLbs  Decimal? @db.Decimal(8, 2)
+  readingsNotes   String?  @db.Text
+
+  workPerformed String? @db.Text
+
+  billingStatus      BillingStatus @default(BILLABLE)
+  // Set at submit when the duration exceeds the labor table (over 6 hrs) or
+  // a matching rate row is missing — admin prices it by hand.
+  needsManualPricing Boolean       @default(false)
+  laborTotal         Decimal?      @db.Decimal(10, 2)
+  partsTotal         Decimal?      @db.Decimal(10, 2)
+  total              Decimal?      @db.Decimal(10, 2)
+
+  submittedAt DateTime?
+  exportedAt  DateTime?
+
+  lineItems TicketLineItem[]
+  photos    Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([techId, status])
+  @@index([serviceDate])
+  @@index([status, billingStatus])
+}
+
+/** One line on a ticket's bill. PART lines are created as the tech picks
+ * parts; LABOR and ADDON lines are computed and frozen at submit. */
+model TicketLineItem {
+  id       String        @id @default(cuid())
+  ticketId String
+  ticket   ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  kind      String // LABOR | ADDON | PART
+  label     String
+  qty       Decimal? @db.Decimal(8, 2)
+  unitPrice Decimal? @db.Decimal(10, 2)
+  amount    Decimal  @db.Decimal(10, 2)
+
+  priceItemId String?
+  priceItem   PriceBookItem? @relation(fields: [priceItemId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+/** One row of the labor lookup table: zone + rounded duration → price.
+ * twoTechPrice overrides the global 2-tech multiplier for that row when set. */
+model LaborRate {
+  id           String  @id @default(cuid())
+  zone         String
+  minutes      Int
+  price        Decimal  @db.Decimal(10, 2)
+  twoTechPrice Decimal? @db.Decimal(10, 2)
+
+  @@unique([zone, minutes])
+}
+
+/** Parts & materials price book. Refrigerant is priced PER_POUND. */
+model PriceBookItem {
+  id         String    @id @default(cuid())
+  name       String
+  partNumber String?
+  unit       PriceUnit @default(EACH)
+  unitPrice  Decimal   @db.Decimal(10, 2)
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  lineItems TicketLineItem[]
 }
 
 model SmsLog {
