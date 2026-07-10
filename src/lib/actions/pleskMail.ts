@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { db } from "@/lib/db";
 import { actionRole } from "@/lib/guards";
 import {
   createMailbox, deleteMailbox, resetMailboxPassword, setMailboxForwarding, mailDomain,
@@ -41,7 +42,11 @@ export async function deleteMailboxAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Missing mailbox name");
   await deleteMailbox(name);
+  // The mailbox no longer exists in Plesk — drop its stored credentials and
+  // every portal account's access to it too (cascades via MailboxAccess).
+  await db.mailbox.deleteMany({ where: { address: `${name.toLowerCase()}@${mailDomain()}` } });
   revalidatePath("/portal/admin/emails/accounts");
+  revalidatePath("/portal/profile");
 }
 
 export async function resetMailboxPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

@@ -11,21 +11,31 @@ import type { ActionState } from "@/lib/actions/jobs";
 const addressSchema = z.string().trim().email("Enter a valid email address").max(255);
 const passwordSchema = z.string().min(1, "Password is required").max(200);
 
-/** Verifies the credentials actually work, then encrypts and stores them. */
-async function saveLink(userId: string, address: string, password: string): Promise<ActionState> {
+/**
+ * Credentials for one mailbox address are stored ONCE, on the Mailbox row —
+ * granting a second (or third) portal account access to the same mailbox
+ * never needs the password re-entered, since MailboxAccess just points at
+ * the existing Mailbox record.
+ */
+async function connectAndGrant(address: string, password: string, userId: string): Promise<ActionState> {
   const check = await verifyMailboxCredentials(address, password);
   if (!check.ok) {
     return { ok: false, error: `Couldn't connect with those credentials: ${check.error}` };
   }
-  await db.mailboxLink.upsert({
-    where: { userId },
-    create: { userId, address, encryptedPassword: encryptSecret(password) },
-    update: { address, encryptedPassword: encryptSecret(password) },
+  const mailbox = await db.mailbox.upsert({
+    where: { address },
+    create: { address, encryptedPassword: encryptSecret(password) },
+    update: { encryptedPassword: encryptSecret(password) },
+  });
+  await db.mailboxAccess.upsert({
+    where: { userId_mailboxId: { userId, mailboxId: mailbox.id } },
+    create: { userId, mailboxId: mailbox.id },
+    update: {},
   });
   return { ok: true };
 }
 
-/** Self-service: link the CURRENT user's own mailbox — never a target id. */
+/** Self-service: connect (and get access to) a mailbox as the CURRENT user. */
 export async function linkMyMailboxAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await actionUser();
   const address = addressSchema.safeParse(formData.get("address"));
@@ -33,19 +43,17 @@ export async function linkMyMailboxAction(_prev: ActionState, formData: FormData
   const password = passwordSchema.safeParse(formData.get("password"));
   if (!password.success) return { ok: false, error: password.error.errors[0]?.message };
 
-  const result = await saveLink(user.id, address.data, password.data);
+  const result = await connectAndGrant(address.data, password.data, user.id);
   if (result.ok) revalidatePath("/portal/profile");
   return result;
 }
 
-/** Admin-assisted: link a mailbox to any staff (Admin/Employee) account. */
-export async function adminLinkMailboxAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/** Admin, first time this mailbox has ever been connected: verify credentials, store them, grant the chosen staff member access. */
+export async function adminConnectMailboxAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await actionRole("ADMIN");
 
   const userId = String(formData.get("userId") ?? "");
-  const target = await db.user.findFirst({
-    where: { id: userId, role: { in: ["ADMIN", "EMPLOYEE"] } },
-  });
+  const target = await db.user.findFirst({ where: { id: userId, role: { in: ["ADMIN", "EMPLOYEE"] } } });
   if (!target) return { ok: false, error: "Pick a valid staff account" };
 
   const address = addressSchema.safeParse(formData.get("address"));
@@ -53,29 +61,55 @@ export async function adminLinkMailboxAction(_prev: ActionState, formData: FormD
   const password = passwordSchema.safeParse(formData.get("password"));
   if (!password.success) return { ok: false, error: password.error.errors[0]?.message };
 
-  const result = await saveLink(target.id, address.data, password.data);
+  const result = await connectAndGrant(address.data, password.data, target.id);
   if (result.ok) revalidatePath("/portal/admin/emails/accounts");
   return result;
 }
 
-/** Unlink: admins can unlink anyone; everyone else only their own. */
+/** Admin, mailbox already connected: grant another staff member access — no password needed, credentials are already on file. */
+export async function adminGrantMailboxAccessAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+
+  const mailboxId = String(formData.get("mailboxId") ?? "");
+  const mailbox = await db.mailbox.findUnique({ where: { id: mailboxId } });
+  if (!mailbox) return { ok: false, error: "Mailbox not found" };
+
+  const userId = String(formData.get("userId") ?? "");
+  const target = await db.user.findFirst({ where: { id: userId, role: { in: ["ADMIN", "EMPLOYEE"] } } });
+  if (!target) return { ok: false, error: "Pick a valid staff account" };
+
+  await db.mailboxAccess.upsert({
+    where: { userId_mailboxId: { userId: target.id, mailboxId } },
+    create: { userId: target.id, mailboxId },
+    update: {},
+  });
+  revalidatePath("/portal/admin/emails/accounts");
+  return { ok: true };
+}
+
+/** Revoke one user's access to one mailbox. Admins can revoke anyone's; everyone else only their own. */
 export async function unlinkMailboxAction(formData: FormData): Promise<void> {
   const user = await actionUser();
   const targetUserId = String(formData.get("userId") ?? user.id);
+  const mailboxId = String(formData.get("mailboxId") ?? "");
 
   if (user.role !== "ADMIN" && targetUserId !== user.id) {
     throw new Error("Forbidden");
   }
-  await db.mailboxLink.deleteMany({ where: { userId: targetUserId } });
+  await db.mailboxAccess.deleteMany({ where: { userId: targetUserId, mailboxId } });
   revalidatePath("/portal/profile");
   revalidatePath("/portal/admin/emails/accounts");
 }
 
-/** Send a message through the CURRENT user's own linked mailbox. */
+/** Send a message through one of the CURRENT user's granted mailboxes. */
 export async function sendFromMyMailboxAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await actionUser();
-  const link = await db.mailboxLink.findUnique({ where: { userId: user.id } });
-  if (!link) return { ok: false, error: "No mailbox linked to your account" };
+  const mailboxId = String(formData.get("mailboxId") ?? "");
+  const access = await db.mailboxAccess.findUnique({
+    where: { userId_mailboxId: { userId: user.id, mailboxId } },
+    include: { mailbox: true },
+  });
+  if (!access) return { ok: false, error: "You don't have access to that mailbox" };
 
   const to = addressSchema.safeParse(formData.get("to"));
   if (!to.success) return { ok: false, error: to.error.errors[0]?.message };
@@ -85,7 +119,7 @@ export async function sendFromMyMailboxAction(_prev: ActionState, formData: Form
   if (!body) return { ok: false, error: "Message is required" };
 
   try {
-    await sendMailboxMessage(link.address, decryptSecret(link.encryptedPassword), {
+    await sendMailboxMessage(access.mailbox.address, decryptSecret(access.mailbox.encryptedPassword), {
       to: to.data,
       subject,
       body,

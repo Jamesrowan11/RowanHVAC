@@ -80,7 +80,7 @@ model User {
   employeeNotes      EmployeeNote[]      @relation("EmployeeNoteSubject")
   employeeNotesMade  EmployeeNote[]      @relation("EmployeeNoteAuthor")
   pushSubscriptions  PushSubscription[]
-  mailboxLink        MailboxLink?
+  mailboxAccess      MailboxAccess[]
 }
 
 model QuoteRequest {
@@ -299,14 +299,30 @@ model Setting {
   value String @db.Text
 }
 
-model MailboxLink {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  address           String   @db.VarChar(255)
-  encryptedPassword String   @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+/** A real @rowanhvac.com mailbox's credentials, stored once regardless of how
+ * many portal accounts are granted access to it (see MailboxAccess). */
+model Mailbox {
+  id                String          @id @default(cuid())
+  address           String          @unique @db.VarChar(255)
+  encryptedPassword String          @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  access            MailboxAccess[]
+}
+
+/** Join table: grants one portal account read/send access to one Mailbox.
+ * Many-to-many — a mailbox can be shared by several staff, and a staff
+ * member can have access to several mailboxes. */
+model MailboxAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mailboxId String
+  mailbox   Mailbox  @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, mailboxId])
+  @@index([mailboxId])
 }
 
 model AnalyticsEvent {

@@ -4,7 +4,7 @@ import { pleskConfigured, listMailboxes, mailDomain } from "@/lib/plesk";
 import {
   createMailboxAction, deleteMailboxAction, resetMailboxPasswordAction, setForwardingAction,
 } from "@/lib/actions/pleskMail";
-import { adminLinkMailboxAction, unlinkMailboxAction } from "@/lib/actions/mailboxLink";
+import { adminConnectMailboxAction, adminGrantMailboxAccessAction, unlinkMailboxAction } from "@/lib/actions/mailboxLink";
 import ActionForm from "@/components/portal/ActionForm";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 
@@ -43,16 +43,17 @@ export default async function AdminEmailAccounts() {
 
   const domain = mailDomain();
 
-  // Staff who could be linked to a mailbox, and who's linked to what (matched
-  // by address, since Plesk doesn't know about our portal's user records).
-  const staff = await db.user.findMany({
-    where: { role: { in: ["ADMIN", "EMPLOYEE"] } },
-    orderBy: [{ role: "asc" }, { name: "asc" }],
-    include: { mailboxLink: true },
-  });
-  const linkedByAddress = new Map(
-    staff.filter((s) => s.mailboxLink).map((s) => [s.mailboxLink!.address.toLowerCase(), s])
-  );
+  // Staff who could be granted access to a mailbox, and which local Mailbox
+  // record (if any) already exists for each Plesk-listed address — matched
+  // by address, since Plesk doesn't know about our portal's user records.
+  const [staff, localMailboxes] = await Promise.all([
+    db.user.findMany({
+      where: { role: { in: ["ADMIN", "EMPLOYEE"] } },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+    }),
+    db.mailbox.findMany({ include: { access: { include: { user: true } } } }),
+  ]);
+  const localByAddress = new Map(localMailboxes.map((mb) => [mb.address.toLowerCase(), mb]));
 
   return (
     <div className="space-y-8">
@@ -97,7 +98,9 @@ export default async function AdminEmailAccounts() {
         )}
         <div className="mt-3 space-y-4">
           {mailboxes.map((m) => {
-            const linkedUser = linkedByAddress.get(m.email.toLowerCase());
+            const local = localByAddress.get(m.email.toLowerCase());
+            const grantedIds = new Set(local?.access.map((a) => a.userId));
+            const ungranted = staff.filter((s) => !grantedIds.has(s.id));
             return (
               <div key={m.name} className="card">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -151,32 +154,62 @@ export default async function AdminEmailAccounts() {
                 </div>
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
-                  <p className="label">Portal account link</p>
-                  {linkedUser ? (
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-gray-700">
-                        🔗 Linked to <span className="font-medium text-navy">{linkedUser.name}</span> — they can read
-                        and send this mailbox from their own Profile page.
-                      </span>
-                      <form action={unlinkMailboxAction}>
-                        <input type="hidden" name="userId" value={linkedUser.id} />
-                        <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
-                          Unlink
-                        </button>
-                      </form>
-                    </div>
+                  <p className="label">Portal account access</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Anyone granted access can read and send this mailbox from
+                    their own Profile page — a mailbox can be shared by
+                    several people at once.
+                  </p>
+
+                  {local && local.access.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                      {local.access.map((a) => (
+                        <li key={a.userId} className="flex items-center justify-between gap-2 text-sm">
+                          <span className="text-gray-700">
+                            🔗 <span className="font-medium text-navy">{a.user.name}</span> ({a.user.role === "ADMIN" ? "Admin" : "Employee"})
+                          </span>
+                          <form action={unlinkMailboxAction}>
+                            <input type="hidden" name="userId" value={a.userId} />
+                            <input type="hidden" name="mailboxId" value={local.id} />
+                            <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
+                              Remove access
+                            </button>
+                          </form>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {local ? (
+                    ungranted.length > 0 && (
+                      <ActionForm
+                        action={adminGrantMailboxAccessAction}
+                        submitLabel="Grant access"
+                        successMessage="Access granted."
+                        resetOnSuccess={false}
+                        className="mt-3 flex flex-wrap items-center gap-2"
+                      >
+                        <input type="hidden" name="mailboxId" value={local.id} />
+                        <select name="userId" required className="input" defaultValue="">
+                          <option value="" disabled>Grant access to…</option>
+                          {ungranted.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.role === "ADMIN" ? "Admin" : "Employee"})</option>
+                          ))}
+                        </select>
+                      </ActionForm>
+                    )
                   ) : (
                     <ActionForm
-                      action={adminLinkMailboxAction}
-                      submitLabel="Link & verify"
+                      action={adminConnectMailboxAction}
+                      submitLabel="Connect & verify"
                       pendingLabel="Verifying…"
-                      successMessage="Linked — they'll see it on their Profile page."
+                      successMessage="Connected — they'll see it on their Profile page."
                       className="mt-2 space-y-2"
                     >
                       <input type="hidden" name="address" value={m.email} />
                       <div className="grid gap-2 sm:grid-cols-3">
                         <select name="userId" required className="input" defaultValue="">
-                          <option value="" disabled>Link to…</option>
+                          <option value="" disabled>Connect for…</option>
                           {staff.map((s) => (
                             <option key={s.id} value={s.id}>{s.name} ({s.role === "ADMIN" ? "Admin" : "Employee"})</option>
                           ))}

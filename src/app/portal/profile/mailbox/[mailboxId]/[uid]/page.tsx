@@ -1,23 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMyMessageBody } from "@/lib/mailboxRead";
+import { getMailboxMessageBody } from "@/lib/mailboxRead";
 
 export const metadata = { title: "Message" };
 export const dynamic = "force-dynamic";
 
-export default async function MailboxMessagePage({ params }: { params: Promise<{ uid: string }> }) {
-  const { uid } = await params;
+export default async function MailboxMessagePage({
+  params,
+}: {
+  params: Promise<{ mailboxId: string; uid: string }>;
+}) {
+  const { mailboxId, uid } = await params;
   const uidNum = Number(uid);
   if (!Number.isInteger(uidNum)) notFound();
 
-  // getMyMessageBody is always scoped to the current session user's own
-  // linked mailbox — there's no way to pass another user's mailbox here.
-  const message = await getMyMessageBody(uidNum);
+  // getMailboxMessageBody checks the current session user actually has
+  // MailboxAccess to this mailboxId — there's no way to read a mailbox
+  // that wasn't explicitly granted to them.
+  const message = await getMailboxMessageBody(mailboxId, uidNum);
   if (!message) notFound();
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <Link href="/portal/profile" className="text-sm font-medium text-accent-600 hover:underline">
+      <Link href={`/portal/profile?mailbox=${mailboxId}`} className="text-sm font-medium text-accent-600 hover:underline">
         ← Back to My Mailbox
       </Link>
       <div className="card">
