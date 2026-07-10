@@ -63,18 +63,16 @@ export async function GET(request: Request) {
 
   if (format === "iif") {
     const lines: string[] = [
-      "!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tMEMO",
+      "!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tMEMO\tADDR1\tADDR2",
       "!SPL\tTRNSTYPE\tDATE\tACCNT\tAMOUNT\tMEMO",
       "!ENDTRNS",
     ];
     for (const t of tickets) {
       const total = t.total != null ? Number(t.total) : 0;
-      // QuickBooks Desktop matches customers by exact NAME. Including the
-      // customer number in the name ("Jane Doe #1001") pins the invoice to
-      // the right person — the QB customer list must use the same format.
-      const qbName = t.client?.customerNumber
-        ? `${clean(t.customerName, 90)} #${t.client.customerNumber}`
-        : clean(t.customerName, 100);
+      // QuickBooks Desktop matches customers by their exact list NAME — the
+      // export sends the plain name, and the service address rides along as
+      // the invoice's bill-to block (ADDR1/ADDR2) to confirm identity.
+      const qbName = clean(t.customerName, 100);
       const memoBits = [
         t.client?.customerNumber ? `Cust #${t.client.customerNumber}` : null,
         t.billingStatus === "NEEDS_REVIEW" ? "NEEDS REVIEW — price not final" : null,
@@ -84,6 +82,7 @@ export async function GET(request: Request) {
         [
           "TRNS", "INVOICE", qbDate(t.serviceDate), "Accounts Receivable",
           qbName, total.toFixed(2), String(t.ticketNumber), memoBits.join(" — "),
+          qbName, clean(t.serviceAddress, 120),
         ].join("\t")
       );
       const itemLines = t.lineItems.length > 0 ? t.lineItems : null;
@@ -111,14 +110,14 @@ export async function GET(request: Request) {
   } else {
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const rows = [
-      ["TicketNumber", "ServiceDate", "CustomerName", "CustomerNumber", "Memo", "LineLabel", "LineAmount", "TicketTotal"].join(","),
+      ["TicketNumber", "ServiceDate", "CustomerName", "CustomerNumber", "ServiceAddress", "Memo", "LineLabel", "LineAmount", "TicketTotal"].join(","),
     ];
     for (const t of tickets) {
       const total = t.total != null ? Number(t.total).toFixed(2) : "";
       const memo = clean(t.workPerformed, 1000);
       const base = [
         t.ticketNumber, qbDate(t.serviceDate), esc(clean(t.customerName, 100)),
-        t.client?.customerNumber ?? "", esc(memo),
+        t.client?.customerNumber ?? "", esc(clean(t.serviceAddress, 150)), esc(memo),
       ];
       if (t.lineItems.length === 0) {
         rows.push([...base, esc("Service"), total, total].join(","));

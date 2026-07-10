@@ -92,6 +92,18 @@ export async function updateUser(_prev: ActionState, formData: FormData): Promis
   const taken = await db.user.findFirst({ where: { email: parsed.data.email, NOT: { id } } });
   if (taken) return { ok: false, error: "That email is already in use" };
 
+  // Optional billing email (clients) — blank clears it.
+  let billingEmail: string | null | undefined = undefined;
+  if (formData.has("billingEmail")) {
+    const raw = String(formData.get("billingEmail") ?? "").trim().toLowerCase();
+    if (raw === "") billingEmail = null;
+    else {
+      const check = z.string().email().max(200).safeParse(raw);
+      if (!check.success) return { ok: false, error: "Enter a valid billing email address" };
+      billingEmail = check.data;
+    }
+  }
+
   // Customer number is admin-editable so it can be matched to the number the
   // customer already has in QuickBooks. Only present on forms for CLIENTs.
   let customerNumber: number | null | undefined = undefined;
@@ -110,7 +122,11 @@ export async function updateUser(_prev: ActionState, formData: FormData): Promis
 
   const result = await db.user.updateMany({
     where: { id },
-    data: { ...parsed.data, ...(customerNumber !== undefined ? { customerNumber } : {}) },
+    data: {
+      ...parsed.data,
+      ...(customerNumber !== undefined ? { customerNumber } : {}),
+      ...(billingEmail !== undefined ? { billingEmail } : {}),
+    },
   });
   if (result.count === 0) return { ok: false, error: "User not found" };
 

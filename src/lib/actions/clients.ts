@@ -40,10 +40,11 @@ export async function addPaymentLink(_prev: ActionState, formData: FormData): Pr
     },
   });
 
-  // Automation: the client gets the link by email immediately.
+  // Automation: the client gets the link by email immediately — at their
+  // billing email when they've set one, plus their login email.
   notify({
     senderUserId: admin.id,
-    to: [client.email],
+    to: [...new Set([client.billingEmail, client.email].filter((e): e is string => !!e))],
     subject: `Payment link from ${COMPANY.shortName}`,
     body: `Hi ${client.name},\n\nWe've sent you a payment link${parsed.data.label ? ` for: ${parsed.data.label}` : ""}.\n\nPay securely here: ${parsed.data.url}\n\nYou can also find this link any time under Documents & Payments in your portal: ${process.env.APP_URL || ""}/portal/client/billing\n\nQuestions? Call us at ${COMPANY.phone}.`,
   });

@@ -76,10 +76,10 @@ export default async function QuickBooksExport({
           <code className="rounded bg-amber-50 px-1">Sales</code>. If yours differ, tell me and I&apos;ll match them.
         </p>
         <p className="mt-2 text-xs text-amber-900">
-          Customer matching: QuickBooks matches customers by exact name. Tickets linked to a portal client
-          export as <code className="rounded bg-amber-50 px-1">Name #1234</code> (their customer number, set
-          under Users) — name your QuickBooks customers the same way and every invoice lands on the right
-          person automatically. Unlinked tickets export under the plain name.
+          Customer matching: QuickBooks matches customers by their exact list name, so the export sends the
+          customer&apos;s name exactly as it appears on the ticket — make sure it matches the QuickBooks
+          customer list spelling. The service address rides along as the invoice&apos;s bill-to block and the
+          customer number goes in the memo, so you can always confirm it landed on the right person.
         </p>
         <p className="mt-2 text-xs text-gray-500">
           No-charge tickets are never exported. Downloading marks tickets as exported (shown below) so

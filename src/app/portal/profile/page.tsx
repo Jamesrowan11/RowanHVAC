@@ -36,10 +36,26 @@ export default async function ProfilePage() {
               <input id="phone" name="phone" defaultValue={user.phone ?? ""} className="input" />
             </div>
             {user.role === "CLIENT" && (
-              <div>
-                <label htmlFor="address" className="label">Service address</label>
-                <input id="address" name="address" defaultValue={user.address ?? ""} className="input" />
-              </div>
+              <>
+                <div>
+                  <label htmlFor="address" className="label">Service address</label>
+                  <input id="address" name="address" defaultValue={user.address ?? ""} className="input" />
+                </div>
+                <div>
+                  <label htmlFor="billingEmail" className="label">Billing email (for invoices — optional)</label>
+                  <input
+                    id="billingEmail"
+                    name="billingEmail"
+                    type="email"
+                    defaultValue={user.billingEmail ?? ""}
+                    placeholder="Where we should email invoices"
+                    className="input"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Invoices and payment links go here (and to your account email). Leave blank to use your account email only.
+                  </p>
+                </div>
+              </>
             )}
           </ActionForm>
         </section>

@@ -3,8 +3,9 @@ import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
 import Link from "next/link";
-import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp } from "@/lib/actions/jobs";
+import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp, announceCallAction } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
+import ActionForm from "@/components/portal/ActionForm";
 import { addCustomerNote } from "@/lib/actions/clients";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
@@ -64,6 +65,30 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
               </div>
             )}
           </dl>
+
+          {job.client?.phone && (
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <p className="label">Call the customer</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Step 1 sends them an automated call: &ldquo;your technician is
+                about to call — please answer.&rdquo; Then dial them yourself.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <ActionForm
+                  action={announceCallAction}
+                  submitLabel="1. Send heads-up call"
+                  pendingLabel="Calling…"
+                  successMessage="Heads-up call placed — give it a few seconds, then dial."
+                  className="[&>button]:mt-0"
+                >
+                  <input type="hidden" name="jobId" value={job.id} />
+                </ActionForm>
+                <a href={`tel:${job.client.phone.replace(/[^\d+]/g, "")}`} className="btn-small-outline">
+                  2. Call {job.client.phone}
+                </a>
+              </div>
+            </div>
+          )}
 
           {job.status !== "CANCELLED" && (
             <form action={updateJobStatus} className="mt-5 space-y-3 border-t border-gray-100 pt-4">

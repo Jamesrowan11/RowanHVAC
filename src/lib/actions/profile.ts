@@ -31,12 +31,27 @@ export async function updateOwnProfile(_prev: ActionState, formData: FormData): 
   });
   if (!parsed.success) return { ok: false, error: parsed.error.errors[0]?.message };
 
+  // Optional invoice/billing email (clients) — blank clears it.
+  let billingEmail: string | null | undefined = undefined;
+  if (formData.has("billingEmail")) {
+    const raw = String(formData.get("billingEmail") ?? "").trim().toLowerCase();
+    if (raw === "") billingEmail = null;
+    else {
+      const check = z.string().email().max(200).safeParse(raw);
+      if (!check.success) return { ok: false, error: "Enter a valid billing email address" };
+      billingEmail = check.data;
+    }
+  }
+
   const taken = await db.user.findFirst({
     where: { email: parsed.data.email, NOT: { id: user.id } },
   });
   if (taken) return { ok: false, error: "That email is already in use" };
 
-  await db.user.update({ where: { id: user.id }, data: parsed.data });
+  await db.user.update({
+    where: { id: user.id },
+    data: { ...parsed.data, ...(billingEmail !== undefined ? { billingEmail } : {}) },
+  });
   revalidatePath("/portal", "layout");
   return { ok: true };
 }

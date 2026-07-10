@@ -9,6 +9,7 @@ import { notify } from "@/lib/email";
 import { notifySms } from "@/lib/sms";
 import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
+import { placeAnnouncementCall } from "@/lib/voice";
 import { fmtDateTime } from "@/lib/queries";
 import { COMPANY } from "@/lib/constants";
 
@@ -333,6 +334,40 @@ export async function assignTechnicians(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/portal", "layout");
+}
+
+/**
+ * Automated heads-up call before the tech dials: rings the customer with a
+ * short recorded message telling them their technician is about to call and
+ * to please answer — so the real call doesn't get screened as spam.
+ */
+export async function announceCallAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) return { ok: false, error: "Forbidden" };
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) return { ok: false, error: "Not found" };
+  if (!job.client?.phone) return { ok: false, error: "This customer has no phone number on file" };
+
+  const result = await placeAnnouncementCall(
+    job.client.phone,
+    `Hello, this is ${COMPANY.name}. Your technician ${user.name} is about to call you about your ${job.service} appointment. Please answer the upcoming call. Thank you.`
+  );
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: "📞 Sent automated heads-up call — customer told to expect your call." },
+  });
+  revalidatePath("/portal", "layout");
+  return { ok: true };
 }
 
 /** Quick "on my way" update a tech (or admin) sends the customer en route. */

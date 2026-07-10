@@ -76,6 +76,19 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
             </div>
             {user.role === "CLIENT" && (
               <div>
+                <label htmlFor="billingEmail" className="label">Billing email (invoices — optional)</label>
+                <input
+                  id="billingEmail"
+                  name="billingEmail"
+                  type="email"
+                  defaultValue={user.billingEmail ?? ""}
+                  placeholder="Falls back to their account email"
+                  className="input"
+                />
+              </div>
+            )}
+            {user.role === "CLIENT" && (
+              <div>
                 <label htmlFor="customerNumber" className="label">Customer # (matches QuickBooks)</label>
                 <input
                   id="customerNumber"

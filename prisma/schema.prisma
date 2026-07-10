@@ -73,6 +73,9 @@ model User {
   // Short human-friendly account number, assigned to CLIENTs — used on
   // service tickets and in the QuickBooks export.
   customerNumber Int?     @unique
+  // Where a CLIENT wants invoices/payment links emailed, when different
+  // from their login email (e.g. a spouse or bookkeeper).
+  billingEmail  String?
   passwordHash  String
   role          Role      @default(CLIENT)
   active        Boolean   @default(true)
