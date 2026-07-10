@@ -86,7 +86,10 @@ export default async function AdminUsers() {
                 )}
                 {g.items.map((u) => (
                   <tr key={u.id} className="hover:bg-navy-50/50">
-                    <td className="px-4 py-3 font-medium text-navy">{u.name}</td>
+                    <td className="px-4 py-3 font-medium text-navy">
+                      {u.name}
+                      {u.customerNumber != null && <span className="ml-1.5 font-normal text-gray-400">#{u.customerNumber}</span>}
+                    </td>
                     <td className="px-4 py-3">{u.email}</td>
                     <td className="px-4 py-3">{u.phone ?? "—"}</td>
                     <td className="px-4 py-3">

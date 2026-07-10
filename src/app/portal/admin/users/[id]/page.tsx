@@ -36,7 +36,10 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-navy">{user.name}</h1>
+        <h1 className="text-2xl font-bold text-navy">
+          {user.name}
+          {user.customerNumber != null && <span className="ml-2 text-gray-400">#{user.customerNumber}</span>}
+        </h1>
         <span className="badge bg-navy-100 text-navy-800">{roleLabel}</span>
         <span className={`badge ${user.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"}`}>
           {user.active ? "Active" : "Deactivated"}
@@ -71,6 +74,23 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
               <label htmlFor="address" className="label">Address</label>
               <input id="address" name="address" defaultValue={user.address ?? ""} className="input" />
             </div>
+            {user.role === "CLIENT" && (
+              <div>
+                <label htmlFor="customerNumber" className="label">Customer # (matches QuickBooks)</label>
+                <input
+                  id="customerNumber"
+                  name="customerNumber"
+                  type="number"
+                  min={1}
+                  defaultValue={user.customerNumber ?? ""}
+                  className="input"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Shown next to their name everywhere and included in the
+                  QuickBooks export so invoices land on the right customer.
+                </p>
+              </div>
+            )}
           </ActionForm>
         </section>
 

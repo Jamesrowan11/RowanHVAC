@@ -82,7 +82,26 @@ export async function updateUser(_prev: ActionState, formData: FormData): Promis
   const taken = await db.user.findFirst({ where: { email: parsed.data.email, NOT: { id } } });
   if (taken) return { ok: false, error: "That email is already in use" };
 
-  const result = await db.user.updateMany({ where: { id }, data: parsed.data });
+  // Customer number is admin-editable so it can be matched to the number the
+  // customer already has in QuickBooks. Only present on forms for CLIENTs.
+  let customerNumber: number | null | undefined = undefined;
+  if (formData.has("customerNumber")) {
+    const raw = String(formData.get("customerNumber") ?? "").trim();
+    if (raw === "") {
+      customerNumber = null;
+    } else {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n <= 0) return { ok: false, error: "Customer # must be a positive whole number" };
+      const numTaken = await db.user.findFirst({ where: { customerNumber: n, NOT: { id } } });
+      if (numTaken) return { ok: false, error: `Customer #${n} is already assigned to ${numTaken.name}` };
+      customerNumber = n;
+    }
+  }
+
+  const result = await db.user.updateMany({
+    where: { id },
+    data: { ...parsed.data, ...(customerNumber !== undefined ? { customerNumber } : {}) },
+  });
   if (result.count === 0) return { ok: false, error: "User not found" };
 
   revalidatePath("/portal", "layout");

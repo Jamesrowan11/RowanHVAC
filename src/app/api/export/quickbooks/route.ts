@@ -69,6 +69,12 @@ export async function GET(request: Request) {
     ];
     for (const t of tickets) {
       const total = t.total != null ? Number(t.total) : 0;
+      // QuickBooks Desktop matches customers by exact NAME. Including the
+      // customer number in the name ("Jane Doe #1001") pins the invoice to
+      // the right person — the QB customer list must use the same format.
+      const qbName = t.client?.customerNumber
+        ? `${clean(t.customerName, 90)} #${t.client.customerNumber}`
+        : clean(t.customerName, 100);
       const memoBits = [
         t.client?.customerNumber ? `Cust #${t.client.customerNumber}` : null,
         t.billingStatus === "NEEDS_REVIEW" ? "NEEDS REVIEW — price not final" : null,
@@ -77,7 +83,7 @@ export async function GET(request: Request) {
       lines.push(
         [
           "TRNS", "INVOICE", qbDate(t.serviceDate), "Accounts Receivable",
-          clean(t.customerName, 100), total.toFixed(2), String(t.ticketNumber), memoBits.join(" — "),
+          qbName, total.toFixed(2), String(t.ticketNumber), memoBits.join(" — "),
         ].join("\t")
       );
       const itemLines = t.lineItems.length > 0 ? t.lineItems : null;

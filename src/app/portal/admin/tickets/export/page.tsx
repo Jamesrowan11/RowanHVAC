@@ -75,6 +75,12 @@ export default async function QuickBooksExport({
           company file — this export uses <code className="rounded bg-amber-50 px-1">Accounts Receivable</code> and{" "}
           <code className="rounded bg-amber-50 px-1">Sales</code>. If yours differ, tell me and I&apos;ll match them.
         </p>
+        <p className="mt-2 text-xs text-amber-900">
+          Customer matching: QuickBooks matches customers by exact name. Tickets linked to a portal client
+          export as <code className="rounded bg-amber-50 px-1">Name #1234</code> (their customer number, set
+          under Users) — name your QuickBooks customers the same way and every invoice lands on the right
+          person automatically. Unlinked tickets export under the plain name.
+        </p>
         <p className="mt-2 text-xs text-gray-500">
           No-charge tickets are never exported. Downloading marks tickets as exported (shown below) so
           double-imports are easy to spot — re-exporting is still allowed.
