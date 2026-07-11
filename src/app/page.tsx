@@ -142,6 +142,7 @@ export default async function HomePage() {
           </Link>
           <nav aria-label="Main navigation" className="flex items-center gap-3 sm:gap-5">
             <a href="#services" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Services</a>
+            <Link href="/history" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Our History</Link>
             <a href="#reviews" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Reviews</a>
             <a href="#contact" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Contact</a>
             <Link href="/login" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-700">
