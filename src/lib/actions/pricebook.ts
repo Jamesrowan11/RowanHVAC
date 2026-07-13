@@ -75,6 +75,26 @@ export async function updatePricingSettings(_prev: ActionState, formData: FormDa
   return { ok: true };
 }
 
+/* ------------------------- QuickBooks account names ----------------------- */
+
+/**
+ * IIF imports fail unless account names match the QuickBooks company file
+ * EXACTLY — so the two accounts the export writes to are editable settings.
+ */
+export async function updateQbAccounts(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+
+  const ar = String(formData.get("arAccount") ?? "").trim().slice(0, 100);
+  const income = String(formData.get("incomeAccount") ?? "").trim().slice(0, 100);
+  if (!ar || !income) return { ok: false, error: "Both account names are required" };
+
+  for (const [key, value] of [["qb.arAccount", ar], ["qb.incomeAccount", income]] as const) {
+    await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+  revalidatePath("/portal/admin/tickets/export");
+  return { ok: true };
+}
+
 /* --------------------------- Service agreement --------------------------- */
 
 /**

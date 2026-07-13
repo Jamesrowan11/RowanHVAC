@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/queries";
+import { updateQbAccounts } from "@/lib/actions/pricebook";
+import ActionForm from "@/components/portal/ActionForm";
 
 export const metadata = { title: "QuickBooks Export" };
 export const dynamic = "force-dynamic";
@@ -25,11 +27,16 @@ export default async function QuickBooksExport({
   const start = new Date(`${date}T00:00:00`);
   const end = new Date(start); end.setDate(end.getDate() + 1);
 
-  const tickets = await db.serviceTicket.findMany({
-    where: { status: "SUBMITTED", serviceDate: { gte: start, lt: end } },
-    orderBy: { ticketNumber: "asc" },
-    include: { client: { select: { customerNumber: true } }, tech: { select: { name: true } } },
-  });
+  const [tickets, qbSettings] = await Promise.all([
+    db.serviceTicket.findMany({
+      where: { status: "SUBMITTED", serviceDate: { gte: start, lt: end } },
+      orderBy: { ticketNumber: "asc" },
+      include: { client: { select: { customerNumber: true } }, tech: { select: { name: true } } },
+    }),
+    db.setting.findMany({ where: { key: { in: ["qb.arAccount", "qb.incomeAccount"] } } }),
+  ]);
+  const arAccount = qbSettings.find((s) => s.key === "qb.arAccount")?.value || "Accounts Receivable";
+  const incomeAccount = qbSettings.find((s) => s.key === "qb.incomeAccount")?.value || "Sales";
 
   const exportable = tickets.filter(
     (t) => t.billingStatus === "BILLABLE" || (includeNeedsReview && t.billingStatus === "NEEDS_REVIEW")
@@ -69,11 +76,34 @@ export default async function QuickBooksExport({
             Sample (1 record)
           </a>
         </div>
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <h3 className="text-sm font-bold text-navy">QuickBooks account names</h3>
+          <p className="mt-1 text-xs text-gray-500">
+            These must match your QuickBooks company file <strong>exactly</strong> or the import
+            fails with &ldquo;The Account does not exist in Quickbooks.&rdquo; Find the exact names in
+            QuickBooks under <strong>Lists → Chart of Accounts</strong> — the receivables account,
+            and the income account you invoice services to.
+          </p>
+          <ActionForm
+            action={updateQbAccounts}
+            submitLabel="Save account names"
+            successMessage="Saved — re-download the file and import again."
+            resetOnSuccess={false}
+            className="mt-2 grid gap-2 sm:grid-cols-2"
+          >
+            <div>
+              <label htmlFor="arAccount" className="label">Receivables account</label>
+              <input id="arAccount" name="arAccount" required defaultValue={arAccount} className="input" />
+            </div>
+            <div>
+              <label htmlFor="incomeAccount" className="label">Income account</label>
+              <input id="incomeAccount" name="incomeAccount" required defaultValue={incomeAccount} className="input" />
+            </div>
+          </ActionForm>
+        </div>
         <p className="mt-3 text-xs text-amber-900">
           ⚠ Before the first real batch: download the <strong>Sample</strong> file and test-import it into
-          QuickBooks Desktop (File → Utilities → Import → IIF Files). IIF account names must match your
-          company file — this export uses <code className="rounded bg-amber-50 px-1">Accounts Receivable</code> and{" "}
-          <code className="rounded bg-amber-50 px-1">Sales</code>. If yours differ, tell me and I&apos;ll match them.
+          QuickBooks Desktop (File → Utilities → Import → IIF Files) to confirm the account names above match.
         </p>
         <p className="mt-2 text-xs text-amber-900">
           Customer matching: QuickBooks matches customers by their exact list name, so the export sends the

@@ -57,6 +57,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No matching tickets for that day" }, { status: 404 });
   }
 
+  // Account names must match the QuickBooks company file exactly — they're
+  // admin-editable settings on the export page.
+  const settings = await db.setting.findMany({ where: { key: { in: ["qb.arAccount", "qb.incomeAccount"] } } });
+  const AR_ACCOUNT = settings.find((s) => s.key === "qb.arAccount")?.value || "Accounts Receivable";
+  const INCOME_ACCOUNT = settings.find((s) => s.key === "qb.incomeAccount")?.value || "Sales";
+
   let body: string;
   let contentType: string;
   let ext: string;
@@ -80,7 +86,7 @@ export async function GET(request: Request) {
       ].filter(Boolean);
       lines.push(
         [
-          "TRNS", "INVOICE", qbDate(t.serviceDate), "Accounts Receivable",
+          "TRNS", "INVOICE", qbDate(t.serviceDate), AR_ACCOUNT,
           qbName, total.toFixed(2), String(t.ticketNumber), memoBits.join(" — "),
           qbName, clean(t.serviceAddress, 120),
         ].join("\t")
@@ -89,7 +95,7 @@ export async function GET(request: Request) {
       if (itemLines) {
         for (const li of itemLines) {
           lines.push(
-            ["SPL", "INVOICE", qbDate(t.serviceDate), "Sales", (-Number(li.amount)).toFixed(2), clean(li.label, 200)].join("\t")
+            ["SPL", "INVOICE", qbDate(t.serviceDate), INCOME_ACCOUNT, (-Number(li.amount)).toFixed(2), clean(li.label, 200)].join("\t")
           );
         }
         // Any admin adjustment beyond the line items lands on its own line so
@@ -97,10 +103,10 @@ export async function GET(request: Request) {
         const itemSum = itemLines.reduce((s, li) => s + Number(li.amount), 0);
         const diff = Math.round((total - itemSum) * 100) / 100;
         if (Math.abs(diff) >= 0.01) {
-          lines.push(["SPL", "INVOICE", qbDate(t.serviceDate), "Sales", (-diff).toFixed(2), "Adjustment"].join("\t"));
+          lines.push(["SPL", "INVOICE", qbDate(t.serviceDate), INCOME_ACCOUNT, (-diff).toFixed(2), "Adjustment"].join("\t"));
         }
       } else {
-        lines.push(["SPL", "INVOICE", qbDate(t.serviceDate), "Sales", (-total).toFixed(2), "Service"].join("\t"));
+        lines.push(["SPL", "INVOICE", qbDate(t.serviceDate), INCOME_ACCOUNT, (-total).toFixed(2), "Service"].join("\t"));
       }
       lines.push("ENDTRNS");
     }
