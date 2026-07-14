@@ -9,7 +9,7 @@ import { notify } from "@/lib/email";
 import { notifySms } from "@/lib/sms";
 import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
-import { placeAnnouncementCall } from "@/lib/voice";
+import { placeRingOut } from "@/lib/ringout";
 import { fmtDateTime, fmtDate, fmtWhen } from "@/lib/queries";
 import { renderedAgreementForJob } from "@/lib/agreement";
 import { COMPANY, REVIEW_LINKS } from "@/lib/constants";
@@ -412,11 +412,12 @@ export async function assignTechnicians(formData: FormData): Promise<void> {
 }
 
 /**
- * Automated heads-up call before the tech dials: rings the customer with a
- * short recorded message telling them their technician is about to call and
- * to please answer — so the real call doesn't get screened as spam.
+ * Call the customer through the office line (RingCentral RingOut): rings the
+ * technician's own phone first, then dials the customer and connects them —
+ * the customer's caller ID shows the office number, not the tech's cell, so
+ * the call doesn't get screened as an unknown number.
  */
-export async function announceCallAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function officeLineCallAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await actionUser();
   const jobId = String(formData.get("jobId") ?? "");
 
@@ -432,14 +433,16 @@ export async function announceCallAction(_prev: ActionState, formData: FormData)
   if (!job) return { ok: false, error: "Not found" };
   if (!job.client?.phone) return { ok: false, error: "This customer has no phone number on file" };
 
-  const result = await placeAnnouncementCall(
-    job.client.phone,
-    `Hello, this is ${COMPANY.name}. Your technician ${user.name} is about to call you about your ${job.service} appointment. Please answer the upcoming call. Thank you.`
-  );
+  const me = await db.user.findUnique({ where: { id: user.id }, select: { phone: true } });
+  if (!me?.phone) {
+    return { ok: false, error: "Add your cell number in My Profile first — the office line rings YOUR phone, then connects the customer" };
+  }
+
+  const result = await placeRingOut(me.phone, job.client.phone);
   if (!result.ok) return { ok: false, error: result.error };
 
   await db.jobNote.create({
-    data: { jobId: job.id, authorId: user.id, body: "📞 Sent automated heads-up call — customer told to expect your call." },
+    data: { jobId: job.id, authorId: user.id, body: `📞 ${user.name} called the customer through the office line.` },
   });
   revalidatePath("/portal", "layout");
   return { ok: true };
@@ -463,30 +466,22 @@ export async function notifyOnMyWay(formData: FormData): Promise<void> {
   if (!job) throw new Error("Not found");
 
   const etaText = eta ? ` We expect to arrive in about ${eta}.` : "";
-  let callNote = "";
   if (job.client) {
     notify({
       to: [job.client.email],
       subject: `Your ${COMPANY.shortName} technician is on the way`,
-      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nHe will be calling you shortly from his cell phone — the number on your caller ID will be his cell number, not our office number. Please answer that call.\n\nSee you soon!`,
+      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nHe will be calling you shortly — the call will usually show our office number, ${COMPANY.phone}. Please answer so he can come to your appointment.\n\nSee you soon!`,
     });
     if (job.client.phone) {
       notifySms({
         to: [job.client.phone],
-        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText} He'll be calling you from his cell phone shortly — please answer.`,
+        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText} He'll call you shortly (usually from ${COMPANY.phone}) — please answer.`,
       });
-      // Automated phone call too — an actual ring gets answered when a text
-      // doesn't, and it primes them to pick up the tech's cell call.
-      const call = await placeAnnouncementCall(
-        job.client.phone,
-        `Hello, this is ${COMPANY.name}. Your technician is on the way for your ${job.service} appointment${eta ? `, arriving in about ${eta}` : ""}. He will be calling you shortly from his cell phone. Please answer that call. Thank you.`
-      );
-      callNote = call.ok ? " Automated call placed." : ` (Automated call not placed: ${call.error})`;
     }
   }
   // Log it on the job so the office sees the customer was notified.
   await db.jobNote.create({
-    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}${callNote}` },
+    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}` },
   });
   revalidatePath("/portal", "layout");
 }

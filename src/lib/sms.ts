@@ -28,7 +28,7 @@ function provider(): "twilio" | "nextiva" | "ringcentral" {
   return "twilio";
 }
 
-function normalizeUS(phone: string): string | null {
+export function normalizeUS(phone: string): string | null {
   const digits = phone.replace(/[^\d]/g, "");
   if (digits.length === 10) return `+1${digits}`;
   if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
@@ -84,7 +84,7 @@ async function sendViaNextiva(to: string[], text: string) {
 
 /* ----------------------------- RingCentral -------------------------------- */
 
-function ringcentralConfigured(): boolean {
+export function ringcentralConfigured(): boolean {
   return !!(
     process.env.RC_CLIENT_ID &&
     process.env.RC_CLIENT_SECRET &&
@@ -93,15 +93,16 @@ function ringcentralConfigured(): boolean {
   );
 }
 
-function rcServer(): string {
+export function rcServer(): string {
   return (process.env.RC_SERVER || "https://platform.ringcentral.com").replace(/\/$/, "");
 }
 
 // Cached in module scope so we don't re-authenticate on every message — a
-// fresh access token is only fetched once it's actually expired.
+// fresh access token is only fetched once it's actually expired. Shared with
+// RingOut calls (src/lib/ringout.ts).
 let rcTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function getRingCentralToken(): Promise<string> {
+export async function getRingCentralToken(): Promise<string> {
   if (rcTokenCache && rcTokenCache.expiresAt > Date.now()) return rcTokenCache.token;
 
   const clientId = process.env.RC_CLIENT_ID as string;
