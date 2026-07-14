@@ -48,6 +48,8 @@ export type WizardTicket = {
   readingsNotes: string | null;
   workPerformed: string | null;
   billingStatus: string;
+  paidOnSite: boolean;
+  paymentNote: string | null;
 };
 
 export type WizardClient = { id: string; name: string; customerNumber: number | null; address: string | null };
@@ -472,6 +474,19 @@ export default function TicketWizard({
                   </span>
                 </label>
               ))}
+            </div>
+            <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="paidOnSite" defaultChecked={ticket.paidOnSite} className="h-4 w-4" />
+                Customer paid on the spot
+              </label>
+              <input
+                name="paymentNote"
+                defaultValue={ticket.paymentNote ?? ""}
+                placeholder="How? e.g. check #1042, cash, card"
+                className="input"
+                aria-label="Payment note"
+              />
             </div>
           </SectionForm>
         )}

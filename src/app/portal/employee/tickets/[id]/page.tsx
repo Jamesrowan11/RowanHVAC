@@ -105,6 +105,8 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
           readingsNotes: ticket.readingsNotes,
           workPerformed: ticket.workPerformed,
           billingStatus: ticket.billingStatus,
+          paidOnSite: ticket.paidOnSite,
+          paymentNote: ticket.paymentNote,
         }}
         clients={clients}
         parts={parts.map((p) => ({

@@ -1,0 +1,3 @@
+ALTER TABLE `ServiceTicket`
+  ADD COLUMN `paidOnSite` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `paymentNote` VARCHAR(191) NULL;

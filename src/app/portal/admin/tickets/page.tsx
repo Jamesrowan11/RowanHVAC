@@ -115,6 +115,7 @@ export default async function AdminTickets({
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-navy">
                   {t.total != null ? `$${Number(t.total).toFixed(2)}` : "—"}
+                  {t.paidOnSite && <span className="badge ml-1.5 bg-green-100 text-green-800">Paid</span>}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Link

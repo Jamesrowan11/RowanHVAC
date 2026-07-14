@@ -81,6 +81,7 @@ export async function GET(request: Request) {
       const qbName = clean(t.customerName, 100);
       const memoBits = [
         t.client?.customerNumber ? `Cust #${t.client.customerNumber}` : null,
+        t.paidOnSite ? `PAID ON SITE${t.paymentNote ? ` (${clean(t.paymentNote, 60)})` : ""}` : null,
         t.billingStatus === "NEEDS_REVIEW" ? "NEEDS REVIEW — price not final" : null,
         clean(t.workPerformed, 500),
       ].filter(Boolean);
@@ -116,14 +117,14 @@ export async function GET(request: Request) {
   } else {
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const rows = [
-      ["TicketNumber", "ServiceDate", "CustomerName", "CustomerNumber", "ServiceAddress", "Memo", "LineLabel", "LineAmount", "TicketTotal"].join(","),
+      ["TicketNumber", "ServiceDate", "CustomerName", "CustomerNumber", "ServiceAddress", "PaidOnSite", "Memo", "LineLabel", "LineAmount", "TicketTotal"].join(","),
     ];
     for (const t of tickets) {
       const total = t.total != null ? Number(t.total).toFixed(2) : "";
       const memo = clean(t.workPerformed, 1000);
       const base = [
         t.ticketNumber, qbDate(t.serviceDate), esc(clean(t.customerName, 100)),
-        t.client?.customerNumber ?? "", esc(clean(t.serviceAddress, 150)), esc(memo),
+        t.client?.customerNumber ?? "", esc(clean(t.serviceAddress, 150)), t.paidOnSite ? "YES" : "", esc(memo),
       ];
       if (t.lineItems.length === 0) {
         rows.push([...base, esc("Service"), total, total].join(","));

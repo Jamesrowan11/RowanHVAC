@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/guards";
 import { db } from "@/lib/db";
+import { fmtWhen } from "@/lib/queries";
+import { duplicateJob } from "@/lib/actions/jobs";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import {
   WEEKDAYS, easternKey, todayKey, shiftKey, startOfWeekKey, twoWeekGrid,
   rangeLabel, safeKey, fmtTime,
@@ -19,10 +22,29 @@ const chipStyle: Record<string, string> = {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ start?: string }>;
+  searchParams: Promise<{ start?: string; q?: string }>;
 }) {
   const user = await requireRole("ADMIN", "EMPLOYEE");
-  const { start: startParam } = await searchParams;
+  const { start: startParam, q: qParam } = await searchParams;
+  const q = (qParam ?? "").trim().slice(0, 100);
+
+  // Search spans the WHOLE calendar (not just the visible two weeks) — used
+  // to find past events and duplicate them onto a new date.
+  const searchResults = q
+    ? await db.job.findMany({
+        where: {
+          ...(user.role === "EMPLOYEE" ? { assignments: { some: { userId: user.id } } } : {}),
+          OR: [
+            { customerName: { contains: q } },
+            { service: { contains: q } },
+            { address: { contains: q } },
+          ],
+        },
+        orderBy: { scheduledAt: "desc" },
+        take: 30,
+        include: { assignments: { include: { user: { select: { name: true } } } } },
+      })
+    : [];
 
   // Two-week window, navigable in 14-day steps via ?start=YYYY-MM-DD.
   const startKey = startOfWeekKey(safeKey(startParam));
@@ -79,6 +101,66 @@ export default async function CalendarPage({
         </div>
       </div>
       <p className="text-sm font-medium text-gray-600">{rangeLabel(startKey)} · two-week view</p>
+
+      {/* Calendar search — find any event, past or future, and duplicate it */}
+      <form method="GET" action="/portal/calendar" className="flex flex-wrap items-center gap-2">
+        {startParam && <input type="hidden" name="start" value={startParam} />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search the calendar — customer, service, or address…"
+          className="input !w-full sm:!w-96"
+          aria-label="Search calendar events"
+        />
+        <button type="submit" className="btn-small">Search</button>
+        {q && (
+          <Link href="/portal/calendar" className="text-sm font-medium text-accent-600 hover:underline">
+            Clear
+          </Link>
+        )}
+      </form>
+
+      {q && (
+        <section className="card">
+          <h2 className="font-bold text-navy">
+            {searchResults.length === 0
+              ? `No events match “${q}”`
+              : `${searchResults.length} event${searchResults.length === 1 ? "" : "s"} matching “${q}”`}
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {searchResults.map((j) => (
+              <li key={j.id} className="rounded-lg bg-navy-50 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <Link href={jobHref(j.id)} className="font-semibold text-navy hover:underline">
+                      {j.customerName} · {j.service}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {fmtWhen(j.scheduledAt, j.window)} · {j.address}
+                      {j.assignments.length > 0 && <> · {j.assignments.map((a) => a.user.name).join(", ")}</>}
+                    </p>
+                  </div>
+                  <JobStatusBadge status={j.status} />
+                </div>
+                {user.role === "ADMIN" && (
+                  <form action={duplicateJob} className="mt-2 flex flex-wrap items-center gap-2 border-t border-navy-100 pt-2">
+                    <input type="hidden" name="jobId" value={j.id} />
+                    <span className="text-xs font-medium text-gray-500">Duplicate onto:</span>
+                    <input type="date" name="scheduledDate" required className="input !w-auto" aria-label="New date" />
+                    <select name="window" className="input !w-auto" defaultValue={j.window ?? "AM"} aria-label="Arrival window">
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                      <option value="AM/PM">AM/PM</option>
+                    </select>
+                    <button type="submit" className="btn-small-outline">Duplicate</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid grid-cols-7 gap-2">
         {/* weekday headers */}

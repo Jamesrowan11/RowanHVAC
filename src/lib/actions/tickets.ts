@@ -163,6 +163,8 @@ export async function saveTicketSection(_prev: ActionState, formData: FormData):
       return { ok: false, error: "Pick a billing status" };
     }
     data.billingStatus = status as "BILLABLE" | "NO_CHARGE" | "NEEDS_REVIEW";
+    data.paidOnSite = formData.get("paidOnSite") === "on";
+    data.paymentNote = str(formData, "paymentNote", 120);
   } else {
     return { ok: false, error: "Unknown section" };
   }

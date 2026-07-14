@@ -662,6 +662,50 @@ export async function sendTermsAcceptance(formData: FormData): Promise<void> {
   revalidatePath("/portal", "layout");
 }
 
+/**
+ * Duplicate an existing job onto a new date/window — same customer, address,
+ * service, and linked client. Assignments and notes don't copy (jobs are
+ * usually assigned day-of); the terms request goes out fresh for the new
+ * visit like any newly scheduled job.
+ */
+export async function duplicateJob(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const dateRaw = String(formData.get("scheduledDate") ?? "");
+  const window = String(formData.get("window") ?? "AM");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) throw new Error("Pick a date for the copy");
+  if (!["AM", "PM", "AM/PM"].includes(window)) throw new Error("Pick a window");
+
+  const source = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!source) throw new Error("Not found");
+
+  const scheduledAt = new Date(`${dateRaw}T${window === "PM" ? "13:00" : "08:00"}:00`);
+  const copy = await db.job.create({
+    data: {
+      customerName: source.customerName,
+      address: source.address,
+      service: source.service,
+      kind: source.kind,
+      scheduledAt,
+      window,
+      clientId: source.clientId,
+      ...(source.clientId
+        ? {
+            acceptToken: crypto.randomUUID(),
+            termsSentAt: new Date(),
+            termsSnapshot: await currentAgreementText(),
+          }
+        : {}),
+    },
+    include: { client: true },
+  });
+  if (copy.acceptToken && copy.client) sendTermsRequest(copy, copy.client);
+
+  revalidatePath("/portal", "layout");
+  redirect(`/portal/admin/jobs/${copy.id}`);
+}
+
 /** Permanently deletes a job — notes, attachments, and assignments cascade with it. Admin only. */
 export async function deleteJob(formData: FormData): Promise<void> {
   await actionRole("ADMIN");

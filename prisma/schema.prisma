@@ -358,6 +358,9 @@ model ServiceTicket {
   workPerformed String? @db.Text
 
   billingStatus      BillingStatus @default(BILLABLE)
+  // Customer settled up on the spot (cash/check/card with the tech).
+  paidOnSite         Boolean       @default(false)
+  paymentNote        String? // e.g. "check #1042", "cash"
   // Set at submit when the duration exceeds the labor table (over 6 hrs) or
   // a matching rate row is missing — admin prices it by hand.
   needsManualPricing Boolean       @default(false)

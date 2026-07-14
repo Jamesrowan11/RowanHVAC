@@ -83,6 +83,11 @@ export default function TicketSummary({ ticket }: { ticket: TicketFull }) {
           <span className={`badge ${ticket.billingStatus === "BILLABLE" ? "bg-green-100 text-green-800" : ticket.billingStatus === "NO_CHARGE" ? "bg-navy-100 text-navy-800" : "bg-amber-100 text-amber-900"}`}>
             {ticket.billingStatus === "BILLABLE" ? "Billable" : ticket.billingStatus === "NO_CHARGE" ? "No charge" : "Needs review"}
           </span>
+          {ticket.paidOnSite && (
+            <span className="badge ml-2 bg-green-100 text-green-800">
+              Paid on site{ticket.paymentNote ? ` — ${ticket.paymentNote}` : ""}
+            </span>
+          )}
           {ticket.needsManualPricing && (
             <span className="badge ml-2 bg-red-100 text-red-700">Manual pricing needed</span>
           )}

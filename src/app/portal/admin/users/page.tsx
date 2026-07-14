@@ -6,10 +6,27 @@ import ActionForm from "@/components/portal/ActionForm";
 
 export const metadata = { title: "Users" };
 
-export default async function AdminUsers() {
+export default async function AdminUsers({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   await requireRole("ADMIN");
+  const { q: qParam } = await searchParams;
+  const q = (qParam ?? "").trim().slice(0, 100);
 
   const users = await db.user.findMany({
+    where: q
+      ? {
+          OR: [
+            { name: { contains: q } },
+            { email: { contains: q } },
+            { phone: { contains: q } },
+            { address: { contains: q } },
+            ...(Number.isInteger(Number(q)) && q !== "" ? [{ customerNumber: Number(q) }] : []),
+          ],
+        }
+      : undefined,
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
 
@@ -21,7 +38,27 @@ export default async function AdminUsers() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-navy">Users &amp; Accounts</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-navy">Users &amp; Accounts</h1>
+        <Link href="/portal/admin/users/import" className="btn-secondary">Import customers (CSV)</Link>
+      </div>
+
+      <form method="GET" action="/portal/admin/users" className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search customers — name, email, phone, address, or customer #…"
+          className="input !w-full sm:!w-96"
+          aria-label="Search users"
+        />
+        <button type="submit" className="btn-small">Search</button>
+        {q && (
+          <Link href="/portal/admin/users" className="text-sm font-medium text-accent-600 hover:underline">
+            Clear
+          </Link>
+        )}
+      </form>
 
       <section className="card max-w-2xl">
         <h2 className="font-bold text-navy">Create account</h2>
