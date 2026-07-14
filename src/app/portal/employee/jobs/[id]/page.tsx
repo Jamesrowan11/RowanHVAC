@@ -118,7 +118,11 @@ export default async function EmployeeJobDetail({ params }: { params: Promise<{ 
                   <input id="eta" name="eta" placeholder="ETA e.g. 20 minutes (optional)" className="input flex-1" />
                   <button type="submit" className="btn-small">On my way</button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Sends the customer an email and text.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Sends the customer an email, a text, and an automated phone call —
+                  &ldquo;your technician is on the way and will be calling from his cell —
+                  please answer.&rdquo;
+                </p>
               </form>
 
               <form action={askNextUp}>

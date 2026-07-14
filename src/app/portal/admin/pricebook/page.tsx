@@ -8,6 +8,7 @@ import {
 } from "@/lib/actions/pricebook";
 import ActionForm from "@/components/portal/ActionForm";
 import ConfirmForm from "@/components/portal/ConfirmForm";
+import { DEFAULT_AGREEMENT_TEMPLATE } from "@/lib/agreement";
 
 export const metadata = { title: "Price Book" };
 export const dynamic = "force-dynamic";
@@ -78,29 +79,38 @@ export default async function AdminPriceBook() {
         </p>
       </section>
 
-      {/* Service agreement */}
+      {/* Scheduling letter / service agreement template */}
       <section className="card max-w-2xl">
-        <h2 className="font-bold text-navy">Service agreement</h2>
+        <h2 className="font-bold text-navy">Scheduling letter (service agreement)</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Sent to every customer (with the hourly rates above) when their job or
-          pickup is scheduled — they check a box and sign their name to accept.
-          Each job keeps a snapshot of the exact text it sent, so editing this
-          never changes what earlier customers signed.
+          The letter every customer gets when their job or pickup is scheduled —
+          they pick a payment method, check a box, and sign their name to accept.
+          It&apos;s a template: the placeholders below are filled in automatically
+          for each customer, and each job keeps its own copy you can further edit
+          on the job page. Editing this never changes letters already sent.
+        </p>
+        <p className="mt-2 rounded-lg bg-navy-50 p-2.5 text-xs text-gray-600">
+          Placeholders: <code className="font-semibold">{"{{customer_name}}"}</code>,{" "}
+          <code className="font-semibold">{"{{address}}"}</code>,{" "}
+          <code className="font-semibold">{"{{date}}"}</code>,{" "}
+          <code className="font-semibold">{"{{first_rate}}"}</code> (first 30 minutes, from the
+          labor table), <code className="font-semibold">{"{{additional_rate}}"}</code> (each
+          additional 15 minutes).
         </p>
         <ActionForm
           action={updateAgreement}
-          submitLabel="Save agreement"
+          submitLabel="Save letter template"
           successMessage="Saved — new appointments get this version."
           resetOnSuccess={false}
           className="mt-3 space-y-3"
         >
           <textarea
             name="agreementText"
-            rows={10}
-            defaultValue={agreementText?.value ?? ""}
-            placeholder="Paste your service agreement text here…"
+            rows={16}
+            defaultValue={agreementText?.value?.trim() ? agreementText.value : DEFAULT_AGREEMENT_TEMPLATE}
+            placeholder="Your scheduling letter template…"
             className="input font-mono text-xs"
-            aria-label="Agreement text"
+            aria-label="Letter template"
           />
           <div>
             <label htmlFor="agreementPdf" className="label">Attach as PDF too (optional)</label>

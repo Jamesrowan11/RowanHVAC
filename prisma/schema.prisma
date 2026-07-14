@@ -172,6 +172,9 @@ model Job {
   termsAcceptedAt DateTime?
   termsSignature  String?
   termsSnapshot   String?   @db.Text
+  // How the customer said they'll pay at time of service ("Check" / "Credit
+  // card") — required on the acceptance form, per the scheduling letter.
+  termsPaymentMethod String? @db.VarChar(40)
 
   // Assignment is optional at scheduling time, and not limited to one person —
   // many jobs get one or more technicians assigned the day of, either by an

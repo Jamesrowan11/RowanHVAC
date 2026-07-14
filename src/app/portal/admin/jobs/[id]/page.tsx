@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import {
   updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
-  sendTermsAcceptance, setJobClient, updateJobDetails,
+  sendTermsAcceptance, setJobClient, updateJobDetails, updateJobAgreement, resetJobAgreement,
 } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
+import { renderedAgreementForJob } from "@/lib/agreement";
 import ActionForm from "@/components/portal/ActionForm";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
@@ -54,6 +55,10 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
   const employees = technicians.filter((t) => t.role === "EMPLOYEE");
   const admins = technicians.filter((t) => t.role === "ADMIN");
   const assignedIds = new Set(job.assignments.map((a) => a.user.id));
+
+  // This customer's letter: the saved per-job version, or a fresh render from
+  // the master template so the editor never starts blank.
+  const letterDraft = job.termsSnapshot?.trim() ? job.termsSnapshot : await renderedAgreementForJob(job);
 
   return (
     <div className="space-y-6">
@@ -241,18 +246,20 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
         </section>
 
         <section className="card lg:col-span-2">
-          <h2 className="font-bold text-navy">Pricing terms &amp; agreement acceptance</h2>
+          <h2 className="font-bold text-navy">Scheduling letter &amp; acceptance</h2>
           <p className="mt-1 text-xs text-gray-500">
-            The customer must accept the hourly pricing terms and service agreement
-            (checkbox + typed signature) by one day before the appointment. It sends
-            automatically when the job is scheduled for a linked client. Edit the
-            agreement text on the Price Book page.
+            The customer gets a personalized scheduling letter (name, address, and
+            date filled in automatically) and must accept it — checkbox, payment
+            method, and typed signature — by one day before the appointment. It
+            sends automatically when the job is scheduled for a linked client.
+            The master template lives on the Price Book page.
           </p>
 
           <div className="mt-3 rounded-lg bg-navy-50 p-3 text-sm">
             {job.termsAcceptedAt ? (
               <p className="text-green-700">
                 ✓ Accepted {fmtDateTime(job.termsAcceptedAt)} — signed <em>{job.termsSignature}</em>
+                {job.termsPaymentMethod && <> · paying by <strong>{job.termsPaymentMethod}</strong></>}
               </p>
             ) : job.termsSentAt ? (
               <p className={`${new Date() > new Date(new Date(job.scheduledAt).getTime() - 24 * 60 * 60 * 1000) ? "font-medium text-red-600" : "text-amber-800"}`}>
@@ -277,6 +284,49 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
                 </a>
               </p>
             )}
+          </div>
+
+          {/* Per-customer letter editor — the template fills in name/address/date
+              automatically; edit here for anything specific to this person. */}
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <h3 className="text-sm font-bold text-navy">This customer&apos;s letter</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Rendered from the master template with this job&apos;s name, address, and
+              date — edit it freely for this customer. Editing after they&apos;ve signed
+              clears the signature and requires a new acceptance.
+            </p>
+            <ActionForm
+              action={updateJobAgreement}
+              submitLabel="Save letter"
+              successMessage="Saved."
+              resetOnSuccess={false}
+              className="mt-2 space-y-2"
+            >
+              <input type="hidden" name="jobId" value={job.id} />
+              <textarea
+                name="letter"
+                rows={12}
+                defaultValue={letterDraft}
+                className="input text-sm leading-relaxed"
+                aria-label="Customer letter"
+              />
+              {job.client && (
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <input type="checkbox" name="sendNow" className="h-4 w-4" />
+                  Email the updated letter to {job.client.name} now
+                </label>
+              )}
+            </ActionForm>
+            <ConfirmForm
+              action={resetJobAgreement}
+              confirmText="Throw away this customer's edits and re-render the letter from the master template?"
+              className="mt-2"
+            >
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                Reset to the standard letter
+              </button>
+            </ConfirmForm>
           </div>
         </section>
 

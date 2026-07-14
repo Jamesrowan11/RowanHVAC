@@ -20,11 +20,27 @@ export default function AcceptTermsForm({ token }: { token: string }) {
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="token" value={token} />
 
+      <fieldset className="rounded-lg border border-gray-200 p-3">
+        <legend className="px-1 text-sm font-semibold text-navy">How will you be paying at time of service?</legend>
+        <p className="mb-2 text-xs text-gray-500">
+          Our technician will have a credit card slider. Without a payment answer we
+          can&apos;t dispatch a technician.
+        </p>
+        <label className="flex items-center gap-2 py-1 text-sm">
+          <input type="radio" name="paymentMethod" value="CHECK" required className="h-4 w-4" />
+          <span>Pay by <span className="font-medium text-navy">check</span> at time of service</span>
+        </label>
+        <label className="flex items-center gap-2 py-1 text-sm">
+          <input type="radio" name="paymentMethod" value="CREDIT" required className="h-4 w-4" />
+          <span>Pay by <span className="font-medium text-navy">credit card</span> at time of service</span>
+        </label>
+      </fieldset>
+
       <label className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm">
         <input type="checkbox" name="agree" required className="mt-0.5 h-4 w-4" />
         <span>
-          I have read and agree to the <span className="font-semibold text-navy">hourly pricing terms</span> and
-          the <span className="font-semibold text-navy">service agreement</span> above.
+          I have read and agree to the <span className="font-semibold text-navy">scheduling letter</span> and
+          the <span className="font-semibold text-navy">hourly pricing terms</span> above.
         </span>
       </label>
 

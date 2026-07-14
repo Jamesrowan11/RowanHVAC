@@ -19,9 +19,18 @@ export async function acceptTerms(
   const token = String(formData.get("token") ?? "");
   const signature = String(formData.get("signature") ?? "").trim().slice(0, 120);
   const agreed = formData.get("agree") === "on";
+  const paymentChoice = String(formData.get("paymentMethod") ?? "");
+
+  // Per the scheduling letter: no payment answer, no dispatch.
+  const PAYMENT_LABELS: Record<string, string> = {
+    CHECK: "Check at time of service",
+    CREDIT: "Credit card at time of service",
+  };
+  const paymentMethod = PAYMENT_LABELS[paymentChoice];
 
   if (!token) return { ok: false, error: "Invalid link" };
   if (!agreed) return { ok: false, error: "Please check the box to accept the pricing terms and agreement" };
+  if (!paymentMethod) return { ok: false, error: "Please tell us how you'll be paying — by check or by credit card" };
   if (signature.length < 2) return { ok: false, error: "Please type your full name as your signature" };
 
   const job = await db.job.findUnique({ where: { acceptToken: token } });
@@ -30,7 +39,7 @@ export async function acceptTerms(
 
   await db.job.update({
     where: { id: job.id },
-    data: { termsAcceptedAt: new Date(), termsSignature: signature },
+    data: { termsAcceptedAt: new Date(), termsSignature: signature, termsPaymentMethod: paymentMethod },
   });
 
   // Let the office know the terms were signed off.
@@ -39,7 +48,7 @@ export async function acceptTerms(
     notify({
       to: admins.map((a) => a.email),
       subject: `Terms accepted: ${job.customerName} — ${job.service}`,
-      body: `${job.customerName} accepted the pricing terms and service agreement for ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}.\n\nSigned: ${signature}\nAccepted: ${fmtDateTime(new Date())}`,
+      body: `${job.customerName} accepted the scheduling letter and pricing terms for ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}.\n\nSigned: ${signature}\nPaying by: ${paymentMethod}\nAccepted: ${fmtDateTime(new Date())}`,
     });
   }
 

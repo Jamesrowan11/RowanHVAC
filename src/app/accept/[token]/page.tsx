@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { COMPANY } from "@/lib/constants";
 import { fmtDate, fmtDateTime, fmtWhen } from "@/lib/queries";
 import { getPricingSettings, fmtBracket } from "@/lib/pricing";
+import { renderedAgreementForJob } from "@/lib/agreement";
 import AcceptTermsForm from "@/components/public/AcceptTermsForm";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,11 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
           Our pricing terms and service agreement for your {job.service} appointment were accepted on{" "}
           {fmtDateTime(job.termsAcceptedAt)}{job.termsSignature ? <> (signed: <em>{job.termsSignature}</em>)</> : null}.
         </p>
+        {job.termsPaymentMethod && (
+          <p className="mt-2 text-sm text-gray-700">
+            Paying by: <span className="font-medium text-navy">{job.termsPaymentMethod}</span>
+          </p>
+        )}
         <p className="mt-3 text-xs text-gray-500">
           Need to change something? Call us at{" "}
           <a href={COMPANY.phoneHref} className="font-medium text-accent-600">{COMPANY.phone}</a>.
@@ -57,6 +63,9 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
     getPricingSettings(),
     db.setting.findUnique({ where: { key: "terms.agreementPdf" } }),
   ]);
+  // The personalized scheduling letter for this visit — the job's snapshot,
+  // or (older jobs with no snapshot) rendered fresh from the master template.
+  const letter = job.termsSnapshot?.trim() || (await renderedAgreementForJob(job));
   const zones = [...new Set(rates.map((r) => r.zone))];
   const brackets = [...new Set(rates.map((r) => r.minutes))].sort((a, b) => a - b);
   const rateFor = (zone: string, minutes: number) => rates.find((r) => r.zone === zone && r.minutes === minutes);
@@ -85,8 +94,21 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
         Please accept by <strong>{job.window ? fmtDate(deadline) : fmtDateTime(deadline)}</strong> — one day before your appointment.
       </p>
 
+      {/* The personalized scheduling letter — this is what gets signed. */}
+      <h2 className="mt-6 font-bold text-navy">Your scheduling letter</h2>
+      <div className="mt-2 whitespace-pre-wrap rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm leading-relaxed text-gray-800">
+        {letter}
+      </div>
+      {pdfSetting?.value && (
+        <p className="mt-2 text-sm">
+          <a href="/api/agreement" target="_blank" rel="noreferrer" className="font-medium text-accent-600 hover:underline">
+            View our service agreement as a PDF ↗
+          </a>
+        </p>
+      )}
+
       {/* Hourly pricing terms */}
-      <h2 className="mt-6 font-bold text-navy">Hourly pricing terms</h2>
+      <h2 className="mt-6 font-bold text-navy">Full hourly pricing</h2>
       <p className="mt-1 text-sm text-gray-600">
         We don&apos;t know in advance how long a repair will take, so labor is billed by time on
         site: rounded up to the next {settings.roundToMinutes} minutes, with a{" "}
@@ -119,25 +141,6 @@ export default async function AcceptPage({ params }: { params: Promise<{ token: 
         <li>• Maintenance policy visits: ${settings.maintenanceRate.toFixed(2)} flat rate.</li>
         <li>• Parts and refrigerant are billed separately at our current prices.</li>
       </ul>
-
-      {/* Service agreement */}
-      <h2 className="mt-6 font-bold text-navy">Service agreement</h2>
-      {job.termsSnapshot ? (
-        <div className="mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-800">
-          {job.termsSnapshot}
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-gray-500">
-          (No written agreement on file for this appointment — the pricing terms above apply.)
-        </p>
-      )}
-      {pdfSetting?.value && (
-        <p className="mt-2 text-sm">
-          <a href="/api/agreement" target="_blank" rel="noreferrer" className="font-medium text-accent-600 hover:underline">
-            View the agreement as a PDF ↗
-          </a>
-        </p>
-      )}
 
       <div className="mt-6 border-t border-gray-100 pt-5">
         <AcceptTermsForm token={token} />

@@ -11,6 +11,7 @@ import { notifyPush } from "@/lib/push";
 import { saveAttachments } from "@/lib/attachments";
 import { placeAnnouncementCall } from "@/lib/voice";
 import { fmtDateTime, fmtDate, fmtWhen } from "@/lib/queries";
+import { renderedAgreementForJob } from "@/lib/agreement";
 import { COMPANY, REVIEW_LINKS } from "@/lib/constants";
 
 export type ActionState = { ok: boolean; error?: string };
@@ -38,9 +39,9 @@ function acceptDeadline(scheduledAt: Date): Date {
   return d;
 }
 
-/** Email + text the customer the pricing-terms & agreement acceptance link. */
+/** Email + text the customer their personalized scheduling letter + the acceptance link. */
 function sendTermsRequest(
-  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null },
+  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null; termsSnapshot?: string | null },
   client: { id: string; name: string; email: string; phone: string | null }
 ) {
   if (!job.acceptToken) return;
@@ -49,10 +50,15 @@ function sendTermsRequest(
   const deadline = job.window
     ? fmtDate(acceptDeadline(job.scheduledAt))
     : fmtDateTime(acceptDeadline(job.scheduledAt));
+  // The email IS the scheduling letter (the job's personalized snapshot),
+  // followed by the link where they accept and pick a payment method.
+  const letter =
+    job.termsSnapshot?.trim() ||
+    `Your ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.`;
   notify({
     to: [client.email],
-    subject: `Please review our pricing terms & service agreement — ${job.service} on ${fmtWhen(job.scheduledAt, job.window)}`,
-    body: `Hi ${client.name},\n\nYour ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.\n\nBefore we come out, please review and accept our hourly pricing terms and service agreement by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
+    subject: `Your ${job.service} appointment on ${fmtWhen(job.scheduledAt, job.window)} — please review & accept`,
+    body: `${letter}\n\nPlease review our full hourly pricing, tell us how you'll be paying, and accept online by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
   });
   if (client.phone) {
     notifySms({
@@ -67,11 +73,6 @@ function sendTermsRequest(
   });
 }
 
-/** The current service agreement text (admin-editable on the Price Book page). */
-async function currentAgreementText(): Promise<string> {
-  const row = await db.setting.findUnique({ where: { key: "terms.agreementText" } });
-  return row?.value ?? "";
-}
 
 export async function createJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await actionRole("ADMIN");
@@ -128,13 +129,19 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
       clientId,
       assignments: { create: techs.map((t) => ({ userId: t.id })) },
       // Every scheduled job/pickup for a portal client triggers the
-      // pricing-terms & agreement acceptance flow. The agreement text is
-      // snapshotted so later edits never change what this customer signs.
+      // scheduling-letter & agreement acceptance flow. The letter is rendered
+      // from the master template with this customer's name/address/date and
+      // snapshotted, so later template edits never change what they signed.
       ...(clientId
         ? {
             acceptToken: crypto.randomUUID(),
             termsSentAt: new Date(),
-            termsSnapshot: await currentAgreementText(),
+            termsSnapshot: await renderedAgreementForJob({
+              customerName: data.customerName,
+              address: data.address,
+              scheduledAt,
+              window: data.window,
+            }),
           }
         : {}),
     },
@@ -456,22 +463,30 @@ export async function notifyOnMyWay(formData: FormData): Promise<void> {
   if (!job) throw new Error("Not found");
 
   const etaText = eta ? ` We expect to arrive in about ${eta}.` : "";
+  let callNote = "";
   if (job.client) {
     notify({
       to: [job.client.email],
       subject: `Your ${COMPANY.shortName} technician is on the way`,
-      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nSee you soon!`,
+      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nHe will be calling you shortly from his cell phone — the number on your caller ID will be his cell number, not our office number. Please answer that call.\n\nSee you soon!`,
     });
     if (job.client.phone) {
       notifySms({
         to: [job.client.phone],
-        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText}`,
+        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText} He'll be calling you from his cell phone shortly — please answer.`,
       });
+      // Automated phone call too — an actual ring gets answered when a text
+      // doesn't, and it primes them to pick up the tech's cell call.
+      const call = await placeAnnouncementCall(
+        job.client.phone,
+        `Hello, this is ${COMPANY.name}. Your technician is on the way for your ${job.service} appointment${eta ? `, arriving in about ${eta}` : ""}. He will be calling you shortly from his cell phone. Please answer that call. Thank you.`
+      );
+      callNote = call.ok ? " Automated call placed." : ` (Automated call not placed: ${call.error})`;
     }
   }
   // Log it on the job so the office sees the customer was notified.
   await db.jobNote.create({
-    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}` },
+    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}${callNote}` },
   });
   revalidatePath("/portal", "layout");
 }
@@ -633,11 +648,10 @@ export async function reinstateJob(formData: FormData): Promise<void> {
 }
 
 /**
- * Admin (re-)sends the pricing-terms & agreement request. Also covers jobs
- * that were created before a client was linked, or after the agreement text
- * changed — a fresh snapshot is taken and any prior signature stands only
- * for the version it signed (a re-send clears nothing unless the snapshot
- * changed, in which case a new signature is required).
+ * Admin (re-)sends the scheduling letter & agreement request. The job's
+ * existing personalized letter is kept as-is (so per-customer edits survive
+ * a re-send); if the job has no letter yet, one is rendered fresh from the
+ * master template.
  */
 export async function sendTermsAcceptance(formData: FormData): Promise<void> {
   await actionRole("ADMIN");
@@ -645,20 +659,93 @@ export async function sendTermsAcceptance(formData: FormData): Promise<void> {
   const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
   if (!job?.client) throw new Error("Link this job to a portal client first — the request is emailed to their account");
 
-  const agreement = await currentAgreementText();
-  const agreementChanged = job.termsSnapshot !== null && job.termsSnapshot !== agreement;
-
   const updated = await db.job.update({
     where: { id: job.id },
     data: {
       acceptToken: job.acceptToken ?? crypto.randomUUID(),
       termsSentAt: new Date(),
-      termsSnapshot: agreement,
-      // A signature only covers the exact text that was signed.
-      ...(agreementChanged ? { termsAcceptedAt: null, termsSignature: null } : {}),
+      termsSnapshot: job.termsSnapshot?.trim() ? job.termsSnapshot : await renderedAgreementForJob(job),
     },
   });
   sendTermsRequest(updated, job.client);
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Admin edits the customer's personalized scheduling letter for THIS job —
+ * the "customizable for each person" part. If the letter changes after the
+ * customer already signed, the signature is cleared (a signature only covers
+ * the exact text that was signed) and the letter should be re-sent.
+ */
+export async function updateJobAgreement(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const text = String(formData.get("letter") ?? "").trim().slice(0, 20000);
+  const sendNow = formData.get("sendNow") === "on";
+
+  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!job) return { ok: false, error: "Not found" };
+  if (!text) return { ok: false, error: "The letter can't be empty — use “Reset to the standard letter” instead" };
+
+  const changed = text !== (job.termsSnapshot ?? "");
+  const clearsSignature = changed && !!job.termsAcceptedAt;
+
+  const updated = await db.job.update({
+    where: { id: job.id },
+    data: {
+      termsSnapshot: text,
+      acceptToken: job.acceptToken ?? crypto.randomUUID(),
+      ...(clearsSignature
+        ? { termsAcceptedAt: null, termsSignature: null, termsPaymentMethod: null }
+        : {}),
+      ...(sendNow ? { termsSentAt: new Date() } : {}),
+    },
+  });
+
+  if (clearsSignature) {
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: admin.id,
+        body: "✍️ The customer letter was edited after it was signed — the previous signature was cleared and a new acceptance is needed.",
+      },
+    });
+  }
+  if (sendNow && job.client) sendTermsRequest(updated, job.client);
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/** Throw away the job's customized letter and re-render from the master template. */
+export async function resetJobAgreement(formData: FormData): Promise<void> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  const fresh = await renderedAgreementForJob(job);
+  const clearsSignature = !!job.termsAcceptedAt && fresh !== job.termsSnapshot;
+
+  await db.job.update({
+    where: { id: job.id },
+    data: {
+      termsSnapshot: fresh,
+      ...(clearsSignature
+        ? { termsAcceptedAt: null, termsSignature: null, termsPaymentMethod: null }
+        : {}),
+    },
+  });
+  if (clearsSignature) {
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: admin.id,
+        body: "✍️ The customer letter was reset to the standard template after it was signed — a new acceptance is needed.",
+      },
+    });
+  }
   revalidatePath("/portal", "layout");
 }
 
@@ -698,9 +785,21 @@ export async function updateJobDetails(_prev: ActionState, formData: FormData): 
   const oldWhen = fmtWhen(job.scheduledAt, job.window);
   const rescheduled = scheduledAt.getTime() !== job.scheduledAt.getTime() || window !== job.window;
 
+  // Keep an UNSIGNED, UNEDITED letter in sync with the new name/address/date:
+  // if the snapshot still matches what the template renders for the old
+  // details, re-render it with the new ones. A hand-edited letter is left
+  // alone (the admin can fix it on the job page).
+  let termsSnapshot = job.termsSnapshot;
+  if (job.termsSnapshot && !job.termsAcceptedAt) {
+    const oldRender = await renderedAgreementForJob(job);
+    if (job.termsSnapshot === oldRender) {
+      termsSnapshot = await renderedAgreementForJob({ customerName, address, scheduledAt, window });
+    }
+  }
+
   await db.job.update({
     where: { id: job.id },
-    data: { customerName, address, service, scheduledAt, window, endAt },
+    data: { customerName, address, service, scheduledAt, window, endAt, termsSnapshot },
   });
 
   if (rescheduled && job.status !== "CANCELLED" && job.status !== "COMPLETED") {
@@ -779,7 +878,7 @@ export async function setJobClient(formData: FormData): Promise<void> {
         ? {
             acceptToken: job.acceptToken ?? crypto.randomUUID(),
             termsSentAt: new Date(),
-            termsSnapshot: await currentAgreementText(),
+            termsSnapshot: job.termsSnapshot?.trim() ? job.termsSnapshot : await renderedAgreementForJob(job),
           }
         : {}),
     },
@@ -821,7 +920,13 @@ export async function duplicateJob(formData: FormData): Promise<void> {
         ? {
             acceptToken: crypto.randomUUID(),
             termsSentAt: new Date(),
-            termsSnapshot: await currentAgreementText(),
+            // Fresh letter for the new visit — rendered with the NEW date.
+            termsSnapshot: await renderedAgreementForJob({
+              customerName: source.customerName,
+              address: source.address,
+              scheduledAt,
+              window,
+            }),
           }
         : {}),
     },
