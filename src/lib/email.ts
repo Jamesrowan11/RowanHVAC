@@ -48,11 +48,17 @@ export type SendEmailInput = {
   body: string;
 };
 
+function smtpConfigured(): boolean {
+  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
 /**
- * Pluggable email layer. Sends through Resend when RESEND_API_KEY is set,
- * otherwise logs the full email to the console so the app runs end-to-end
- * with no email keys. Every send (real or logged) is recorded in EmailLog.
- * The company signature is appended exactly once.
+ * Pluggable email layer. Prefers the company's own mail server via SMTP
+ * (SMTP_HOST/SMTP_USER/SMTP_PASS — e.g. the Plesk mailbox the portal sends
+ * as); falls back to Resend when RESEND_API_KEY is set; otherwise logs the
+ * full email to the console so the app runs end-to-end with no email keys.
+ * Every send (real or logged) is recorded in EmailLog. The company
+ * signature is appended exactly once.
  */
 export async function sendEmail(input: SendEmailInput) {
   const signature = await getSignature();
@@ -69,7 +75,24 @@ export async function sendEmail(input: SendEmailInput) {
   let status: "SENT" | "LOGGED" | "FAILED" = "LOGGED";
   let error: string | null = null;
 
-  if (apiKey) {
+  if (smtpConfigured()) {
+    try {
+      const nodemailer = (await import("nodemailer")).default;
+      const port = Number(process.env.SMTP_PORT || 465);
+      const transport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port,
+        secure: port === 465,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        ...(process.env.SMTP_TLS_INSECURE === "true" ? { tls: { rejectUnauthorized: false } } : {}),
+      });
+      await transport.sendMail({ from, to: input.to, subject: input.subject, text, html });
+      status = "SENT";
+    } catch (e) {
+      status = "FAILED";
+      error = e instanceof Error ? e.message : String(e);
+    }
+  } else if (apiKey) {
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
