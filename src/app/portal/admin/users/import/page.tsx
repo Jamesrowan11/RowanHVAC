@@ -29,7 +29,15 @@ export default async function ImportCustomersPage() {
             <code className="rounded bg-navy-50 px-1">Billing Email</code>. Extra columns are ignored,
             and QuickBooks/Excel exports with those headers work as-is.
           </li>
-          <li>Each row becomes a client portal account. Existing emails are skipped — nothing is ever overwritten.</li>
+          <li>
+            An <code className="rounded bg-navy-50 px-1">Other Addresses</code> column is also recognized —
+            separate several addresses with a <code className="rounded bg-navy-50 px-1">|</code> character.
+          </li>
+          <li>
+            Each row becomes a client portal account. <strong>The same email appearing more than
+            once merges into one account</strong> (all the addresses end up on file, nothing is
+            overwritten) — contractors with many properties become one login.
+          </li>
           <li>Customer numbers come from the file when present (and not taken); otherwise the next number is assigned automatically.</li>
           <li>
             Accounts are created <strong>without a usable password</strong> — when a customer wants

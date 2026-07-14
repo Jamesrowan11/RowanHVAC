@@ -52,7 +52,14 @@ export type WizardTicket = {
   paymentNote: string | null;
 };
 
-export type WizardClient = { id: string; name: string; customerNumber: number | null; address: string | null };
+export type WizardClient = {
+  id: string;
+  name: string;
+  customerNumber: number | null;
+  address: string | null;
+  /** Primary + extra service addresses (contractors have many). */
+  addresses: string[];
+};
 export type WizardPart = { id: string; name: string; partNumber: string | null; unit: string; unitPrice: number };
 export type WizardPartLine = { id: string; label: string; qty: number | null; amount: number };
 export type WizardPhoto = { id: string; fileName: string };
@@ -219,6 +226,8 @@ export default function TicketWizard({
   // Customer step: picking an account autofills the fields (still editable).
   const [custName, setCustName] = useState(ticket.customerName);
   const [custAddress, setCustAddress] = useState(ticket.serviceAddress);
+  const [selectedClientId, setSelectedClientId] = useState(ticket.clientId ?? "");
+  const selectedClient = clients.find((c) => c.id === selectedClientId);
 
   const [partState, partAction, partPending] = useActionState(addTicketPart, { ok: false } as ActionState);
   const partSaved = useRef<ActionState | null>(null);
@@ -268,8 +277,9 @@ export default function TicketWizard({
                 className="input"
                 defaultValue={ticket.clientId ?? ""}
                 onChange={(e) => {
+                  setSelectedClientId(e.target.value);
                   const c = clients.find((x) => x.id === e.target.value);
-                  if (c) { setCustName(c.name); if (c.address) setCustAddress(c.address); }
+                  if (c) { setCustName(c.name); if (c.addresses[0]) setCustAddress(c.addresses[0]); }
                 }}
               >
                 <option value="">— No portal account / one-time customer —</option>
@@ -287,6 +297,17 @@ export default function TicketWizard({
             <div>
               <label htmlFor="serviceAddress" className="label">Service address</label>
               <input id="serviceAddress" name="serviceAddress" required className="input" value={custAddress} onChange={(e) => setCustAddress(e.target.value)} />
+              {selectedClient && selectedClient.addresses.length > 1 && (
+                <select
+                  className="input mt-1"
+                  aria-label="Pick one of this customer's saved addresses"
+                  value=""
+                  onChange={(e) => { if (e.target.value) setCustAddress(e.target.value); }}
+                >
+                  <option value="">This customer has {selectedClient.addresses.length} addresses — pick one…</option>
+                  {selectedClient.addresses.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label htmlFor="serviceDate" className="label">Service date</label>

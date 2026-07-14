@@ -48,7 +48,10 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
     db.user.findMany({
       where: { role: "CLIENT", active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, customerNumber: true, address: true },
+      select: {
+        id: true, name: true, customerNumber: true, address: true,
+        extraAddresses: { select: { address: true }, orderBy: { createdAt: "asc" } },
+      },
     }),
     db.priceBookItem.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     db.laborRate.findMany({ distinct: ["zone"], select: { zone: true }, orderBy: { zone: "asc" } }),
@@ -108,7 +111,13 @@ export default async function TicketPage({ params }: { params: Promise<{ id: str
           paidOnSite: ticket.paidOnSite,
           paymentNote: ticket.paymentNote,
         }}
-        clients={clients}
+        clients={clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          customerNumber: c.customerNumber,
+          address: c.address,
+          addresses: [...(c.address ? [c.address] : []), ...c.extraAddresses.map((a) => a.address)],
+        }))}
         parts={parts.map((p) => ({
           id: p.id, name: p.name, partNumber: p.partNumber, unit: p.unit, unitPrice: Number(p.unitPrice),
         }))}

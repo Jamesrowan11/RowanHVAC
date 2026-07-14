@@ -107,6 +107,21 @@ model User {
   ticketsAsClient    ServiceTicket[]     @relation("TicketClient")
   proposals          Proposal[]          @relation("ProposalClient")
   proposalsCreated   Proposal[]          @relation("ProposalCreator")
+  extraAddresses     ClientAddress[]
+}
+
+/** Additional service addresses for a client (contractors and landlords
+ * often have many properties). The client's primary address stays on the
+ * User record; these are the extras. */
+model ClientAddress {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    User     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label     String? // e.g. "Rental — Laurel", "Job site: 5th St"
+  address   String   @db.VarChar(400)
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
 }
 
 model QuoteRequest {

@@ -25,12 +25,20 @@ export default function ImportClientsForm() {
       </form>
 
       {state.ok && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-3">
           <section className="card">
             <h2 className="font-bold text-green-700">✓ Created ({state.created?.length ?? 0})</h2>
             <ul className="mt-2 space-y-1 text-sm text-gray-700">
               {(state.created ?? []).map((line) => <li key={line}>{line}</li>)}
               {(state.created ?? []).length === 0 && <li className="text-gray-500">None.</li>}
+            </ul>
+          </section>
+          <section className="card">
+            <h2 className="font-bold text-navy">Merged into existing ({state.merged?.length ?? 0})</h2>
+            <p className="mt-1 text-xs text-gray-500">Same email = same person — their addresses were combined onto one account.</p>
+            <ul className="mt-2 space-y-1 text-sm text-gray-700">
+              {(state.merged ?? []).map((line, i) => <li key={i}>{line}</li>)}
+              {(state.merged ?? []).length === 0 && <li className="text-gray-500">None.</li>}
             </ul>
           </section>
           <section className="card">

@@ -10,6 +10,31 @@ import { saveUpload, deleteUpload, isAllowedUpload } from "@/lib/storage";
 import { COMPANY } from "@/lib/constants";
 import type { ActionState } from "@/lib/actions/jobs";
 
+/* --------------------------- Service addresses ---------------------------- */
+
+/** Add an extra service address to a client (contractors have many). */
+export async function addClientAddress(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+  const clientId = String(formData.get("clientId") ?? "");
+  const address = String(formData.get("address") ?? "").trim().slice(0, 400);
+  const label = String(formData.get("label") ?? "").trim().slice(0, 100) || null;
+  if (!address) return { ok: false, error: "Address is required" };
+
+  const client = await db.user.findFirst({ where: { id: clientId, role: "CLIENT" } });
+  if (!client) return { ok: false, error: "Client not found" };
+
+  await db.clientAddress.create({ data: { clientId, address, label } });
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+export async function deleteClientAddress(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const id = String(formData.get("id") ?? "");
+  await db.clientAddress.deleteMany({ where: { id } });
+  revalidatePath("/portal", "layout");
+}
+
 /* ------------------------------- Payments -------------------------------- */
 
 const paymentSchema = z.object({

@@ -8,6 +8,7 @@ import {
   uploadDocument, deleteDocument,
   addCustomerNote, deleteCustomerNote,
   addEmployeeNote, deleteEmployeeNote,
+  addClientAddress, deleteClientAddress,
 } from "@/lib/actions/clients";
 import { PaymentStatusBadge, JobStatusBadge } from "@/components/portal/StatusBadge";
 import ActionForm from "@/components/portal/ActionForm";
@@ -27,6 +28,7 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
       customerNotes: { orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } },
       employeeNotes: { orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } },
       jobsAsClient: { orderBy: { scheduledAt: "desc" }, take: 10 },
+      extraAddresses: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!user) notFound();
@@ -182,6 +184,49 @@ export default async function AdminUserDetail({ params }: { params: Promise<{ id
           )}
         </section>
       </div>
+
+      {user.role === "CLIENT" && (
+        <section className="card">
+          <h2 className="font-bold text-navy">Service addresses</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            Contractors and landlords often have many properties. The primary address lives in
+            Contact info above; add the rest here — they show up when scheduling and on tickets.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {user.address && (
+              <li className="rounded-lg bg-navy-50 p-3 text-sm">
+                <span className="font-medium text-navy">{user.address}</span>
+                <span className="ml-2 text-xs text-gray-500">Primary</span>
+              </li>
+            )}
+            {user.extraAddresses.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+                <span>
+                  <span className="font-medium text-navy">{a.address}</span>
+                  {a.label && <span className="ml-2 text-xs text-gray-500">{a.label}</span>}
+                </span>
+                <ConfirmForm action={deleteClientAddress} confirmText={`Remove ${a.address}?`}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <button type="submit" className="text-xs font-medium text-red-600 hover:underline">Remove</button>
+                </ConfirmForm>
+              </li>
+            ))}
+            {!user.address && user.extraAddresses.length === 0 && (
+              <li className="text-sm text-gray-500">No addresses on file yet.</li>
+            )}
+          </ul>
+          <ActionForm
+            action={addClientAddress}
+            submitLabel="Add address"
+            successMessage="Added."
+            className="mt-3 grid gap-2 sm:grid-cols-3"
+          >
+            <input type="hidden" name="clientId" value={user.id} />
+            <input name="address" required placeholder="Street, city, state zip" className="input sm:col-span-2" aria-label="Address" />
+            <input name="label" placeholder="Label (optional)" className="input" aria-label="Label" />
+          </ActionForm>
+        </section>
+      )}
 
       {user.role === "CLIENT" && (
         <>

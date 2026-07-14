@@ -13,6 +13,7 @@ export type ImportState = {
   ok: boolean;
   error?: string;
   created?: string[];
+  merged?: string[];
   skipped?: string[];
 };
 
@@ -52,14 +53,42 @@ function col(headers: string[], ...names: string[]): number {
   return headers.findIndex((h) => names.map(norm).includes(norm(h)));
 }
 
+const normAddr = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** Add addresses to a client, skipping any they already have (primary or extra). */
+async function addAddresses(clientId: string, addresses: string[]): Promise<number> {
+  const user = await db.user.findUnique({
+    where: { id: clientId },
+    include: { extraAddresses: true },
+  });
+  if (!user) return 0;
+  const have = new Set(
+    [user.address ?? "", ...user.extraAddresses.map((a) => a.address)].map(normAddr).filter(Boolean)
+  );
+  let added = 0;
+  for (const raw of addresses) {
+    const address = raw.trim().slice(0, 400);
+    if (!address || have.has(normAddr(address))) continue;
+    await db.clientAddress.create({ data: { clientId, address } });
+    have.add(normAddr(address));
+    added++;
+  }
+  return added;
+}
+
 /**
  * Bulk-import customers from a CSV and create portal CLIENT accounts.
  * Columns (header names are flexible): Name, Email, Phone, Address,
- * Customer Number, Billing Email. Name + Email required per row.
+ * Other Addresses (separated by " | "), Customer Number, Billing Email.
+ * Name + Email required per row.
  *
- * Each account gets a random unusable password — set a real one from the
- * customer's user page when they want portal access. Rows whose email
- * already exists are skipped, never overwritten.
+ * Same email appearing more than once — in the file OR already in the
+ * portal — MERGES into one account: contractors with many properties end
+ * up as one login with every address on file. Identity fields (name,
+ * phone) are never overwritten by a merge; only new addresses are added.
+ *
+ * Each new account gets a random unusable password — set a real one from
+ * the customer's user page when they want portal access.
  */
 export async function importClients(_prev: ImportState, formData: FormData): Promise<ImportState> {
   await actionRole("ADMIN");
@@ -79,6 +108,7 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
   const iAddress = col(headers, "address", "serviceaddress", "street", "billaddress");
   const iNumber = col(headers, "customernumber", "custnumber", "accountno", "accountnumber", "number", "custno");
   const iBilling = col(headers, "billingemail", "invoiceemail");
+  const iOther = col(headers, "otheraddresses", "addresses", "additionaladdresses", "moreaddresses");
 
   if (iName < 0 || iEmail < 0) {
     return { ok: false, error: `Couldn't find "Name" and "Email" columns in the header row (found: ${headers.join(", ")})` };
@@ -86,6 +116,7 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
 
   const emailSchema = z.string().trim().toLowerCase().email().max(200);
   const created: string[] = [];
+  const merged: string[] = [];
   const skipped: string[] = [];
 
   // Next auto customer number, kept in memory across the loop.
@@ -101,8 +132,23 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
     if (!emailParsed.success) { skipped.push(`Row ${line} (${name}): invalid or missing email`); continue; }
     const email = emailParsed.data;
 
+    const rowAddresses = [
+      iAddress >= 0 ? (row[iAddress] ?? "").trim() : "",
+      ...(iOther >= 0 ? (row[iOther] ?? "").split("|").map((a) => a.trim()) : []),
+    ].filter(Boolean);
+
+    // Same email = same person (contractors appear once per property in
+    // QuickBooks) — merge this row's addresses into the existing account.
     const exists = await db.user.findUnique({ where: { email } });
-    if (exists) { skipped.push(`Row ${line} (${name}): ${email} already has an account`); continue; }
+    if (exists) {
+      if (exists.role !== "CLIENT") {
+        skipped.push(`Row ${line} (${name}): ${email} belongs to a staff account`);
+        continue;
+      }
+      const added = await addAddresses(exists.id, rowAddresses);
+      merged.push(`${exists.name} — ${email}: ${added > 0 ? `added ${added} address${added === 1 ? "" : "es"}` : "nothing new to add"}`);
+      continue;
+    }
 
     // Customer number: from the file if valid and free, else next in line.
     let customerNumber: number;
@@ -128,7 +174,8 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
         name,
         email,
         phone: iPhone >= 0 ? (row[iPhone] ?? "").trim().slice(0, 30) || null : null,
-        address: iAddress >= 0 ? (row[iAddress] ?? "").trim().slice(0, 300) || null : null,
+        // First address is the primary; the rest become extra addresses.
+        address: rowAddresses[0]?.slice(0, 300) || null,
         customerNumber,
         billingEmail,
         role: "CLIENT",
@@ -137,7 +184,10 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
         passwordHash: await hash(crypto.randomBytes(32).toString("hex"), 12),
       },
     });
-    created.push(`${user.name} — ${user.email} (customer #${customerNumber})`);
+    const extraCount = await addAddresses(user.id, rowAddresses.slice(1));
+    created.push(
+      `${user.name} — ${user.email} (customer #${customerNumber}${extraCount > 0 ? `, ${extraCount + 1} addresses` : ""})`
+    );
 
     if (sendWelcome) {
       notify({
@@ -149,5 +199,5 @@ export async function importClients(_prev: ImportState, formData: FormData): Pro
   }
 
   revalidatePath("/portal", "layout");
-  return { ok: true, created, skipped };
+  return { ok: true, created, merged, skipped };
 }
