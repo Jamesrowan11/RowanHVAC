@@ -5,14 +5,19 @@ import { db } from "@/lib/db";
 import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import {
   updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
-  sendTermsAcceptance, setJobClient,
+  sendTermsAcceptance, setJobClient, updateJobDetails,
 } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
+import ActionForm from "@/components/portal/ActionForm";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
 import ConfirmForm from "@/components/portal/ConfirmForm";
 import Attachments, { PhotoInput } from "@/components/portal/Attachments";
 
 export const metadata = { title: "Job Details" };
+
+/** Format a Date as a yyyy-mm-dd input value in server-local time. */
+const ymd = (d: Date) =>
+  new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
 export default async function AdminJobDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireRole("ADMIN");
@@ -118,6 +123,51 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
             )}
           </dl>
 
+          {job.status !== "CANCELLED" && (
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <h3 className="text-sm font-bold text-navy">Reschedule / edit this appointment</h3>
+              <ActionForm
+                action={updateJobDetails}
+                submitLabel="Save changes"
+                successMessage="Saved — if the time changed, the customer and techs were notified."
+                resetOnSuccess={false}
+                className="mt-2 space-y-3"
+              >
+                <input type="hidden" name="jobId" value={job.id} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="edit-date" className="label">Date</label>
+                    <input id="edit-date" name="scheduledDate" type="date" required defaultValue={ymd(job.scheduledAt)} className="input" />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-window" className="label">Arrival window</label>
+                    <select id="edit-window" name="window" required className="input" defaultValue={job.window ?? "AM"}>
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                      <option value="AM/PM">AM/PM (any time that day)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="edit-endDate" className="label">End date (multi-day, optional)</label>
+                    <input id="edit-endDate" name="endDate" type="date" defaultValue={job.endAt ? ymd(job.endAt) : ""} className="input" />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-customerName" className="label">Customer name</label>
+                    <input id="edit-customerName" name="customerName" required defaultValue={job.customerName} className="input" />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="edit-address" className="label">Address</label>
+                  <input id="edit-address" name="address" required defaultValue={job.address} className="input" />
+                </div>
+                <div>
+                  <label htmlFor="edit-service" className="label">Service</label>
+                  <input id="edit-service" name="service" required defaultValue={job.service} className="input" />
+                </div>
+              </ActionForm>
+            </div>
+          )}
+
           {job.status !== "CANCELLED" ? (
             <div className="mt-6 space-y-4 border-t border-gray-100 pt-4">
               <form action={assignTechnicians} className="space-y-2">
@@ -219,6 +269,13 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
                   {job.termsSentAt ? "Re-send terms & agreement" : "Send terms & agreement"}
                 </button>
               </form>
+            )}
+            {job.acceptToken && (
+              <p className="mt-2 text-xs">
+                <a href={`/accept/${job.acceptToken}`} target="_blank" rel="noreferrer" className="font-medium text-accent-600 hover:underline">
+                  Preview exactly what the customer sees ↗
+                </a>
+              </p>
             )}
           </div>
         </section>

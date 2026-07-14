@@ -663,6 +663,91 @@ export async function sendTermsAcceptance(formData: FormData): Promise<void> {
 }
 
 /**
+ * Admin edits a scheduled item: customer name, address, service, date,
+ * window. If the date/window changed, the linked client and every assigned
+ * technician are told about the new time, and the change is logged as a
+ * job note.
+ */
+export async function updateJobDetails(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({
+    where: { id: jobId },
+    include: { client: true, assignments: { include: { user: true } } },
+  });
+  if (!job) return { ok: false, error: "Not found" };
+
+  const customerName = String(formData.get("customerName") ?? "").trim().slice(0, 120);
+  const address = String(formData.get("address") ?? "").trim().slice(0, 300);
+  const service = String(formData.get("service") ?? "").trim().slice(0, 200);
+  const dateRaw = String(formData.get("scheduledDate") ?? "");
+  const window = String(formData.get("window") ?? "");
+  const endRaw = String(formData.get("endDate") ?? "");
+
+  if (!customerName) return { ok: false, error: "Customer name is required" };
+  if (!address) return { ok: false, error: "Address is required" };
+  if (!service) return { ok: false, error: "Service is required" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) return { ok: false, error: "Pick a date" };
+  if (!["AM", "PM", "AM/PM"].includes(window)) return { ok: false, error: "Pick AM, PM, or AM/PM" };
+  if (endRaw && !/^\d{4}-\d{2}-\d{2}$/.test(endRaw)) return { ok: false, error: "Invalid end date" };
+
+  const scheduledAt = new Date(`${dateRaw}T${window === "PM" ? "13:00" : "08:00"}:00`);
+  const endAt = endRaw ? new Date(`${endRaw}T17:00:00`) : null;
+
+  const oldWhen = fmtWhen(job.scheduledAt, job.window);
+  const rescheduled = scheduledAt.getTime() !== job.scheduledAt.getTime() || window !== job.window;
+
+  await db.job.update({
+    where: { id: job.id },
+    data: { customerName, address, service, scheduledAt, window, endAt },
+  });
+
+  if (rescheduled && job.status !== "CANCELLED" && job.status !== "COMPLETED") {
+    const newWhen = fmtWhen(scheduledAt, window);
+    await db.jobNote.create({
+      data: { jobId: job.id, authorId: admin.id, body: `🗓 Rescheduled: ${oldWhen} → ${newWhen}.` },
+    });
+
+    if (job.client) {
+      notify({
+        to: [job.client.email],
+        subject: `Your ${COMPANY.shortName} appointment has been rescheduled`,
+        body: `Hi ${job.client.name},\n\nYour ${service} appointment at ${address} has been moved.\n\nWas: ${oldWhen}\nNow: ${newWhen}\n\nIf this doesn't work for you, call us at ${COMPANY.phone}.`,
+      });
+      if (job.client.phone) {
+        notifySms({
+          to: [job.client.phone],
+          body: `${COMPANY.shortName}: your ${service} appointment moved to ${newWhen} (was ${oldWhen}). Questions? ${COMPANY.phone}`,
+        });
+      }
+      notifyPush([job.client.id], {
+        title: "Appointment rescheduled",
+        body: `${service} — now ${newWhen}`,
+        url: "/portal/client",
+      });
+    }
+    for (const { user: tech } of job.assignments) {
+      notify({
+        to: [tech.email],
+        subject: `Job rescheduled: ${customerName} — ${service}`,
+        body: `Hi ${tech.name},\n\nA job on your schedule moved.\n\nCustomer: ${customerName}\nAddress: ${address}\nWas: ${oldWhen}\nNow: ${newWhen}`,
+      });
+    }
+    if (job.assignments.length > 0) {
+      notifyPush(job.assignments.map((a) => a.user.id), {
+        title: "Job rescheduled",
+        body: `${customerName} — now ${newWhen}`,
+        url: `/portal/employee/jobs/${job.id}`,
+      });
+    }
+  }
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/**
  * Link (or change/unlink) the portal client on an existing job — for
  * appointments created before the customer had an account. Linking a
  * client on a job with no signed terms sends them the pricing-terms &
