@@ -663,6 +663,48 @@ export async function sendTermsAcceptance(formData: FormData): Promise<void> {
 }
 
 /**
+ * Link (or change/unlink) the portal client on an existing job — for
+ * appointments created before the customer had an account. Linking a
+ * client on a job with no signed terms sends them the pricing-terms &
+ * agreement request, same as if they'd been linked at scheduling time.
+ */
+export async function setJobClient(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  if (!clientId) {
+    await db.job.update({ where: { id: jobId }, data: { clientId: null } });
+    revalidatePath("/portal", "layout");
+    return;
+  }
+
+  const client = await db.user.findFirst({ where: { id: clientId, role: "CLIENT" } });
+  if (!client) throw new Error("Invalid client");
+
+  const needsTerms = !job.termsAcceptedAt && job.status !== "CANCELLED" && job.status !== "COMPLETED";
+  const updated = await db.job.update({
+    where: { id: jobId },
+    data: {
+      clientId: client.id,
+      ...(needsTerms
+        ? {
+            acceptToken: job.acceptToken ?? crypto.randomUUID(),
+            termsSentAt: new Date(),
+            termsSnapshot: await currentAgreementText(),
+          }
+        : {}),
+    },
+  });
+  if (needsTerms) sendTermsRequest(updated, client);
+
+  revalidatePath("/portal", "layout");
+}
+
+/**
  * Duplicate an existing job onto a new date/window — same customer, address,
  * service, and linked client. Assignments and notes don't copy (jobs are
  * usually assigned day-of); the terms request goes out fresh for the new

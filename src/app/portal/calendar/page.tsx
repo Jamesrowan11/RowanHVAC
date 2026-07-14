@@ -95,6 +95,9 @@ export default async function CalendarPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-navy">Calendar</h1>
         <div className="flex items-center gap-2">
+          {user.role === "ADMIN" && (
+            <Link href="/portal/admin/schedule/import" className="btn-small-outline">Import Google Calendar</Link>
+          )}
           <Link href={`/portal/calendar?start=${prev}`} className="btn-small-outline">← Previous</Link>
           <Link href="/portal/calendar" className="btn-small-outline">Today</Link>
           <Link href={`/portal/calendar?start=${next}`} className="btn-small-outline">Next →</Link>

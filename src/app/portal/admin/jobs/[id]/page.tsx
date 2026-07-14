@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import {
   updateJobStatus, addJobNote, deleteJobNote, cancelJob, reinstateJob, assignTechnicians, deleteJob,
-  sendTermsAcceptance,
+  sendTermsAcceptance, setJobClient,
 } from "@/lib/actions/jobs";
 import { createTicketDraft } from "@/lib/actions/tickets";
 import { JobStatusBadge } from "@/components/portal/StatusBadge";
@@ -40,6 +40,12 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
     }),
   ]);
   if (!job) notFound();
+
+  const clients = await db.user.findMany({
+    where: { role: "CLIENT" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true, customerNumber: true },
+  });
   const employees = technicians.filter((t) => t.role === "EMPLOYEE");
   const admins = technicians.filter((t) => t.role === "ADMIN");
   const assignedIds = new Set(job.assignments.map((a) => a.user.id));
@@ -81,6 +87,25 @@ export default async function AdminJobDetail({ params }: { params: Promise<{ id:
                   "Not linked"
                 )}
               </dd>
+              {/* Link/change the client after the fact — appointments often get
+                  created before the customer has an account. */}
+              <form action={setJobClient} className="mt-1.5 flex items-center gap-2">
+                <input type="hidden" name="jobId" value={job.id} />
+                <select name="clientId" className="input flex-1" defaultValue={job.client?.id ?? ""} aria-label="Link to portal client">
+                  <option value="">— No portal account —</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{c.customerNumber ? ` · #${c.customerNumber}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className="btn-small-outline">Save</button>
+              </form>
+              {!job.client && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Linking sends them the pricing-terms &amp; agreement request automatically.
+                </p>
+              )}
             </div>
             {job.summary && (
               <div><dt className="font-medium text-gray-500">Summary</dt><dd className="whitespace-pre-wrap">{job.summary}</dd></div>
