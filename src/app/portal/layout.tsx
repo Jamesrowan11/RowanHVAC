@@ -1,63 +1,107 @@
-import { requireUser } from "@/lib/session";
-import { getUnreadCount } from "@/lib/messaging";
-import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
+import Link from "next/link";
+import { requireUser } from "@/lib/guards";
+import { unreadMessageCount } from "@/lib/queries";
+import { logoutAction } from "@/lib/actions/auth";
+import MobileNav from "@/components/portal/MobileNav";
+import NotificationsSetup from "@/components/portal/NotificationsSetup";
 
-const NAV_BY_ROLE: Record<string, NavItem[]> = {
+const navByRole = {
   ADMIN: [
     { href: "/portal/admin", label: "Overview" },
+    { href: "/portal/admin/analytics", label: "Analytics" },
     { href: "/portal/admin/requests", label: "Requests" },
-    { href: "/portal/admin/schedule", label: "Scheduling" },
+    { href: "/portal/admin/schedule", label: "Schedule" },
+    { href: "/portal/admin/tickets", label: "Tickets" },
+    { href: "/portal/admin/proposals", label: "Proposals" },
+    { href: "/portal/admin/pricebook", label: "Price Book" },
+    { href: "/portal/calendar", label: "Calendar" },
     { href: "/portal/admin/users", label: "Users" },
-    { href: "/portal/admin/maintenance", label: "Maintenance" },
-    { href: "/portal/admin/payments", label: "Payments & Docs" },
-    { href: "/portal/admin/email", label: "Compose Email" },
+    { href: "/portal/messages", label: "Messages", badge: true },
+    { href: "/portal/admin/emails", label: "Emails" },
     { href: "/portal/admin/announcements", label: "Announcements" },
-    { href: "/portal/messages", label: "Messages" },
+    { href: "/portal/admin/content", label: "Website" },
+    { href: "/portal/admin/content/areas", label: "Service Areas" },
+    { href: "/portal/admin/team", label: "Our Techs" },
     { href: "/portal/profile", label: "My Profile" },
+    { href: "/portal/mailbox", label: "My Mailbox" },
   ],
   EMPLOYEE: [
     { href: "/portal/employee", label: "My Schedule" },
-    { href: "/portal/employee/email", label: "Compose Email" },
+    { href: "/portal/employee/tickets", label: "Tickets" },
+    { href: "/portal/calendar", label: "Calendar" },
+    { href: "/portal/messages", label: "Messages", badge: true },
+    { href: "/portal/employee/email", label: "Email" },
     { href: "/portal/employee/announcements", label: "Announcements" },
-    { href: "/portal/messages", label: "Messages" },
     { href: "/portal/profile", label: "My Profile" },
+    { href: "/portal/mailbox", label: "My Mailbox" },
   ],
   CLIENT: [
     { href: "/portal/client", label: "Appointments" },
     { href: "/portal/client/request", label: "New Request" },
     { href: "/portal/client/history", label: "Service History" },
-    { href: "/portal/client/maintenance", label: "Maintenance" },
-    { href: "/portal/client/documents", label: "Documents & Payments" },
-    { href: "/portal/messages", label: "Messages" },
+    { href: "/portal/client/billing", label: "Documents & Payments" },
+    { href: "/portal/messages", label: "Messages", badge: true },
     { href: "/portal/profile", label: "My Profile" },
   ],
-};
+} as const;
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Admin",
-  EMPLOYEE: "Employee",
-  CLIENT: "Client",
-};
+const roleLabels = { ADMIN: "Admin", EMPLOYEE: "Employee", CLIENT: "Customer" } as const;
 
-export default async function PortalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const unread = await getUnreadCount(user.id);
-
-  const nav = NAV_BY_ROLE[user.role].map((item) =>
-    item.href === "/portal/messages" ? { ...item, badge: unread } : item,
-  );
+  const unread = await unreadMessageCount(user.id);
+  const nav = navByRole[user.role];
 
   return (
-    <PortalShell
-      user={{ name: user.name, email: user.email, role: user.role }}
-      nav={nav}
-      roleLabel={ROLE_LABELS[user.role]}
-    >
-      {children}
-    </PortalShell>
+    <div className="min-h-screen bg-navy-50">
+      <header className="border-b border-navy-100 bg-navy text-white">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <Link href="/portal" className="font-extrabold tracking-tight">
+            Rowan <span className="text-accent-300">Heating &amp; Air</span>
+            <span className="ml-2 rounded bg-navy-700 px-2 py-0.5 text-xs font-semibold text-navy-100">
+              {roleLabels[user.role]} Portal
+            </span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-navy-100 sm:block">{user.name}</span>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="rounded-md border border-navy-500 px-3 py-1.5 text-sm font-medium text-navy-100 transition hover:bg-navy-700"
+              >
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+        {/* Desktop tab nav — hidden on phones, where the bottom bar takes over */}
+        <nav aria-label="Portal navigation" className="mx-auto hidden max-w-6xl overflow-x-auto px-4 sm:block">
+          <ul className="flex gap-1 pb-2">
+            {nav.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-navy-100 transition hover:bg-navy-700 hover:text-white"
+                >
+                  {item.label}
+                  {"badge" in item && item.badge && unread > 0 && (
+                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                      {unread}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </header>
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8 pb-28 sm:pb-8">
+        <NotificationsSetup />
+        {children}
+      </main>
+
+      {/* App-style bottom navigation on phones */}
+      <MobileNav role={user.role} unread={unread} />
+    </div>
   );
 }

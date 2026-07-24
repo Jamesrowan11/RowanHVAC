@@ -1,364 +1,365 @@
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
-import { Stars } from "@/components/Stars";
-import { ServiceIcon } from "@/components/ServiceIcon";
-import { QuoteForm } from "@/components/public/QuoteForm";
-import {
-  COMPANY,
-  SERVICES,
-  WHY_CHOOSE,
-  TESTIMONIALS,
-} from "@/lib/company";
+import { db } from "@/lib/db";
+import { COMPANY } from "@/lib/constants";
+import ContactForm from "@/components/public/ContactForm";
+import ServiceAreaChecker from "@/components/public/ServiceAreaChecker";
+import AnalyticsTracker from "@/components/public/AnalyticsTracker";
+import { buildAreaData, groupByRegion } from "@/lib/serviceArea";
+import { getSiteContent, getServiceAreas, getHeroImage } from "@/lib/siteContent";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+const services = [
+  {
+    title: "Heating",
+    body: "Gas, electric, and oil furnaces plus boilers — expert repair, seasonal service, and full installations.",
+  },
+  {
+    title: "Air Conditioning",
+    body: "Repair, service, and installation to keep your home comfortable through Maryland summers.",
+  },
+  {
+    title: "Heat Pumps",
+    body: "Sales, service, and repair of efficient heat pump systems for year-round comfort.",
+  },
+  {
+    title: "Geothermal Systems",
+    body: "Ground-source comfort with outstanding efficiency, installed and serviced by experienced techs.",
+  },
+  {
+    title: "Custom Sheet Metal & Ductwork",
+    body: "Fabricated in-house and fitted right — ductwork built for your home, not forced into it.",
+  },
+  {
+    title: "Aeroseal Duct Sealing",
+    body: "Seal leaky ducts from the inside to improve comfort, air quality, and energy bills.",
+  },
+  {
+    title: "Indoor Air Quality",
+    body: "Humidifiers, dehumidifiers, air cleaners, and smart thermostats for healthier air at home.",
+  },
+  {
+    title: "Maintenance & Service Agreements",
+    body: "Seasonal tune-ups and priority scheduling that keep your system running its best.",
+  },
+];
+
+const whyUs = [
+  { title: "Licensed & Insured in Maryland", body: "Fully licensed and insured for your peace of mind." },
+  { title: "Family-Owned Since 1958", body: "Three generations of honest service in Howard County." },
+  { title: "Honest, Upfront Pricing", body: "Clear estimates before work begins — no surprises." },
+  { title: "Fast, Reliable Service", body: "When your comfort is on the line, we show up." },
+];
+
+const reviews = [
+  {
+    name: "Marcia White",
+    text: `We have used Rowan Heating & Air Conditioning on three occasions -- always emergencies. The first time our furnace failed on the coldest day of the winter. BG&E said they couldn't service us for at least 4 or 5 days. Rowan came out the next day. Yesterday, our air conditioning stopped working on the hottest day of the summer. We called Rowan around 9 pm last night and someone actually answered the phone, was helpful in telling us what to check until someone could come out, and Jake, the service tech who came out, was professional, thorough, knowledgeable, and just a great guy. He had us up and running before noon today! I love this company because they understand what their customers are going through when the heat and a/c aren't working and they care enough to help ASAP. I also love that they're a family-owned business. Their owner Teresa rocks too! I won't call anyone else for our heating and a/c needs.`,
+  },
+  {
+    name: "John Duncan",
+    text: `The Rowan family has been taking care of my family's heating and cooling needs in two houses since the summer of 2007. We are very satisfied. The technicians are courteous, thorough, very professional and knowledgeable about oil and gas furnaces as well as electric cooling systems. They do all the analytical work to make sure the systems are working efficiently. They keep detailed notes so all tests are documented and available for review. When we have had emergencies they have been quick to respond. I recommend without any qualification.`,
+  },
+  {
+    name: "Ebony Qualls",
+    text: `What great folks! My heat broke when it was freezing in DC. After two days of trying to get service from other companies, I saw the Rowan van parked in my neighborhood. I called the number on the van and they sent Dean over in a matter of minutes. What a nice guy! Everything is fixed and Dean gave some maintenance recommendations. This is a family-run business and I feel they're good people.`,
+  },
+];
+
+
+function Stars() {
+  return (
+    <div className="flex gap-0.5 text-accent" aria-label="5 out of 5 stars">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg key={i} aria-hidden="true" className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+          <path d="M10 1.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L10 14.9l-5.3 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+export default async function HomePage() {
+  const [techs, content, areas, heroImage] = await Promise.all([
+    db.teamMember.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+    getSiteContent(),
+    getServiceAreas(),
+    getHeroImage(),
+  ]);
+
+  const areaData = buildAreaData(areas);
+  const regions = groupByRegion(areas);
+  const phoneHref = `tel:${content.contactPhone.replace(/[^\d+]/g, "")}`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HVACBusiness",
+    name: COMPANY.name,
+    description:
+      "Family-owned and operated HVAC company serving Highland and Howard County, Maryland since 1958.",
+    foundingDate: "1958",
+    telephone: "+1-410-531-0008",
+    email: COMPANY.email,
+    address: {
+      "@type": "PostalAddress",
+      postOfficeBoxNumber: "109",
+      addressLocality: "Fulton",
+      addressRegion: "MD",
+      postalCode: "20759",
+      addressCountry: "US",
+    },
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens: "09:00",
+      closes: "17:00",
+    },
+    areaServed: [
+      ...new Set([
+        ...regions.map((r) => r.region),
+        ...areas.filter((a) => a.region !== "Washington, DC").map((a) => `${a.town}, MD`),
+      ]),
+    ].map((name) => ({ "@type": "Place", name })),
+    url: process.env.APP_URL || "https://rowanhvac.com",
+  };
+
   return (
     <>
-      <a href="#main" className="skip-link">
-        Skip to main content
-      </a>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <AnalyticsTracker />
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-navy-100 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-navy-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Logo />
-          <nav
-            className="hidden items-center gap-6 text-sm font-medium text-navy-700 md:flex"
-            aria-label="Primary"
-          >
-            <a className="hover:text-accent" href="#services">
-              Services
-            </a>
-            <a className="hover:text-accent" href="#why">
-              Why Us
-            </a>
-            <a className="hover:text-accent" href="#area">
-              Service Area
-            </a>
-            <a className="hover:text-accent" href="#reviews">
-              Reviews
-            </a>
-            <a className="hover:text-accent" href="#contact">
-              Contact
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <a href={COMPANY.phoneHref} className="btn-outline btn-sm hidden sm:inline-flex">
-              {COMPANY.phone}
-            </a>
-            <Link href="/login" className="btn-navy btn-sm">
+          <Link href="/" className="text-lg font-extrabold tracking-tight text-navy sm:text-xl">
+            Rowan <span className="text-accent">Heating &amp; Air Conditioning</span>
+          </Link>
+          <nav aria-label="Main navigation" className="flex items-center gap-3 sm:gap-5">
+            <a href="#services" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Services</a>
+            <Link href="/history" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Our History</Link>
+            <a href="#reviews" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Reviews</a>
+            <a href="#contact" className="hidden text-sm font-medium text-gray-600 hover:text-navy md:block">Contact</a>
+            <Link href="/login" className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-700">
               Portal Login
             </Link>
-          </div>
+          </nav>
         </div>
       </header>
 
       <main id="main">
-        {/* Hero */}
-        <section className="relative overflow-hidden bg-navy-900 text-white">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-20"
-            aria-hidden="true"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, #476497 0, transparent 45%), radial-gradient(circle at 80% 0%, #f57c1f 0, transparent 35%)",
-            }}
-          />
-          <div className="relative mx-auto max-w-6xl px-4 py-20 sm:py-28">
-            <p className="mb-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-navy-100">
+        {/* Hero — with optional team photo background (Admin → Website),
+            dimmed by default so the headline stays readable */}
+        <section className="relative bg-navy text-white">
+          {heroImage && (
+            <>
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: "url(/api/site-images/hero)" }}
+              />
+              <div aria-hidden="true" className="absolute inset-0 bg-navy-950/65" />
+            </>
+          )}
+          <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
+            <p className="text-3xl font-extrabold uppercase tracking-wider text-accent-300 sm:text-5xl">
               {COMPANY.name}
             </p>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-              Reliable Heating &amp; Cooling for Highland and Howard County
+            <h1 className="mx-auto mt-4 max-w-3xl text-2xl font-extrabold leading-tight sm:text-3xl">
+              {content.heroHeadline}
             </h1>
-            <p className="mt-5 max-w-2xl text-lg text-navy-100">
-              Family-owned and operated in Howard County since 1958 — honest,
-              dependable heating and cooling you can trust.
+            <p className="mx-auto mt-5 max-w-2xl text-lg text-navy-100">
+              {content.heroSubheading}
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href="#contact" className="btn-primary">
-                Request a Quote
-              </a>
-              <a href={COMPANY.phoneHref} className="btn-outline border-white/30 bg-white/10 text-white hover:bg-white/20">
-                Call Now · {COMPANY.phone}
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a href="#contact" data-track="quote" className="btn-primary w-full sm:w-auto">{content.ctaLabel}</a>
+              <a href={phoneHref} data-track="call" className="btn-secondary w-full sm:w-auto">
+                Call Now · {content.contactPhone}
               </a>
             </div>
           </div>
         </section>
 
         {/* Services */}
-        <section id="services" className="mx-auto max-w-6xl px-4 py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-navy-900">
-              Our Services
-            </h2>
-            <p className="mt-3 text-navy-600">
-              Full-service heating and cooling for your home or business.
-            </p>
-          </div>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {SERVICES.map((s) => (
-              <div
-                key={s.title}
-                className="card flex flex-col gap-3 p-6 transition hover:shadow-soft"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-navy-50 text-navy-700">
-                  <ServiceIcon name={s.icon} />
-                </span>
-                <h3 className="text-base font-semibold text-navy-900">
-                  {s.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-navy-600">
-                  {s.description}
-                </p>
+        <section id="services" className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+          <h2 className="text-center text-3xl font-bold text-navy">Our Services</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-gray-600">
+            Complete heating, cooling, and air-quality care for your home.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {services.map((s) => (
+              <div key={s.title} className="card transition hover:-translate-y-0.5 hover:shadow-lg">
+                <h3 className="font-bold text-navy">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{s.body}</p>
               </div>
             ))}
           </div>
-          <p className="mt-10 text-center text-sm font-medium text-navy-700">
-            {COMPANY.brands}
+          <p className="mt-8 text-center font-medium text-navy-600">
+            {content.servicesBrandLine}
           </p>
         </section>
 
-        {/* Why choose us */}
-        <section id="why" className="bg-navy-50 py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-navy-900">
-                Why Choose Us
-              </h2>
-            </div>
-            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {WHY_CHOOSE.map((w) => (
-                <div key={w.title} className="card p-6">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
-                    <svg
-                      className="h-5 w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M20 6L9 17l-5-5" />
+        {/* Why Choose Us */}
+        <section className="bg-navy-50">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+            <h2 className="text-center text-3xl font-bold text-navy">Why Choose Us</h2>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {whyUs.map((w) => (
+                <div key={w.title} className="card text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-accent-100 text-accent-600">
+                    <svg aria-hidden="true" className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                      <path d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.8 3.8 6.8-6.8a1 1 0 011.4 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-base font-semibold text-navy-900">
-                    {w.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-navy-600">
-                    {w.description}
-                  </p>
+                  <h3 className="mt-3 font-bold text-navy">{w.title}</h3>
+                  <p className="mt-2 text-sm text-gray-600">{w.body}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Service area */}
-        <section id="area" className="mx-auto max-w-6xl px-4 py-20">
-          <div className="card grid items-center gap-8 overflow-hidden p-8 sm:grid-cols-2 sm:p-12">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-navy-900">
-                Service Area
-              </h2>
-              <p className="mt-4 text-navy-600">
-                We proudly serve {COMPANY.serviceArea}
-              </p>
-              <a href="#contact" className="btn-primary mt-6">
-                Request Service
-              </a>
-            </div>
-            <ul className="grid grid-cols-2 gap-3 text-sm font-medium text-navy-800">
-              {[
-                "Highland",
-                "Clarksville",
-                "Fulton",
-                "Dayton",
-                "Maple Lawn",
-                "Howard County",
-              ].map((c) => (
-                <li
-                  key={c}
-                  className="flex items-center gap-2 rounded-lg bg-navy-50 px-3 py-2"
-                >
-                  <svg
-                    className="h-4 w-4 text-accent"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  >
-                    <path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" />
-                    <circle cx="12" cy="10" r="2.5" />
-                  </svg>
-                  {c}
-                </li>
-              ))}
-            </ul>
+        {/* Service Area */}
+        <section id="service-area" className="mx-auto max-w-6xl px-4 py-16 text-center sm:py-20">
+          <h2 className="text-3xl font-bold text-navy">Our Service Area</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-gray-600">
+            {content.serviceAreaIntro}
+          </p>
+          <div className="mt-10 grid gap-6 text-left sm:grid-cols-2 lg:grid-cols-4">
+            {regions.map((area) => (
+              <div key={area.region} className="card">
+                <h3 className="font-bold text-navy">{area.region}</h3>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {area.towns.map((c) => (
+                    <li key={c} className="rounded-full bg-navy-50 px-3 py-1 text-sm font-medium text-navy">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
+          <ServiceAreaChecker data={areaData} phone={content.contactPhone} />
         </section>
+
+        {/* Meet Our Techs — populated from the admin dashboard (Team page) */}
+        {techs.length > 0 && (
+          <section className="bg-navy-50">
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+              <h2 className="text-center text-3xl font-bold text-navy">Meet Our Techs</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-center text-gray-600">
+                The friendly faces who keep Howard County comfortable.
+              </p>
+              <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {techs.map((t) => (
+                  <div key={t.id} className="card text-center">
+                    {t.photoPath ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/team-photos/${t.id}`}
+                        alt={`Photo of ${t.name}`}
+                        className="mx-auto h-36 w-36 rounded-full object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div aria-hidden="true" className="mx-auto flex h-36 w-36 items-center justify-center rounded-full bg-navy-100 text-4xl font-bold text-navy-400">
+                        {t.name.charAt(0)}
+                      </div>
+                    )}
+                    <h3 className="mt-4 font-bold text-navy">{t.name}</h3>
+                    {t.title && <p className="text-sm text-gray-600">{t.title}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Reviews */}
-        <section id="reviews" className="bg-navy-50 py-20">
-          <div className="mx-auto max-w-6xl px-4">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-navy-900">
-                What Our Customers Say
-              </h2>
-            </div>
-            <div className="mt-12 grid gap-6 lg:grid-cols-3">
-              {TESTIMONIALS.map((t) => (
-                <figure key={t.name} className="card flex flex-col p-6">
-                  <Stars count={t.stars} />
-                  <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-navy-700">
-                    {t.text}
-                  </blockquote>
-                  <figcaption className="mt-4 text-sm font-semibold text-navy-900">
-                    — {t.name}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
+        <section id="reviews" className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+          <h2 className="text-center text-3xl font-bold text-navy">What Our Customers Say</h2>
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            {reviews.map((r) => (
+              <figure key={r.name} className="card flex flex-col">
+                <Stars />
+                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-gray-700">
+                  “{r.text}”
+                </blockquote>
+                <figcaption className="mt-4 font-semibold text-navy">— {r.name}</figcaption>
+              </figure>
+            ))}
           </div>
         </section>
 
-        {/* Contact / Quote */}
-        <section id="contact" className="mx-auto max-w-6xl px-4 py-20">
-          <div className="grid gap-10 lg:grid-cols-2">
+        {/* Contact */}
+        <section id="contact" className="bg-navy-50">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:py-20 lg:grid-cols-2">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-navy-900">
-                Request a Quote
-              </h2>
-              <p className="mt-3 text-navy-600">
-                Tell us what you need and we&apos;ll get back to you. Prefer to
-                talk? Give us a call.
+              <h2 className="text-3xl font-bold text-navy">{content.ctaLabel}</h2>
+              <p className="mt-3 max-w-md text-gray-600">
+                Tell us what you need and we&apos;ll get back to you — usually the
+                same business day.
               </p>
-              <dl className="mt-8 space-y-4 text-sm">
-                <div className="flex items-start gap-3">
-                  <dt className="font-semibold text-navy-900">Phone</dt>
-                  <dd>
-                    <a
-                      className="text-accent hover:underline"
-                      href={COMPANY.phoneHref}
-                    >
-                      {COMPANY.phone}
-                    </a>
-                  </dd>
+              <dl className="mt-8 space-y-4 text-gray-700">
+                <div>
+                  <dt className="font-semibold text-navy">Phone</dt>
+                  <dd><a href={phoneHref} data-track="call" className="hover:text-accent-600">{content.contactPhone}</a></dd>
                 </div>
-                <div className="flex items-start gap-3">
-                  <dt className="font-semibold text-navy-900">Email</dt>
-                  <dd>
-                    <a
-                      className="text-accent hover:underline"
-                      href={`mailto:${COMPANY.email}`}
-                    >
-                      {COMPANY.email}
-                    </a>
-                  </dd>
+                <div>
+                  <dt className="font-semibold text-navy">Email</dt>
+                  <dd><a href={`mailto:${content.contactEmail}`} className="hover:text-accent-600">{content.contactEmail}</a></dd>
                 </div>
-                <div className="flex items-start gap-3">
-                  <dt className="font-semibold text-navy-900">Mail</dt>
-                  <dd className="text-navy-600">
-                    {COMPANY.address.pobox}, {COMPANY.address.city},{" "}
-                    {COMPANY.address.state} {COMPANY.address.zip}
-                  </dd>
+                <div>
+                  <dt className="font-semibold text-navy">Mailing Address</dt>
+                  <dd>{content.contactAddress}</dd>
                 </div>
-                <div className="flex items-start gap-3">
-                  <dt className="font-semibold text-navy-900">Hours</dt>
-                  <dd className="text-navy-600">{COMPANY.hours}</dd>
+                <div>
+                  <dt className="font-semibold text-navy">Hours</dt>
+                  <dd>{content.contactHours}</dd>
                 </div>
               </dl>
             </div>
-            <div className="card p-6 sm:p-8">
-              <QuoteForm />
-            </div>
+            <ContactForm submitLabel={content.ctaLabel} />
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="bg-navy-900 text-navy-100">
-        <div className="mx-auto max-w-6xl px-4 py-14">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="sm:col-span-2 lg:col-span-1">
-              <Logo light />
-              <p className="mt-4 max-w-xs text-sm text-navy-200">
-                {COMPANY.tagline}
-              </p>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-navy-300">
-                Licensed &amp; Insured in Maryland
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-white">Contact</h3>
-              <ul className="mt-4 space-y-2 text-sm">
-                <li>
-                  <a className="hover:text-accent" href={COMPANY.phoneHref}>
-                    {COMPANY.phone}
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="hover:text-accent"
-                    href={`mailto:${COMPANY.email}`}
-                  >
-                    {COMPANY.email}
-                  </a>
-                </li>
-                <li className="text-navy-200">
-                  {COMPANY.address.pobox}, {COMPANY.address.city},{" "}
-                  {COMPANY.address.state} {COMPANY.address.zip}
-                </li>
-                <li className="text-navy-200">{COMPANY.hours}</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-white">Quick Links</h3>
-              <ul className="mt-4 space-y-2 text-sm">
-                <li>
-                  <a className="hover:text-accent" href="#services">
-                    Services
-                  </a>
-                </li>
-                <li>
-                  <a className="hover:text-accent" href="#why">
-                    Why Choose Us
-                  </a>
-                </li>
-                <li>
-                  <a className="hover:text-accent" href="#reviews">
-                    Reviews
-                  </a>
-                </li>
-                <li>
-                  <a className="hover:text-accent" href="#contact">
-                    Request a Quote
-                  </a>
-                </li>
-                <li>
-                  <Link className="hover:text-accent" href="/login">
-                    Portal Login
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-white">Service Area</h3>
-              <p className="mt-4 text-sm text-navy-200">{COMPANY.serviceArea}</p>
-            </div>
+      <footer className="bg-navy-950 text-navy-200">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-3">
+          <div>
+            <p className="font-bold text-white">{COMPANY.name}</p>
+            <p className="mt-2 text-sm">{content.footerTagline}</p>
+            <p className="mt-2 text-sm">Licensed &amp; Insured in Maryland</p>
           </div>
-
-          <div className="mt-12 border-t border-white/10 pt-6 text-xs text-navy-300">
-            <p>
-              © {new Date().getFullYear()} {COMPANY.name}. All rights reserved.
-            </p>
-            <p className="mt-2 text-navy-400">{COMPANY.credit}</p>
+          <div className="text-sm">
+            <p className="font-semibold text-white">Contact</p>
+            <ul className="mt-2 space-y-1">
+              <li><a href={phoneHref} data-track="call" className="hover:text-white">{content.contactPhone}</a></li>
+              <li><a href={`mailto:${content.contactEmail}`} className="hover:text-white">{content.contactEmail}</a></li>
+              <li>{content.contactAddress}</li>
+              <li>{content.contactHours}</li>
+            </ul>
           </div>
+          <div className="text-sm">
+            <p className="font-semibold text-white">Quick Links</p>
+            <ul className="mt-2 space-y-1">
+              <li><a href="#services" className="hover:text-white">Services</a></li>
+              <li><a href="#reviews" className="hover:text-white">Reviews</a></li>
+              <li><a href="#contact" data-track="quote" className="hover:text-white">{content.ctaLabel}</a></li>
+              <li><Link href="/login" className="hover:text-white">Portal Login</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-navy-800 py-4 text-center text-xs text-navy-400">
+          <p>© {new Date().getFullYear()} {COMPANY.name}. All rights reserved.</p>
+          <p className="mt-1">
+            This website was made and is hosted by Rowan Copy, a part of the Northvale Unified family.
+          </p>
         </div>
       </footer>
     </>

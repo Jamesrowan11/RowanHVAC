@@ -1,240 +1,252 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
+import { hash } from "bcryptjs";
 
-const prisma = new PrismaClient();
+const db = new PrismaClient();
 
-async function hash(pw: string) {
-  return bcrypt.hash(pw, 10);
-}
+const DEFAULT_SIGNATURE = `Rowan Heating & Air Conditioning
+Family-owned & operated since 1958
+Phone: 410-531-0008
+Email: info@rowanhvac.com
+Highland & Howard County, MD`;
 
-function daysFromNow(n: number): Date {
+function daysFromNow(days: number, hour = 9): Date {
   const d = new Date();
-  d.setDate(d.getDate() + n);
-  d.setHours(9, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
   return d;
 }
 
 async function main() {
-  console.log("Seeding Rowan Heating & Air Conditioning database…");
+  console.log("Seeding…");
 
-  // Clean slate (safe for a demo seed).
-  await prisma.message.deleteMany();
-  await prisma.conversationParticipant.deleteMany();
-  await prisma.conversation.deleteMany();
-  await prisma.jobNote.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.document.deleteMany();
-  await prisma.paymentLink.deleteMany();
-  await prisma.maintenancePolicy.deleteMany();
-  await prisma.announcement.deleteMany();
-  await prisma.emailLog.deleteMany();
-  await prisma.request.deleteMany();
-  await prisma.user.deleteMany();
+  // --- Users -----------------------------------------------------------
+  const [adminHash, techHash, clientHash] = await Promise.all([
+    hash("RowanAdmin123!", 12),
+    hash("RowanTech123!", 12),
+    hash("RowanClient123!", 12),
+  ]);
 
-  // ---- Users ----
-  const admin = await prisma.user.create({
-    data: {
+  const admin = await db.user.upsert({
+    where: { email: "admin@rowanhvac.com" },
+    update: {},
+    create: {
       name: "Teresa Rowan",
       email: "admin@rowanhvac.com",
       phone: "410-531-0008",
-      personalEmail: "teresa.personal@example.com",
       role: "ADMIN",
-      passwordHash: await hash("Password123!"),
+      passwordHash: adminHash,
     },
   });
 
-  const employee = await prisma.user.create({
-    data: {
-      name: "Jake Miller",
-      email: "tech@rowanhvac.com",
-      phone: "410-555-0142",
+  const jake = await db.user.upsert({
+    where: { email: "jake@rowanhvac.com" },
+    update: {},
+    create: {
+      name: "Jake Rowan",
+      email: "jake@rowanhvac.com",
+      phone: "410-555-0101",
       role: "EMPLOYEE",
-      passwordHash: await hash("Password123!"),
+      passwordHash: techHash,
     },
   });
 
-  const employee2 = await prisma.user.create({
-    data: {
+  const dean = await db.user.upsert({
+    where: { email: "dean@rowanhvac.com" },
+    update: {},
+    create: {
       name: "Dean Carter",
       email: "dean@rowanhvac.com",
-      phone: "410-555-0177",
+      phone: "410-555-0102",
       role: "EMPLOYEE",
-      passwordHash: await hash("Password123!"),
+      passwordHash: techHash,
     },
   });
 
-  const client = await prisma.user.create({
-    data: {
+  const client = await db.user.upsert({
+    where: { email: "client@example.com" },
+    update: {},
+    create: {
       name: "Marcia White",
       email: "client@example.com",
-      phone: "301-555-0199",
+      phone: "410-555-0201",
+      address: "12345 Hall Shop Rd, Highland, MD 20777",
       role: "CLIENT",
-      passwordHash: await hash("Password123!"),
+      passwordHash: clientHash,
+      policyActive: true,
+      policyRenewal: daysFromNow(365),
     },
   });
 
-  const client2 = await prisma.user.create({
-    data: {
+  const client2 = await db.user.upsert({
+    where: { email: "john@example.com" },
+    update: {},
+    create: {
       name: "John Duncan",
       email: "john@example.com",
-      phone: "301-555-0123",
+      phone: "410-555-0202",
+      address: "8800 Lime Kiln Rd, Fulton, MD 20759",
       role: "CLIENT",
-      passwordHash: await hash("Password123!"),
+      passwordHash: clientHash,
     },
   });
 
-  console.log("Created users (admin / employee / client).");
-
-  // ---- Maintenance policy (client has an active one) ----
-  await prisma.maintenancePolicy.create({
-    data: { clientId: client.id, active: true, renewalDate: daysFromNow(120) },
+  // --- Signature ---------------------------------------------------------
+  await db.setting.upsert({
+    where: { key: "emailSignature" },
+    update: {},
+    create: { key: "emailSignature", value: DEFAULT_SIGNATURE },
   });
 
-  // ---- Requests (from the website + portal) ----
-  await prisma.request.createMany({
+  // Idempotency: only seed sample records once.
+  if ((await db.job.count()) > 0) {
+    console.log("Sample data already present — users/signature refreshed, done.");
+    return;
+  }
+
+  // --- Quote requests ------------------------------------------------------
+  await db.quoteRequest.createMany({
     data: [
       {
-        type: "QUOTE",
-        status: "NEW",
         name: "Ebony Qualls",
-        phone: "202-555-0188",
+        phone: "202-555-0144",
         email: "ebony@example.com",
-        serviceNeeded: "Heating / Furnace",
-        message: "Furnace stopped working — would love a quote on repair.",
+        service: "Heating (furnace or boiler)",
+        message: "My heat stopped working last night and the house is freezing. Can someone come out soon?",
+        source: "PUBLIC",
       },
       {
-        type: "QUOTE",
-        status: "REVIEWED",
-        name: "Sam Patel",
-        phone: "410-555-0211",
-        email: "sam@example.com",
-        serviceNeeded: "Air Conditioning",
-        message: "Looking to install central A/C this spring.",
-      },
-      {
-        type: "SERVICE",
-        status: "NEW",
         name: "Marcia White",
-        phone: "301-555-0199",
+        phone: "410-555-0201",
         email: "client@example.com",
+        service: "Maintenance visit (service agreement)",
+        message: "Preferred time: weekday mornings\n\nReady for my spring A/C tune-up.",
+        source: "MAINTENANCE",
         clientId: client.id,
-        serviceNeeded: "Maintenance / Service Agreement",
-        message: "Annual check-up before summer, please.",
       },
     ],
   });
 
-  // ---- Jobs ----
-  const job1 = await prisma.job.create({
+  // --- Jobs ---------------------------------------------------------------
+  const upcoming = await db.job.create({
     data: {
-      customerName: "Marcia White",
-      address: "12 Highland Ridge Rd, Highland, MD 20777",
-      serviceNeeded: "A/C repair — not cooling",
-      scheduledDate: daysFromNow(1),
-      scheduledTime: "9:00 AM",
+      customerName: client.name,
+      address: client.address!,
+      service: "Air Conditioning — seasonal tune-up",
+      scheduledAt: daysFromNow(3, 9),
       status: "SCHEDULED",
-      technicianId: employee.id,
+      assignments: { create: { userId: jake.id } },
       clientId: client.id,
     },
   });
 
-  const job2 = await prisma.job.create({
+  const inProgress = await db.job.create({
     data: {
-      customerName: "John Duncan",
-      address: "88 Maple Lawn Blvd, Fulton, MD 20759",
-      serviceNeeded: "Furnace seasonal service",
-      scheduledDate: daysFromNow(-7),
-      scheduledTime: "1:00 PM",
-      status: "COMPLETED",
-      summary: "Cleaned burners, replaced filter, verified safe operation.",
-      technicianId: employee.id,
-      clientId: client2.id,
-    },
-  });
-
-  const job3 = await prisma.job.create({
-    data: {
-      customerName: "Marcia White",
-      address: "12 Highland Ridge Rd, Highland, MD 20777",
-      serviceNeeded: "Thermostat upgrade",
-      scheduledDate: daysFromNow(3),
-      scheduledTime: "11:00 AM",
+      customerName: client2.name,
+      address: client2.address!,
+      service: "Heat Pump — repair",
+      scheduledAt: daysFromNow(0, 13),
       status: "IN_PROGRESS",
-      technicianId: employee2.id,
-      clientId: client.id,
-    },
-  });
-
-  // A cancelled job (kept in DB, shows as Cancelled in client history).
-  await prisma.job.create({
-    data: {
-      customerName: "John Duncan",
-      address: "88 Maple Lawn Blvd, Fulton, MD 20759",
-      serviceNeeded: "Duct inspection",
-      scheduledDate: daysFromNow(-2),
-      scheduledTime: "3:00 PM",
-      status: "CANCELLED",
-      cancelReason: "Customer rescheduled for next month.",
-      technicianId: employee.id,
+      assignments: { create: { userId: dean.id } },
       clientId: client2.id,
     },
   });
 
-  // Job notes (internal).
-  await prisma.jobNote.createMany({
+  // A Pickup-type item, to show the calendar's two-week view + Pickup label.
+  await db.job.create({
+    data: {
+      customerName: "Supply House — Capitol",
+      address: "Parts pickup: condenser fan motor",
+      service: "Parts pickup",
+      kind: "PICKUP",
+      scheduledAt: daysFromNow(1, 8),
+      status: "SCHEDULED",
+      assignments: { create: { userId: dean.id } },
+    },
+  });
+
+  const completed = await db.job.create({
+    data: {
+      customerName: client.name,
+      address: client.address!,
+      service: "Gas furnace — no heat call",
+      scheduledAt: daysFromNow(-30, 8),
+      status: "COMPLETED",
+      completedAt: daysFromNow(-30, 11),
+      summary:
+        "Replaced failed hot surface ignitor and cleaned flame sensor. System cycled three times, heating normally. Recommended fall maintenance.",
+      assignments: { create: { userId: jake.id } },
+      clientId: client.id,
+    },
+  });
+
+  await db.job.create({
+    data: {
+      customerName: client2.name,
+      address: client2.address!,
+      service: "Aeroseal Duct Sealing — estimate",
+      scheduledAt: daysFromNow(-7, 14),
+      status: "CANCELLED",
+      cancelReason: "Customer asked to postpone until after their kitchen renovation.",
+      cancelledAt: daysFromNow(-9),
+      assignments: { create: { userId: dean.id } },
+      clientId: client2.id,
+    },
+  });
+
+  await db.jobNote.createMany({
     data: [
       {
-        jobId: job2.id,
-        authorId: employee.id,
-        body: "Static pressure within range. Recommended filter swap every 3 months.",
+        jobId: completed.id,
+        authorId: jake.id,
+        body: "Ignitor resistance out of spec (open circuit). Replaced with OEM part from the truck. Flame sensor cleaned.",
       },
       {
-        jobId: job3.id,
-        authorId: employee2.id,
-        body: "Old thermostat removed; awaiting customer's wifi password for setup.",
+        jobId: completed.id,
+        authorId: admin.id,
+        body: "Customer called to say thanks — very happy with the fast turnaround.",
+      },
+      {
+        jobId: inProgress.id,
+        authorId: dean.id,
+        body: "On site. Outdoor unit fan not spinning — suspect run capacitor. Testing now.",
+      },
+      {
+        jobId: upcoming.id,
+        authorId: admin.id,
+        body: "Maintenance plan visit. Customer prefers we use the side door.",
       },
     ],
   });
 
-  console.log("Created jobs and notes.");
-
-  // ---- Payment link & document ----
-  await prisma.paymentLink.create({
+  // --- Internal notes -------------------------------------------------------
+  await db.customerNote.create({
     data: {
-      clientId: client2.id,
-      createdById: admin.id,
-      url: "https://example.com/pay/inv-1024",
-      label: "Invoice #1024 — Furnace service",
-      amount: "$189.00",
-      status: "SENT",
+      clientId: client.id,
+      authorId: admin.id,
+      body: "Long-time customer, maintenance plan member. Two dogs — friendly. Furnace is a 2019 Trane S9V2.",
+    },
+  });
+  await db.employeeNote.create({
+    data: {
+      employeeId: dean.id,
+      authorId: admin.id,
+      body: "EPA 608 Universal certified. Renewal for MD journeyman license due in November.",
     },
   });
 
-  // ---- Announcement ----
-  await prisma.announcement.create({
+  // --- Announcement ----------------------------------------------------------
+  await db.announcement.create({
     data: {
-      title: "Summer schedule",
-      body: "Reminder: we're entering peak cooling season. Please confirm your assigned jobs each morning and keep notes up to date.",
+      title: "Summer scheduling starts next week",
+      body: "A/C season is here — morning slots fill first, so check your schedule daily. Stock extra run capacitors on the trucks.",
       authorId: admin.id,
     },
   });
 
-  // ---- Sample sent email (recorded with sender) ----
-  await prisma.emailLog.create({
+  // --- Messaging ---------------------------------------------------------------
+  const thread = await db.thread.create({
     data: {
-      senderUserId: admin.id,
-      to: "client@example.com",
-      subject: "Your appointment is confirmed",
-      body: "Hi Marcia,\n\nThis confirms your A/C repair visit tomorrow at 9:00 AM. See you then!\n\n—\nRowan Heating & Air Conditioning",
-      status: "LOGGED",
-      direction: "OUTBOUND",
-    },
-  });
-
-  // ---- A message thread (client <-> admin) ----
-  const convo = await prisma.conversation.create({
-    data: {
-      subject: "Question about my A/C visit",
+      subject: "Question about my upcoming tune-up",
       participants: {
         create: [
           { userId: client.id, lastReadAt: new Date() },
@@ -243,27 +255,76 @@ async function main() {
       },
     },
   });
-  await prisma.message.create({
+  await db.message.create({
     data: {
-      conversationId: convo.id,
-      senderId: client.id,
-      body: "Hi! Will the technician be able to check my upstairs unit too while he's here?",
+      threadId: thread.id,
+      authorId: client.id,
+      body: "Hi! For Thursday's tune-up, could the tech call when they're 30 minutes out? I'll be coming from work.",
     },
   });
-  await prisma.message.create({
+  await db.message.create({
     data: {
-      conversationId: convo.id,
-      senderId: admin.id,
-      body: "Absolutely, Marcia — Jake will take a look at both units. See you tomorrow!",
+      threadId: thread.id,
+      authorId: admin.id,
+      body: "Of course — I've added a note for Jake to call ahead. See you Thursday!",
     },
   });
 
-  console.log("Created announcement, sample email, and a message thread.");
-  console.log("\nDemo accounts (password for all: Password123!):");
-  console.log("  ADMIN     admin@rowanhvac.com");
-  console.log("  EMPLOYEE  tech@rowanhvac.com");
-  console.log("  CLIENT    client@example.com");
-  console.log("\nDone.");
+  const staffThread = await db.thread.create({
+    data: {
+      subject: "Truck 2 inventory",
+      participants: {
+        create: [
+          { userId: admin.id, lastReadAt: new Date() },
+          { userId: dean.id },
+        ],
+      },
+    },
+  });
+  await db.message.create({
+    data: {
+      threadId: staffThread.id,
+      authorId: admin.id,
+      body: "Dean — restock 45/5 µF capacitors on Truck 2 before Monday, we're down to one.",
+    },
+  });
+
+  // --- Payments, documents, email log -------------------------------------------
+  await db.paymentLink.create({
+    data: {
+      clientId: client.id,
+      url: "https://pay.example.com/invoice/1042",
+      label: "Invoice #1042 — furnace repair",
+      status: "PAID",
+      paidAt: daysFromNow(-25),
+      createdById: admin.id,
+    },
+  });
+
+  await db.emailLog.create({
+    data: {
+      senderUserId: admin.id,
+      toAddresses: client.email,
+      subject: "Welcome to the Rowan Heating & Air portal",
+      body: `Hi ${client.name},\n\nThanks for being a maintenance plan member! You can see appointments, documents, and payments any time in your portal.\n\n--\n${DEFAULT_SIGNATURE}`,
+      status: "LOGGED",
+    },
+  });
+
+  await db.unmatchedInbound.create({
+    data: {
+      fromAddress: "stranger@example.net",
+      subject: "Do you service Montgomery County?",
+      body: "Hi, I'm just over the county line in Brookeville — do you come out this far?",
+    },
+  });
+
+  console.log("Seed complete.");
+  console.log("  ADMIN     admin@rowanhvac.com  / RowanAdmin123!");
+  console.log("  EMPLOYEE  jake@rowanhvac.com   / RowanTech123!");
+  console.log("  EMPLOYEE  dean@rowanhvac.com   / RowanTech123!");
+  console.log("  CLIENT    client@example.com   / RowanClient123!  (active maintenance policy)");
+  console.log("  CLIENT    john@example.com     / RowanClient123!");
 }
 
 main()
@@ -271,6 +332,4 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => db.$disconnect());

@@ -1,16 +1,15 @@
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import {
-  PageHeader,
-  JobStatusBadge,
-  EmptyState,
-  fmtDate,
-  fmtDateTime,
-} from "@/components/portal/ui";
-import { ConfirmButton } from "@/components/portal/ConfirmButton";
-import { createJob, cancelJob, reinstateJob } from "../actions";
+import Link from "next/link";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
+import { createJob } from "@/lib/actions/jobs";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+import ActionForm from "@/components/portal/ActionForm";
+import { SERVICE_OPTIONS } from "@/lib/constants";
 
-export default async function SchedulePage({
+export const metadata = { title: "Schedule" };
+
+export default async function AdminSchedule({
   searchParams,
 }: {
   searchParams: Promise<{ fromRequest?: string }>;
@@ -18,208 +17,181 @@ export default async function SchedulePage({
   await requireRole("ADMIN");
   const { fromRequest } = await searchParams;
 
-  const [techs, clients, jobs, prefill] = await Promise.all([
-    prisma.user.findMany({
+  const [technicians, clients, jobs, sourceRequest] = await Promise.all([
+    // Assignable technicians: active employees AND admins.
+    db.user.findMany({
       where: { active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
       orderBy: [{ role: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, role: true },
     }),
-    prisma.user.findMany({
-      where: { role: "CLIENT", active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true },
-    }),
-    prisma.job.findMany({
-      orderBy: [{ scheduledDate: "desc" }],
-      include: {
-        technician: { select: { name: true, role: true } },
-        client: { select: { name: true } },
-        notes: {
-          orderBy: { createdAt: "desc" },
-          include: { author: { select: { name: true } } },
-        },
-      },
+    db.user.findMany({ where: { role: "CLIENT" }, orderBy: { name: "asc" } }),
+    db.job.findMany({
+      orderBy: { scheduledAt: "desc" },
+      take: 100,
+      include: { assignments: { include: { user: { select: { name: true } } } } },
     }),
     fromRequest
-      ? prisma.request.findUnique({ where: { id: fromRequest } })
+      ? db.quoteRequest.findUnique({ where: { id: fromRequest } })
       : Promise.resolve(null),
   ]);
 
-  const employees = techs.filter((t) => t.role === "EMPLOYEE");
-  const admins = techs.filter((t) => t.role === "ADMIN");
+  const employees = technicians.filter((t) => t.role === "EMPLOYEE");
+  const admins = technicians.filter((t) => t.role === "ADMIN");
+  const linkedClient = sourceRequest?.clientId
+    ? clients.find((c) => c.id === sourceRequest.clientId)
+    : undefined;
 
   return (
-    <>
-      <PageHeader
-        title="Scheduling"
-        subtitle="Create jobs, assign a technician, and track live progress."
-      />
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Scheduling</h1>
 
-      {/* Create job */}
-      <div className="card mb-8 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-navy-900">
-          New Job
-          {prefill && (
-            <span className="ml-2 text-sm font-normal text-navy-500">
-              (from request by {prefill.name})
-            </span>
-          )}
+      <section className="card max-w-2xl">
+        <h2 className="font-bold text-navy">
+          {sourceRequest ? `Schedule job from request (${sourceRequest.name})` : "Create a job"}
         </h2>
-        <form action={createJob} className="grid gap-4 sm:grid-cols-2">
-          {fromRequest && <input type="hidden" name="requestId" value={fromRequest} />}
-
+        <ActionForm
+          action={createJob}
+          submitLabel="Create job"
+          pendingLabel="Creating…"
+          successMessage="Job created — assign a technician anytime from the job page."
+          buttonClassName="btn-primary"
+          className="mt-4 space-y-4"
+        >
+          {sourceRequest && <input type="hidden" name="requestId" value={sourceRequest.id} />}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="kind" className="label">Type</label>
+              <select id="kind" name="kind" className="input" defaultValue="SERVICE">
+                <option value="SERVICE">Service job</option>
+                <option value="PICKUP">Pickup</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="customerName" className="label">Customer name</label>
+              <input
+                id="customerName"
+                name="customerName"
+                required
+                className="input"
+                defaultValue={sourceRequest?.name ?? ""}
+              />
+            </div>
+            <div>
+              <label htmlFor="scheduledDate" className="label">Date</label>
+              <input id="scheduledDate" name="scheduledDate" type="date" required className="input" />
+            </div>
+            <div>
+              <label htmlFor="window" className="label">Arrival window</label>
+              <select id="window" name="window" required className="input" defaultValue="AM">
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+                <option value="AM/PM">AM/PM (any time that day)</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="endDate" className="label">End date (multi-day, optional)</label>
+              <input id="endDate" name="endDate" type="date" className="input" />
+            </div>
+          </div>
           <div>
-            <label className="label" htmlFor="customerName">Customer name</label>
+            <label htmlFor="address" className="label">Address</label>
             <input
-              id="customerName"
-              name="customerName"
-              className="input"
+              id="address"
+              name="address"
               required
-              defaultValue={prefill?.name ?? ""}
+              className="input"
+              defaultValue={linkedClient?.address ?? ""}
             />
           </div>
-          <div>
-            <label className="label" htmlFor="address">Address</label>
-            <input id="address" name="address" className="input" required />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label" htmlFor="serviceNeeded">Service needed</label>
-            <input
-              id="serviceNeeded"
-              name="serviceNeeded"
-              className="input"
-              required
-              defaultValue={prefill?.serviceNeeded ?? ""}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="scheduledDate">Date</label>
-            <input id="scheduledDate" name="scheduledDate" type="date" className="input" required />
-          </div>
-          <div>
-            <label className="label" htmlFor="scheduledTime">Time</label>
-            <input
-              id="scheduledTime"
-              name="scheduledTime"
-              className="input"
-              placeholder="e.g. 9:00 AM"
-              required
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="technicianId">Assign technician</label>
-            <select id="technicianId" name="technicianId" className="input" defaultValue="">
-              <option value="">— Unassigned —</option>
-              {employees.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="service" className="label">Service needed</label>
+              <select id="service" name="service" required className="input" defaultValue={sourceRequest?.service ?? ""}>
+                <option value="" disabled>Select…</option>
+                {[...new Set([...(sourceRequest?.service ? [sourceRequest.service] : []), ...SERVICE_OPTIONS])].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="technicianIds" className="label">Assign technicians (optional, any number)</label>
+              <select id="technicianIds" name="technicianIds" multiple size={4} className="input">
                 <optgroup label="Employees">
                   {employees.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </optgroup>
-              )}
-              {admins.length > 0 && (
                 <optgroup label="Admins">
                   {admins.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </optgroup>
-              )}
-            </select>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Cmd/Ctrl-click to select several, or none to assign later.
+              </p>
+            </div>
           </div>
           <div>
-            <label className="label" htmlFor="clientId">Link to client account</label>
-            <select id="clientId" name="clientId" className="input" defaultValue="">
-              <option value="">— None —</option>
+            <label htmlFor="clientId" className="label">Link to portal client (optional)</label>
+            <select id="clientId" name="clientId" className="input" defaultValue={sourceRequest?.clientId ?? ""}>
+              <option value="">— No portal account —</option>
               {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.email}){c.active ? "" : " — deactivated"}
+                </option>
               ))}
             </select>
           </div>
-          <div className="sm:col-span-2">
-            <button type="submit" className="btn-primary">Create Job</button>
-          </div>
-        </form>
-      </div>
+          <p className="text-xs text-gray-500">
+            When a portal client is linked, they&apos;re automatically emailed/texted our
+            hourly pricing terms and service agreement to sign — due one day before the
+            appointment. Edit the agreement on the Price Book page.
+          </p>
+        </ActionForm>
+      </section>
 
-      {/* Jobs list */}
-      <h2 className="mb-4 text-lg font-semibold text-navy-900">All Jobs</h2>
-      {jobs.length === 0 ? (
-        <EmptyState>No jobs scheduled yet.</EmptyState>
-      ) : (
-        <div className="space-y-4">
-          {jobs.map((job) => (
-            <div key={job.id} className="card p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-navy-900">
-                      {job.customerName}
-                    </h3>
-                    <JobStatusBadge status={job.status} />
-                  </div>
-                  <p className="mt-1 text-sm text-navy-600">{job.serviceNeeded}</p>
-                  <p className="mt-1 text-xs text-navy-500">{job.address}</p>
-                  <p className="mt-1 text-xs text-navy-500">
-                    {fmtDate(job.scheduledDate)} · {job.scheduledTime} ·{" "}
-                    {job.technician
-                      ? `${job.technician.name} (${job.technician.role})`
-                      : "Unassigned"}
-                  </p>
-                  {job.status === "CANCELLED" && job.cancelReason && (
-                    <p className="mt-2 rounded bg-navy-50 px-3 py-2 text-xs text-navy-600">
-                      Cancelled: {job.cancelReason}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-end gap-2">
-                  {job.status !== "CANCELLED" ? (
-                    <form action={cancelJob}>
-                      <input type="hidden" name="id" value={job.id} />
-                      <ConfirmButton
-                        message="Enter a reason for cancelling this job:"
-                        promptReason
-                      >
-                        Cancel Job
-                      </ConfirmButton>
-                    </form>
-                  ) : (
-                    <form action={reinstateJob}>
-                      <input type="hidden" name="id" value={job.id} />
-                      <ConfirmButton
-                        message="Reinstate this job to Scheduled?"
-                        className="btn-outline btn-sm"
-                      >
-                        Reinstate
-                      </ConfirmButton>
-                    </form>
-                  )}
-                </div>
-              </div>
-
-              {/* Notes (internal, visible to admin + techs) */}
-              {job.notes.length > 0 && (
-                <div className="mt-4 border-t border-navy-100 pt-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
-                    Technician Notes
-                  </p>
-                  <ul className="space-y-2">
-                    {job.notes.map((n) => (
-                      <li key={n.id} className="text-sm text-navy-700">
-                        <span className="text-navy-900">{n.author.name}</span>{" "}
-                        <span className="text-xs text-navy-400">
-                          · {fmtDateTime(n.createdAt)}
-                        </span>
-                        <p className="whitespace-pre-wrap">{n.body}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+      <section>
+        <h2 className="text-lg font-bold text-navy">All Jobs</h2>
+        <div className="mt-4 overflow-x-auto rounded-xl bg-white shadow-card">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="px-4 py-3">When</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Technician</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3"><span className="sr-only">Open</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {jobs.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-6 text-gray-500">No jobs yet.</td></tr>
               )}
-            </div>
-          ))}
+              {jobs.map((j) => (
+                <tr key={j.id} className="hover:bg-navy-50/50">
+                  <td className="px-4 py-3 whitespace-nowrap">{fmtWhen(j.scheduledAt, j.window)}</td>
+                  <td className="px-4 py-3 font-medium text-navy">{j.customerName}</td>
+                  <td className="px-4 py-3">{j.service}</td>
+                  <td className="px-4 py-3">
+                    {j.assignments.length > 0 ? (
+                      j.assignments.map((a) => a.user.name).join(", ")
+                    ) : (
+                      <span className="italic text-gray-400">Unassigned</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3"><JobStatusBadge status={j.status} /></td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/portal/admin/jobs/${j.id}`} className="font-medium text-accent-600 hover:underline">
+                      Open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-    </>
+      </section>
+    </div>
   );
 }

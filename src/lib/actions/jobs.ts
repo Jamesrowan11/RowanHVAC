@@ -1,0 +1,947 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { actionRole, actionUser } from "@/lib/guards";
+import { notify } from "@/lib/email";
+import { notifySms } from "@/lib/sms";
+import { notifyPush } from "@/lib/push";
+import { saveAttachments } from "@/lib/attachments";
+import { placeRingOut } from "@/lib/ringout";
+import { fmtDateTime, fmtDate, fmtWhen } from "@/lib/queries";
+import { renderedAgreementForJob } from "@/lib/agreement";
+import { COMPANY, REVIEW_LINKS } from "@/lib/constants";
+
+export type ActionState = { ok: boolean; error?: string };
+
+const jobSchema = z.object({
+  customerName: z.string().trim().min(1, "Customer name is required").max(120),
+  address: z.string().trim().min(1, "Address is required").max(300),
+  service: z.string().trim().min(1, "Service is required").max(200),
+  kind: z.enum(["SERVICE", "PICKUP"]).default("SERVICE"),
+  // Appointments are booked as a DAY plus an arrival window (AM, PM, or the
+  // whole day) — never an exact time. scheduledAt anchors sorting at 8:00
+  // (AM / all-day) or 13:00 (PM).
+  scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
+  window: z.enum(["AM", "PM", "AM/PM"], { message: "Pick AM, PM, or AM/PM" }),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  technicianIds: z.array(z.string()).default([]), // optional — often assigned day-of, any number
+  clientId: z.string().optional(),
+  requestId: z.string().optional(),
+});
+
+/** Deadline for accepting the pricing terms: one day before the appointment. */
+function acceptDeadline(scheduledAt: Date): Date {
+  const d = new Date(scheduledAt);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/** Email + text the customer their personalized scheduling letter + the acceptance link. */
+function sendTermsRequest(
+  job: { id: string; service: string; address: string; scheduledAt: Date; window: string | null; acceptToken: string | null; termsSnapshot?: string | null },
+  client: { id: string; name: string; email: string; phone: string | null }
+) {
+  if (!job.acceptToken) return;
+  const link = `${process.env.APP_URL || ""}/accept/${job.acceptToken}`;
+  // Window appointments have no exact time — the deadline is just the day before.
+  const deadline = job.window
+    ? fmtDate(acceptDeadline(job.scheduledAt))
+    : fmtDateTime(acceptDeadline(job.scheduledAt));
+  // The email IS the scheduling letter (the job's personalized snapshot),
+  // followed by the link where they accept and pick a payment method.
+  const letter =
+    job.termsSnapshot?.trim() ||
+    `Your ${job.service} appointment at ${job.address} is scheduled for ${fmtWhen(job.scheduledAt, job.window)}.`;
+  notify({
+    to: [client.email],
+    subject: `Your ${job.service} appointment on ${fmtWhen(job.scheduledAt, job.window)} — please review & accept`,
+    body: `${letter}\n\nPlease review our full hourly pricing, tell us how you'll be paying, and accept online by ${deadline} (one day before your appointment):\n${link}\n\nQuestions? Call us at ${COMPANY.phone}.\n\n${COMPANY.name}`,
+  });
+  if (client.phone) {
+    notifySms({
+      to: [client.phone],
+      body: `${COMPANY.shortName}: please review & accept our pricing terms and service agreement for your ${job.service} visit by ${deadline}. Tap: ${link}`,
+    });
+  }
+  notifyPush([client.id], {
+    title: "Please accept our pricing terms",
+    body: `${job.service} — review & sign before your appointment`,
+    url: link,
+  });
+}
+
+
+export async function createJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await actionRole("ADMIN");
+
+  const parsed = jobSchema.safeParse({
+    customerName: formData.get("customerName"),
+    address: formData.get("address"),
+    service: formData.get("service"),
+    kind: formData.get("kind") || "SERVICE",
+    scheduledDate: formData.get("scheduledDate"),
+    window: formData.get("window"),
+    endDate: formData.get("endDate") || undefined,
+    technicianIds: formData.getAll("technicianIds").map(String).filter(Boolean),
+    clientId: formData.get("clientId") || undefined,
+    requestId: formData.get("requestId") || undefined,
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.errors[0]?.message ?? "Invalid input" };
+  }
+  const data = parsed.data;
+
+  const scheduledAt = new Date(`${data.scheduledDate}T${data.window === "PM" ? "13:00" : "08:00"}:00`);
+  const endAt = data.endDate ? new Date(`${data.endDate}T17:00:00`) : null;
+  if (isNaN(scheduledAt.getTime())) return { ok: false, error: "Invalid date" };
+
+  // Technicians are optional — many jobs get assigned the day of. Any picked
+  // must be active staff (employee or admin).
+  const techs = data.technicianIds.length
+    ? await db.user.findMany({
+        where: { id: { in: data.technicianIds }, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+        select: { id: true, name: true, email: true, phone: true },
+      })
+    : [];
+  if (techs.length !== data.technicianIds.length) {
+    return { ok: false, error: "One or more selected technicians are invalid" };
+  }
+
+  let clientId: string | null = null;
+  if (data.clientId) {
+    const client = await db.user.findFirst({ where: { id: data.clientId, role: "CLIENT" } });
+    if (!client) return { ok: false, error: "Invalid client" };
+    clientId = client.id;
+  }
+
+  const job = await db.job.create({
+    data: {
+      customerName: data.customerName,
+      address: data.address,
+      service: data.service,
+      kind: data.kind,
+      scheduledAt,
+      window: data.window,
+      endAt,
+      clientId,
+      assignments: { create: techs.map((t) => ({ userId: t.id })) },
+      // Every scheduled job/pickup for a portal client triggers the
+      // scheduling-letter & agreement acceptance flow. The letter is rendered
+      // from the master template with this customer's name/address/date and
+      // snapshotted, so later template edits never change what they signed.
+      ...(clientId
+        ? {
+            acceptToken: crypto.randomUUID(),
+            termsSentAt: new Date(),
+            termsSnapshot: await renderedAgreementForJob({
+              customerName: data.customerName,
+              address: data.address,
+              scheduledAt,
+              window: data.window,
+            }),
+          }
+        : {}),
+    },
+    include: { client: true },
+  });
+
+  // Automation: send the terms-acceptance request as soon as it's scheduled.
+  if (job.acceptToken && job.client) {
+    sendTermsRequest(job, job.client);
+  }
+
+  const label = data.kind === "PICKUP" ? "Pickup" : "Job";
+
+  // If this job came from a quote request, mark the request handled.
+  if (data.requestId) {
+    await db.quoteRequest.updateMany({
+      where: { id: data.requestId },
+      data: { status: "CONVERTED" },
+    });
+  }
+
+  // Automation: notify every assigned technician and, if linked, the client — by email + SMS.
+  const when = fmtWhen(job.scheduledAt, job.window);
+  for (const tech of techs) {
+    notify({
+      to: [tech.email],
+      subject: `New ${label.toLowerCase()} assigned: ${job.service} on ${when}`,
+      body: `Hi ${tech.name},\n\nA new ${label.toLowerCase()} has been assigned to you.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
+    });
+    if (tech.phone) {
+      notifySms({
+        to: [tech.phone],
+        body: `${COMPANY.shortName}: new ${label.toLowerCase()} ${when} — ${job.customerName}, ${job.service} at ${job.address}.`,
+      });
+    }
+  }
+  if (techs.length > 0) {
+    notifyPush(techs.map((t) => t.id), {
+      title: `New ${label.toLowerCase()} assigned`,
+      body: `${when} — ${job.customerName}, ${job.service}`,
+      url: `/portal/employee/jobs/${job.id}`,
+    });
+  }
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your appointment with ${COMPANY.shortName} is scheduled`,
+      body: `Hi ${job.client.name},\n\nYour appointment is scheduled.\n\nService: ${job.service}\nWhen: ${when}\nAddress: ${job.address}\n\nIf you need to make a change, call us at ${COMPANY.phone} or reply through the portal.`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} appointment is scheduled for ${when}. Questions? Call ${COMPANY.phone}.`,
+      });
+    }
+    notifyPush([job.client.id], {
+      title: "Appointment scheduled",
+      body: `${job.service} — ${when}`,
+      url: "/portal/client",
+    });
+  }
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+export async function updateJobStatus(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const summary = String(formData.get("summary") ?? "").trim();
+
+  if (!["SCHEDULED", "IN_PROGRESS", "COMPLETED"].includes(status)) {
+    throw new Error("Invalid status");
+  }
+
+  // Admins can update any job; employees only jobs assigned to them.
+  // Scoping the WHERE clause means a forged jobId simply matches nothing.
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) throw new Error("Not found");
+  if (job.status === "CANCELLED") throw new Error("Cancelled jobs must be reinstated by an admin");
+
+  await db.job.update({
+    where: { id: job.id },
+    data: {
+      status: status as "SCHEDULED" | "IN_PROGRESS" | "COMPLETED",
+      completedAt: status === "COMPLETED" ? new Date() : null,
+      ...(summary ? { summary } : {}),
+    },
+  });
+
+  // Automation: tell the client when work starts (email + SMS).
+  if (status === "IN_PROGRESS" && job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your ${job.service} service is underway`,
+      body: `Hi ${job.client.name},\n\nOur technician has started work on your ${job.service} at ${job.address}. We'll let you know as soon as it's complete.\n\nThank you for choosing ${COMPANY.name}.`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: our technician has started your ${job.service}. We'll update you when it's done.`,
+      });
+    }
+  }
+
+  // Automation: tell the client when their job is finished (email + SMS),
+  // and ask for a review while the good experience is fresh.
+  if (status === "COMPLETED" && job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your ${job.service} service is complete`,
+      body: `Hi ${job.client.name},\n\nGood news — today's service (${job.service}) at ${job.address} is complete.${summary ? `\n\nTechnician summary:\n${summary}` : ""}\n\nThank you for trusting ${COMPANY.name}.\n\nIf you were happy with our work, we'd really appreciate a review — it means a lot to our family business:\nGoogle: ${REVIEW_LINKS.google}\nYelp: ${REVIEW_LINKS.yelp}`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} service is complete. Thank you for choosing us! We'd love a review: Google ${REVIEW_LINKS.google} or Yelp ${REVIEW_LINKS.yelp}`,
+      });
+    }
+    notifyPush([job.client.id], {
+      title: "Service complete",
+      body: `Your ${job.service} is done.`,
+      url: "/portal/client/history",
+    });
+  }
+
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * A tech who's free joins a job for today — either helping out on a
+ * teammate's still-unstarted job, or taking one nobody's on yet. Adds them
+ * as an additional assignee (doesn't remove anyone already on it) and
+ * notifies the existing assignees plus the office.
+ */
+export async function pickUpJob(formData: FormData): Promise<void> {
+  const user = await actionRole("EMPLOYEE", "ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay); endOfDay.setDate(endOfDay.getDate() + 1);
+
+  // Any still-scheduled (unstarted) job for today that this user isn't
+  // already on — a teammate's, or unassigned.
+  const job = await db.job.findFirst({
+    where: {
+      id: jobId,
+      status: "SCHEDULED",
+      scheduledAt: { gte: startOfDay, lt: endOfDay },
+      NOT: { assignments: { some: { userId: user.id } } },
+    },
+    include: { assignments: { include: { user: true } } },
+  });
+  if (!job) throw new Error("This job isn't available to pick up");
+
+  const existingAssignees = job.assignments.map((a) => a.user);
+
+  await db.jobAssignment.create({ data: { jobId: job.id, userId: user.id } });
+  await db.jobNote.create({
+    data: {
+      jobId: job.id,
+      authorId: user.id,
+      body:
+        existingAssignees.length > 0
+          ? `🤝 ${user.name} joined this job (already assigned: ${existingAssignees.map((t) => t.name).join(", ")}).`
+          : `🤝 Picked up by ${user.name} (was unassigned).`,
+    },
+  });
+
+  // Let the existing assignees (if any) and the office know.
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", active: true },
+    select: { id: true, email: true },
+  });
+  const emailTargets = [...existingAssignees.map((t) => t.email), ...admins.map((a) => a.email)];
+  notify({
+    to: emailTargets,
+    subject: `Job picked up: ${job.service} for ${job.customerName}`,
+    body: `${user.name} joined the ${job.service} job for ${job.customerName} (${fmtWhen(job.scheduledAt, job.window)})${existingAssignees.length > 0 ? ` — already assigned: ${existingAssignees.map((t) => t.name).join(", ")}` : " — it was unassigned"}.`,
+  });
+  notifyPush([...existingAssignees.map((t) => t.id), ...admins.map((a) => a.id)], {
+    title: "Job picked up",
+    body: `${user.name} joined the ${job.service} for ${job.customerName}.`,
+    url: "/portal/employee",
+  });
+
+  revalidatePath("/portal", "layout");
+}
+
+/** Admin sets the full list of technicians assigned to a job — the usual "day of" step. Replaces whoever was assigned before. */
+export async function assignTechnicians(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const technicianIds = [...new Set(formData.getAll("technicianIds").map(String).filter(Boolean))];
+
+  const job = await db.job.findUnique({
+    where: { id: jobId },
+    include: { assignments: true },
+  });
+  if (!job) throw new Error("Not found");
+
+  const techs = await db.user.findMany({
+    where: { id: { in: technicianIds }, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+  });
+  if (techs.length !== technicianIds.length) throw new Error("One or more selected technicians are invalid");
+
+  const previousIds = new Set(job.assignments.map((a) => a.userId));
+  const newIds = new Set(technicianIds);
+  const added = techs.filter((t) => !previousIds.has(t.id));
+  const removedIds = [...previousIds].filter((id) => !newIds.has(id));
+
+  await db.$transaction([
+    db.jobAssignment.deleteMany({ where: { jobId: job.id, userId: { in: removedIds } } }),
+    ...added.map((t) =>
+      db.jobAssignment.upsert({
+        where: { jobId_userId: { jobId: job.id, userId: t.id } },
+        create: { jobId: job.id, userId: t.id },
+        update: {},
+      })
+    ),
+  ]);
+
+  // Only log/notify if something actually changed.
+  if (added.length > 0 || removedIds.length > 0) {
+    const names = techs.map((t) => t.name);
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: techs[0]?.id ?? removedIds[0],
+        body: names.length > 0 ? `📌 Assigned to ${names.join(", ")}.` : "📌 Unassigned all technicians.",
+      },
+    });
+  }
+
+  // Only notify newly-added technicians — the rest were already on the job.
+  const when = fmtWhen(job.scheduledAt, job.window);
+  for (const tech of added) {
+    notify({
+      to: [tech.email],
+      subject: `Job assigned: ${job.service} on ${when}`,
+      body: `Hi ${tech.name},\n\nYou've been assigned a job.\n\nCustomer: ${job.customerName}\nAddress: ${job.address}\nService: ${job.service}\nWhen: ${when}\n\nSee your schedule: ${process.env.APP_URL || ""}/portal/employee`,
+    });
+    if (tech.phone) {
+      notifySms({
+        to: [tech.phone],
+        body: `${COMPANY.shortName}: you've been assigned ${job.service} for ${job.customerName} at ${when}.`,
+      });
+    }
+  }
+  if (added.length > 0) {
+    notifyPush(added.map((t) => t.id), {
+      title: "Job assigned",
+      body: `${when} — ${job.customerName}, ${job.service}`,
+      url: `/portal/employee/jobs/${job.id}`,
+    });
+  }
+
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Call the customer through the office line (RingCentral RingOut): rings the
+ * technician's own phone first, then dials the customer and connects them —
+ * the customer's caller ID shows the office number, not the tech's cell, so
+ * the call doesn't get screened as an unknown number.
+ */
+export async function officeLineCallAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) return { ok: false, error: "Forbidden" };
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) return { ok: false, error: "Not found" };
+  if (!job.client?.phone) return { ok: false, error: "This customer has no phone number on file" };
+
+  const me = await db.user.findUnique({ where: { id: user.id }, select: { phone: true } });
+  if (!me?.phone) {
+    return { ok: false, error: "Add your cell number in My Profile first — the office line rings YOUR phone, then connects the customer" };
+  }
+
+  const result = await placeRingOut(me.phone, job.client.phone);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: `📞 ${user.name} called the customer through the office line.` },
+  });
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/** Quick "on my way" update a tech (or admin) sends the customer en route. */
+export async function notifyOnMyWay(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  const eta = String(formData.get("eta") ?? "").trim().slice(0, 60);
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) throw new Error("Not found");
+
+  const etaText = eta ? ` We expect to arrive in about ${eta}.` : "";
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your ${COMPANY.shortName} technician is on the way`,
+      body: `Hi ${job.client.name},\n\nYour technician is on the way for your ${job.service} appointment at ${job.address}.${etaText}\n\nHe will be calling you shortly — the call will usually show our office number, ${COMPANY.phone}. Please answer so he can come to your appointment.\n\nSee you soon!`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your technician is on the way for your ${job.service} appointment.${etaText} He'll call you shortly (usually from ${COMPANY.phone}) — please answer.`,
+      });
+    }
+  }
+  // Log it on the job so the office sees the customer was notified.
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: `📍 Notified customer: on the way.${etaText}` },
+  });
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Ask the customer to confirm being the technician's next stop. Sends a
+ * tokenized link by email + SMS with two choices: ready now, or wait.
+ */
+export async function askNextUp(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where, include: { client: true } });
+  if (!job) throw new Error("Not found");
+
+  const token = crypto.randomUUID();
+  await db.job.update({
+    where: { id: job.id },
+    data: { confirmToken: token, confirmStatus: "ASKED", confirmAskedAt: new Date(), confirmRespondedAt: null },
+  });
+
+  const link = `${process.env.APP_URL || ""}/confirm/${token}`;
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `You're next — ready for your ${job.service} appointment?`,
+      body: `Hi ${job.client.name},\n\nOur technician is about ready to head your way for your ${job.service} appointment. Are you all set for us to come now, or would you prefer to wait for a later time?\n\nPlease let us know here:\n${link}\n\nThanks!\n${COMPANY.name}`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: you're next for your ${job.service}. OK to come now, or wait? Tap to let us know: ${link}`,
+      });
+    }
+  }
+  await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: "📨 Asked customer to confirm being next." },
+  });
+  revalidatePath("/portal", "layout");
+}
+
+export async function addJobNote(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!body && files.length === 0) return;
+
+  const where =
+    user.role === "ADMIN"
+      ? { id: jobId }
+      : user.role === "EMPLOYEE"
+        ? { id: jobId, assignments: { some: { userId: user.id } } }
+        : null;
+  if (!where) throw new Error("Forbidden");
+
+  const job = await db.job.findFirst({ where });
+  if (!job) throw new Error("Not found");
+
+  const note = await db.jobNote.create({
+    data: { jobId: job.id, authorId: user.id, body: body.slice(0, 5000) || "(photo)" },
+  });
+  await saveAttachments(files, { jobNoteId: note.id, uploadedById: user.id });
+  revalidatePath("/portal", "layout");
+}
+
+/** Admins can delete any job note; employees only their own. Attachments cascade with it. */
+export async function deleteJobNote(formData: FormData): Promise<void> {
+  const user = await actionUser();
+  const noteId = String(formData.get("noteId") ?? "");
+
+  const note = await db.jobNote.findUnique({ where: { id: noteId } });
+  if (!note) throw new Error("Not found");
+  if (user.role !== "ADMIN" && note.authorId !== user.id) throw new Error("Forbidden");
+
+  await db.jobNote.delete({ where: { id: noteId } });
+  revalidatePath("/portal", "layout");
+}
+
+export async function cancelJob(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) throw new Error("A cancellation reason is required");
+
+  const job = await db.job.findUnique({
+    where: { id: jobId },
+    include: { client: true, assignments: { include: { user: true } } },
+  });
+  if (!job) throw new Error("Not found");
+
+  await db.job.update({
+    where: { id: job.id },
+    data: { status: "CANCELLED", cancelReason: reason.slice(0, 1000), cancelledAt: new Date() },
+  });
+
+  // Automation: each assigned tech's schedule changed; the client should know too.
+  for (const { user: tech } of job.assignments) {
+    notify({
+      to: [tech.email],
+      subject: `Job cancelled: ${job.service} for ${job.customerName}`,
+      body: `Hi ${tech.name},\n\nThe following job has been cancelled and removed from your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWas scheduled for: ${fmtWhen(job.scheduledAt, job.window)}\nReason: ${reason}`,
+    });
+  }
+  if (job.client) {
+    notify({
+      to: [job.client.email],
+      subject: `Your appointment on ${fmtWhen(job.scheduledAt, job.window)} was cancelled`,
+      body: `Hi ${job.client.name},\n\nYour appointment (${job.service}) scheduled for ${fmtWhen(job.scheduledAt, job.window)} has been cancelled.\n\nIf this is unexpected or you'd like to reschedule, call us at ${COMPANY.phone}.`,
+    });
+    if (job.client.phone) {
+      notifySms({
+        to: [job.client.phone],
+        body: `${COMPANY.shortName}: your ${job.service} appointment on ${fmtWhen(job.scheduledAt, job.window)} was cancelled. To reschedule call ${COMPANY.phone}.`,
+      });
+    }
+    notifyPush([job.client.id], {
+      title: "Appointment cancelled",
+      body: `Your ${job.service} on ${fmtWhen(job.scheduledAt, job.window)} was cancelled.`,
+      url: "/portal/client",
+    });
+  }
+
+  revalidatePath("/portal", "layout");
+}
+
+export async function reinstateJob(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({
+    where: { id: jobId },
+    include: { assignments: { include: { user: true } } },
+  });
+  if (!job || job.status !== "CANCELLED") throw new Error("Not found");
+
+  await db.job.update({
+    where: { id: job.id },
+    data: { status: "SCHEDULED", cancelReason: null, cancelledAt: null },
+  });
+
+  for (const { user: tech } of job.assignments) {
+    notify({
+      to: [tech.email],
+      subject: `Job reinstated: ${job.service} for ${job.customerName}`,
+      body: `Hi ${tech.name},\n\nA previously cancelled job is back on your schedule.\n\nCustomer: ${job.customerName}\nService: ${job.service}\nWhen: ${fmtWhen(job.scheduledAt, job.window)}`,
+    });
+  }
+
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Admin (re-)sends the scheduling letter & agreement request. The job's
+ * existing personalized letter is kept as-is (so per-customer edits survive
+ * a re-send); if the job has no letter yet, one is rendered fresh from the
+ * master template.
+ */
+export async function sendTermsAcceptance(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!job?.client) throw new Error("Link this job to a portal client first — the request is emailed to their account");
+
+  const updated = await db.job.update({
+    where: { id: job.id },
+    data: {
+      acceptToken: job.acceptToken ?? crypto.randomUUID(),
+      termsSentAt: new Date(),
+      termsSnapshot: job.termsSnapshot?.trim() ? job.termsSnapshot : await renderedAgreementForJob(job),
+    },
+  });
+  sendTermsRequest(updated, job.client);
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Admin edits the customer's personalized scheduling letter for THIS job —
+ * the "customizable for each person" part. If the letter changes after the
+ * customer already signed, the signature is cleared (a signature only covers
+ * the exact text that was signed) and the letter should be re-sent.
+ */
+export async function updateJobAgreement(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const text = String(formData.get("letter") ?? "").trim().slice(0, 20000);
+  const sendNow = formData.get("sendNow") === "on";
+
+  const job = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!job) return { ok: false, error: "Not found" };
+  if (!text) return { ok: false, error: "The letter can't be empty — use “Reset to the standard letter” instead" };
+
+  const changed = text !== (job.termsSnapshot ?? "");
+  const clearsSignature = changed && !!job.termsAcceptedAt;
+
+  const updated = await db.job.update({
+    where: { id: job.id },
+    data: {
+      termsSnapshot: text,
+      acceptToken: job.acceptToken ?? crypto.randomUUID(),
+      ...(clearsSignature
+        ? { termsAcceptedAt: null, termsSignature: null, termsPaymentMethod: null }
+        : {}),
+      ...(sendNow ? { termsSentAt: new Date() } : {}),
+    },
+  });
+
+  if (clearsSignature) {
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: admin.id,
+        body: "✍️ The customer letter was edited after it was signed — the previous signature was cleared and a new acceptance is needed.",
+      },
+    });
+  }
+  if (sendNow && job.client) sendTermsRequest(updated, job.client);
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/** Throw away the job's customized letter and re-render from the master template. */
+export async function resetJobAgreement(formData: FormData): Promise<void> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  const fresh = await renderedAgreementForJob(job);
+  const clearsSignature = !!job.termsAcceptedAt && fresh !== job.termsSnapshot;
+
+  await db.job.update({
+    where: { id: job.id },
+    data: {
+      termsSnapshot: fresh,
+      ...(clearsSignature
+        ? { termsAcceptedAt: null, termsSignature: null, termsPaymentMethod: null }
+        : {}),
+    },
+  });
+  if (clearsSignature) {
+    await db.jobNote.create({
+      data: {
+        jobId: job.id,
+        authorId: admin.id,
+        body: "✍️ The customer letter was reset to the standard template after it was signed — a new acceptance is needed.",
+      },
+    });
+  }
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Admin edits a scheduled item: customer name, address, service, date,
+ * window. If the date/window changed, the linked client and every assigned
+ * technician are told about the new time, and the change is logged as a
+ * job note.
+ */
+export async function updateJobDetails(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({
+    where: { id: jobId },
+    include: { client: true, assignments: { include: { user: true } } },
+  });
+  if (!job) return { ok: false, error: "Not found" };
+
+  const customerName = String(formData.get("customerName") ?? "").trim().slice(0, 120);
+  const address = String(formData.get("address") ?? "").trim().slice(0, 300);
+  const service = String(formData.get("service") ?? "").trim().slice(0, 200);
+  const dateRaw = String(formData.get("scheduledDate") ?? "");
+  const window = String(formData.get("window") ?? "");
+  const endRaw = String(formData.get("endDate") ?? "");
+
+  if (!customerName) return { ok: false, error: "Customer name is required" };
+  if (!address) return { ok: false, error: "Address is required" };
+  if (!service) return { ok: false, error: "Service is required" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) return { ok: false, error: "Pick a date" };
+  if (!["AM", "PM", "AM/PM"].includes(window)) return { ok: false, error: "Pick AM, PM, or AM/PM" };
+  if (endRaw && !/^\d{4}-\d{2}-\d{2}$/.test(endRaw)) return { ok: false, error: "Invalid end date" };
+
+  const scheduledAt = new Date(`${dateRaw}T${window === "PM" ? "13:00" : "08:00"}:00`);
+  const endAt = endRaw ? new Date(`${endRaw}T17:00:00`) : null;
+
+  const oldWhen = fmtWhen(job.scheduledAt, job.window);
+  const rescheduled = scheduledAt.getTime() !== job.scheduledAt.getTime() || window !== job.window;
+
+  // Keep an UNSIGNED, UNEDITED letter in sync with the new name/address/date:
+  // if the snapshot still matches what the template renders for the old
+  // details, re-render it with the new ones. A hand-edited letter is left
+  // alone (the admin can fix it on the job page).
+  let termsSnapshot = job.termsSnapshot;
+  if (job.termsSnapshot && !job.termsAcceptedAt) {
+    const oldRender = await renderedAgreementForJob(job);
+    if (job.termsSnapshot === oldRender) {
+      termsSnapshot = await renderedAgreementForJob({ customerName, address, scheduledAt, window });
+    }
+  }
+
+  await db.job.update({
+    where: { id: job.id },
+    data: { customerName, address, service, scheduledAt, window, endAt, termsSnapshot },
+  });
+
+  if (rescheduled && job.status !== "CANCELLED" && job.status !== "COMPLETED") {
+    const newWhen = fmtWhen(scheduledAt, window);
+    await db.jobNote.create({
+      data: { jobId: job.id, authorId: admin.id, body: `🗓 Rescheduled: ${oldWhen} → ${newWhen}.` },
+    });
+
+    if (job.client) {
+      notify({
+        to: [job.client.email],
+        subject: `Your ${COMPANY.shortName} appointment has been rescheduled`,
+        body: `Hi ${job.client.name},\n\nYour ${service} appointment at ${address} has been moved.\n\nWas: ${oldWhen}\nNow: ${newWhen}\n\nIf this doesn't work for you, call us at ${COMPANY.phone}.`,
+      });
+      if (job.client.phone) {
+        notifySms({
+          to: [job.client.phone],
+          body: `${COMPANY.shortName}: your ${service} appointment moved to ${newWhen} (was ${oldWhen}). Questions? ${COMPANY.phone}`,
+        });
+      }
+      notifyPush([job.client.id], {
+        title: "Appointment rescheduled",
+        body: `${service} — now ${newWhen}`,
+        url: "/portal/client",
+      });
+    }
+    for (const { user: tech } of job.assignments) {
+      notify({
+        to: [tech.email],
+        subject: `Job rescheduled: ${customerName} — ${service}`,
+        body: `Hi ${tech.name},\n\nA job on your schedule moved.\n\nCustomer: ${customerName}\nAddress: ${address}\nWas: ${oldWhen}\nNow: ${newWhen}`,
+      });
+    }
+    if (job.assignments.length > 0) {
+      notifyPush(job.assignments.map((a) => a.user.id), {
+        title: "Job rescheduled",
+        body: `${customerName} — now ${newWhen}`,
+        url: `/portal/employee/jobs/${job.id}`,
+      });
+    }
+  }
+
+  revalidatePath("/portal", "layout");
+  return { ok: true };
+}
+
+/**
+ * Link (or change/unlink) the portal client on an existing job — for
+ * appointments created before the customer had an account. Linking a
+ * client on a job with no signed terms sends them the pricing-terms &
+ * agreement request, same as if they'd been linked at scheduling time.
+ */
+export async function setJobClient(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  if (!clientId) {
+    await db.job.update({ where: { id: jobId }, data: { clientId: null } });
+    revalidatePath("/portal", "layout");
+    return;
+  }
+
+  const client = await db.user.findFirst({ where: { id: clientId, role: "CLIENT" } });
+  if (!client) throw new Error("Invalid client");
+
+  const needsTerms = !job.termsAcceptedAt && job.status !== "CANCELLED" && job.status !== "COMPLETED";
+  const updated = await db.job.update({
+    where: { id: jobId },
+    data: {
+      clientId: client.id,
+      ...(needsTerms
+        ? {
+            acceptToken: job.acceptToken ?? crypto.randomUUID(),
+            termsSentAt: new Date(),
+            termsSnapshot: job.termsSnapshot?.trim() ? job.termsSnapshot : await renderedAgreementForJob(job),
+          }
+        : {}),
+    },
+  });
+  if (needsTerms) sendTermsRequest(updated, client);
+
+  revalidatePath("/portal", "layout");
+}
+
+/**
+ * Duplicate an existing job onto a new date/window — same customer, address,
+ * service, and linked client. Assignments and notes don't copy (jobs are
+ * usually assigned day-of); the terms request goes out fresh for the new
+ * visit like any newly scheduled job.
+ */
+export async function duplicateJob(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+  const dateRaw = String(formData.get("scheduledDate") ?? "");
+  const window = String(formData.get("window") ?? "AM");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) throw new Error("Pick a date for the copy");
+  if (!["AM", "PM", "AM/PM"].includes(window)) throw new Error("Pick a window");
+
+  const source = await db.job.findUnique({ where: { id: jobId }, include: { client: true } });
+  if (!source) throw new Error("Not found");
+
+  const scheduledAt = new Date(`${dateRaw}T${window === "PM" ? "13:00" : "08:00"}:00`);
+  const copy = await db.job.create({
+    data: {
+      customerName: source.customerName,
+      address: source.address,
+      service: source.service,
+      kind: source.kind,
+      scheduledAt,
+      window,
+      clientId: source.clientId,
+      ...(source.clientId
+        ? {
+            acceptToken: crypto.randomUUID(),
+            termsSentAt: new Date(),
+            // Fresh letter for the new visit — rendered with the NEW date.
+            termsSnapshot: await renderedAgreementForJob({
+              customerName: source.customerName,
+              address: source.address,
+              scheduledAt,
+              window,
+            }),
+          }
+        : {}),
+    },
+    include: { client: true },
+  });
+  if (copy.acceptToken && copy.client) sendTermsRequest(copy, copy.client);
+
+  revalidatePath("/portal", "layout");
+  redirect(`/portal/admin/jobs/${copy.id}`);
+}
+
+/** Permanently deletes a job — notes, attachments, and assignments cascade with it. Admin only. */
+export async function deleteJob(formData: FormData): Promise<void> {
+  await actionRole("ADMIN");
+  const jobId = String(formData.get("jobId") ?? "");
+
+  const job = await db.job.findUnique({ where: { id: jobId } });
+  if (!job) throw new Error("Not found");
+
+  await db.job.delete({ where: { id: jobId } });
+  revalidatePath("/portal", "layout");
+  redirect("/portal/admin/schedule");
+}

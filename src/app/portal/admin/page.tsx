@@ -1,75 +1,92 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { PageHeader, fmtDateTime } from "@/components/portal/ui";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+
+export const metadata = { title: "Admin Overview" };
 
 export default async function AdminOverview() {
   await requireRole("ADMIN");
 
-  const [openRequests, scheduled, inProgress, completed, recentRequests] =
+  const [openRequests, scheduled, inProgress, completed, recentJobs, recentRequests] =
     await Promise.all([
-      prisma.request.count({ where: { status: { in: ["NEW", "REVIEWED"] } } }),
-      prisma.job.count({ where: { status: "SCHEDULED" } }),
-      prisma.job.count({ where: { status: "IN_PROGRESS" } }),
-      prisma.job.count({ where: { status: "COMPLETED" } }),
-      prisma.request.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
+      db.quoteRequest.count({ where: { status: "NEW" } }),
+      db.job.count({ where: { status: "SCHEDULED" } }),
+      db.job.count({ where: { status: "IN_PROGRESS" } }),
+      db.job.count({ where: { status: "COMPLETED" } }),
+      db.job.findMany({
+        orderBy: { scheduledAt: "desc" },
+        take: 6,
+        include: { assignments: { include: { user: { select: { name: true } } } } },
       }),
+      db.quoteRequest.findMany({ where: { status: "NEW" }, orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
 
   const tiles = [
-    { label: "Open Requests", value: openRequests, href: "/portal/admin/requests" },
+    { label: "Open Requests", value: openRequests, href: "/portal/admin/requests", accent: true },
     { label: "Scheduled", value: scheduled, href: "/portal/admin/schedule" },
     { label: "In Progress", value: inProgress, href: "/portal/admin/schedule" },
     { label: "Completed", value: completed, href: "/portal/admin/schedule" },
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Overview"
-        subtitle="A snapshot of activity. Cancelled jobs are not counted as active."
-      />
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-navy">Overview</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((t) => (
-          <Link key={t.label} href={t.href} className="card p-5 transition hover:shadow-soft">
-            <p className="text-sm text-navy-500">{t.label}</p>
-            <p className="mt-2 text-3xl font-bold text-navy-900">{t.value}</p>
+          <Link key={t.label} href={t.href} className="card transition hover:-translate-y-0.5 hover:shadow-lg">
+            <p className={`text-3xl font-extrabold ${t.accent ? "text-accent-600" : "text-navy"}`}>{t.value}</p>
+            <p className="mt-1 text-sm font-medium text-gray-600">{t.label}</p>
           </Link>
         ))}
       </div>
 
-      <div className="card mt-6 p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-navy-900">Latest Requests</h2>
-          <Link href="/portal/admin/requests" className="text-sm text-accent hover:underline">
-            View all →
-          </Link>
-        </div>
-        {recentRequests.length === 0 ? (
-          <p className="text-sm text-navy-500">No requests yet.</p>
-        ) : (
-          <ul className="divide-y divide-navy-100">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="card">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-navy">New Requests</h2>
+            <Link href="/portal/admin/requests" className="text-sm font-medium text-accent-600 hover:underline">
+              View all
+            </Link>
+          </div>
+          <ul className="mt-4 divide-y divide-gray-100">
+            {recentRequests.length === 0 && <li className="py-3 text-sm text-gray-500">No open requests.</li>}
             {recentRequests.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-navy-900">
-                    {r.name} · {r.serviceNeeded}
-                  </p>
-                  <p className="truncate text-xs text-navy-500">
-                    {r.phone} · {r.email}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-navy-400">
-                  {fmtDateTime(r.createdAt)}
-                </span>
+              <li key={r.id} className="py-3 text-sm">
+                <p className="font-semibold text-navy">{r.name} · {r.service}</p>
+                <p className="mt-0.5 text-gray-500">{fmtDateTime(r.createdAt)} · {r.phone}</p>
               </li>
             ))}
           </ul>
-        )}
+        </section>
+
+        <section className="card">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-navy">Recent Jobs</h2>
+            <Link href="/portal/admin/schedule" className="text-sm font-medium text-accent-600 hover:underline">
+              Full schedule
+            </Link>
+          </div>
+          <ul className="mt-4 divide-y divide-gray-100">
+            {recentJobs.length === 0 && <li className="py-3 text-sm text-gray-500">No jobs yet.</li>}
+            {recentJobs.map((j) => (
+              <li key={j.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <div>
+                  <Link href={`/portal/admin/jobs/${j.id}`} className="font-semibold text-navy hover:underline">
+                    {j.customerName} · {j.service}
+                  </Link>
+                  <p className="mt-0.5 text-gray-500">
+                    {fmtWhen(j.scheduledAt, j.window)} · {j.assignments.length > 0 ? j.assignments.map((a) => a.user.name).join(", ") : "Unassigned"}
+                  </p>
+                </div>
+                <JobStatusBadge status={j.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
-    </>
+    </div>
   );
 }

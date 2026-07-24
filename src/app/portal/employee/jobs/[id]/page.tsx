@@ -1,132 +1,245 @@
 import { notFound } from "next/navigation";
+import { requireRole } from "@/lib/guards";
+import { db } from "@/lib/db";
+import { fmtDateTime, fmtWhen } from "@/lib/queries";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/session";
-import { JobStatusBadge, fmtDate, fmtDateTime } from "@/components/portal/ui";
-import { updateJobStatus, addJobNote } from "../../actions";
+import { updateJobStatus, addJobNote, deleteJobNote, notifyOnMyWay, askNextUp, officeLineCallAction } from "@/lib/actions/jobs";
+import { createTicketDraft } from "@/lib/actions/tickets";
+import ActionForm from "@/components/portal/ActionForm";
+import { addCustomerNote } from "@/lib/actions/clients";
+import { JobStatusBadge } from "@/components/portal/StatusBadge";
+import Attachments, { PhotoInput } from "@/components/portal/Attachments";
 
-export default async function JobDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export const metadata = { title: "Job" };
+
+export default async function EmployeeJobDetail({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireRole("EMPLOYEE", "ADMIN");
   const { id } = await params;
 
-  const job = await prisma.job.findUnique({
-    where: { id },
+  // Scoped lookup: a job id that isn't assigned to this employee is a 404 —
+  // the data never leaves the server.
+  const job = await db.job.findFirst({
+    where: user.role === "ADMIN" ? { id } : { id, assignments: { some: { userId: user.id } } },
     include: {
+      client: { select: { id: true, name: true, phone: true, email: true } },
+      tickets: {
+        orderBy: { createdAt: "asc" },
+        include: { tech: { select: { id: true, name: true } } },
+      },
       notes: {
         orderBy: { createdAt: "desc" },
-        include: { author: { select: { name: true } } },
+        include: { author: { select: { id: true, name: true } }, attachments: true },
       },
-      client: { select: { name: true } },
     },
   });
-
-  // Server-side ownership check — employees can only open their own jobs.
   if (!job) notFound();
-  if (user.role === "EMPLOYEE" && job.technicianId !== user.id) notFound();
+
+  const customerNotes = job.client
+    ? await db.customerNote.findMany({
+        where: { clientId: job.client.id },
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { name: true } } },
+      })
+    : [];
 
   return (
-    <>
-      <Link href="/portal/employee" className="text-sm text-accent hover:underline">
-        ← Back to schedule
-      </Link>
-
-      <div className="card mt-4 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-navy-900">{job.customerName}</h1>
-          <JobStatusBadge status={job.status} />
-        </div>
-        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-navy-400">Service needed</dt>
-            <dd className="font-medium text-navy-900">{job.serviceNeeded}</dd>
-          </div>
-          <div>
-            <dt className="text-navy-400">Appointment</dt>
-            <dd className="font-medium text-navy-900">
-              {fmtDate(job.scheduledDate)} · {job.scheduledTime}
-            </dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="text-navy-400">Address</dt>
-            <dd className="font-medium text-navy-900">{job.address}</dd>
-          </div>
-        </dl>
-
-        {job.status === "CANCELLED" && (
-          <p className="mt-4 rounded-lg bg-navy-50 p-3 text-sm text-navy-600">
-            This job was cancelled{job.cancelReason ? `: ${job.cancelReason}` : "."}
-          </p>
-        )}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-navy">{job.customerName} · {job.service}</h1>
+        <JobStatusBadge status={job.status} />
       </div>
 
-      {/* Update status */}
-      {job.status !== "CANCELLED" && (
-        <div className="card mt-6 p-6">
-          <h2 className="mb-3 text-lg font-semibold text-navy-900">Update Status</h2>
-          <form action={updateJobStatus} className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="jobId" value={job.id} />
-            <div>
-              <label className="label">Status</label>
-              <select name="status" className="input !w-auto" defaultValue={job.status}>
-                <option value="SCHEDULED">Scheduled</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
-              </select>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="card">
+          <h2 className="font-bold text-navy">Job info</h2>
+          <dl className="mt-3 space-y-3 text-sm">
+            <div><dt className="font-medium text-gray-500">Customer</dt><dd>{job.customerName}</dd></div>
+            <div><dt className="font-medium text-gray-500">Address</dt><dd>{job.address}</dd></div>
+            <div><dt className="font-medium text-gray-500">Service needed</dt><dd>{job.service}</dd></div>
+            <div><dt className="font-medium text-gray-500">Type</dt><dd>{job.kind === "PICKUP" ? "Pickup" : "Service job"}</dd></div>
+            <div><dt className="font-medium text-gray-500">Time</dt><dd>{fmtWhen(job.scheduledAt, job.window)}{job.endAt ? ` – ${fmtDateTime(job.endAt)}` : ""}</dd></div>
+            {job.client && (
+              <div>
+                <dt className="font-medium text-gray-500">Contact</dt>
+                <dd>{job.client.phone ?? "—"} · {job.client.email}</dd>
+              </div>
+            )}
+          </dl>
+
+          {job.client?.phone && (
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <p className="label">Call the customer</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Rings <strong>your</strong> phone first, then connects the customer —
+                their caller ID shows the office number, not your cell, so they
+                actually pick up.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <ActionForm
+                  action={officeLineCallAction}
+                  submitLabel="Call via office line"
+                  pendingLabel="Connecting…"
+                  successMessage="Answer your phone — we'll connect the customer as soon as you pick up."
+                  className="[&>button]:mt-0"
+                >
+                  <input type="hidden" name="jobId" value={job.id} />
+                </ActionForm>
+                <a href={`tel:${job.client.phone.replace(/[^\d+]/g, "")}`} className="btn-small-outline">
+                  Or dial {job.client.phone} yourself
+                </a>
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="label">Completion summary (shown to client)</label>
-              <input
-                name="summary"
-                className="input"
-                placeholder="Optional — e.g. Replaced capacitor, system cooling normally."
-                defaultValue={job.summary ?? ""}
-              />
-            </div>
-            <button type="submit" className="btn-primary">Save</button>
-          </form>
-        </div>
-      )}
+          )}
 
-      {/* Notes */}
-      <div className="card mt-6 p-6">
-        <h2 className="mb-1 text-lg font-semibold text-navy-900">Job Notes</h2>
-        <p className="mb-4 text-xs text-navy-400">
-          Internal notes — visible to technicians and admins only, never to clients.
-        </p>
+          {job.status !== "CANCELLED" && (
+            <form action={updateJobStatus} className="mt-5 space-y-3 border-t border-gray-100 pt-4">
+              <input type="hidden" name="jobId" value={job.id} />
+              <div>
+                <label htmlFor="status" className="label">Update status</label>
+                <select id="status" name="status" defaultValue={job.status} className="input">
+                  <option value="SCHEDULED">Scheduled</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="summary" className="label">Work summary (shown to the customer when completed)</label>
+                <textarea id="summary" name="summary" rows={2} defaultValue={job.summary ?? ""} className="input" />
+              </div>
+              <button type="submit" className="btn-small">Save</button>
+            </form>
+          )}
 
-        {job.status !== "CANCELLED" && (
-          <form action={addJobNote} className="mb-4 space-y-2">
-            <input type="hidden" name="jobId" value={job.id} />
-            <textarea
-              name="body"
-              rows={3}
-              className="input"
-              placeholder="Add a timestamped note…"
-              required
-            />
-            <button type="submit" className="btn-navy btn-sm">Add Note</button>
-          </form>
-        )}
-
-        {job.notes.length === 0 ? (
-          <p className="text-sm text-navy-500">No notes yet.</p>
-        ) : (
-          <ul className="space-y-3">
-            {job.notes.map((n) => (
-              <li key={n.id} className="border-l-2 border-navy-100 pl-3">
-                <p className="text-xs text-navy-400">
-                  {n.author.name} · {fmtDateTime(n.createdAt)}
+          {job.status !== "CANCELLED" && job.status !== "COMPLETED" && job.client && (
+            <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+              <form action={notifyOnMyWay}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <label htmlFor="eta" className="label">Let the customer know you&apos;re on the way</label>
+                <div className="flex items-end gap-2">
+                  <input id="eta" name="eta" placeholder="ETA e.g. 20 minutes (optional)" className="input flex-1" />
+                  <button type="submit" className="btn-small">On my way</button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Emails + texts the customer that you&apos;re on the way and to
+                  answer your upcoming call.
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-navy-700">{n.body}</p>
+              </form>
+
+              <form action={askNextUp}>
+                <input type="hidden" name="jobId" value={job.id} />
+                <label className="label">Confirm before you head over</label>
+                {job.confirmStatus === "READY" ? (
+                  <p className="text-sm font-medium text-green-700">✅ Customer confirmed: ready now.</p>
+                ) : job.confirmStatus === "WAIT" ? (
+                  <p className="text-sm font-medium text-amber-700">⏳ Customer asked to wait — follow up before going.</p>
+                ) : job.confirmStatus === "ASKED" ? (
+                  <p className="text-sm text-gray-500">Asked — waiting for the customer to respond.</p>
+                ) : null}
+                <button type="submit" className="btn-small mt-1">
+                  {job.confirmStatus ? "Ask again: are you next-ready?" : "Ask customer: ready to be next?"}
+                </button>
+                <p className="mt-1 text-xs text-gray-500">
+                  Texts/emails the customer a link to confirm now or ask to wait.
+                </p>
+              </form>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <h2 className="font-bold text-navy">Service ticket</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            The field ticket for this visit — time, readings, work performed,
+            parts, and photos. It drives the bill.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {job.tickets.length === 0 && (
+              <li className="text-sm text-gray-500">No ticket yet for this job.</li>
+            )}
+            {job.tickets.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy-50 p-3 text-sm">
+                <div>
+                  <p className="font-semibold text-navy">Ticket #{t.ticketNumber}</p>
+                  <p className="text-xs text-gray-500">
+                    {t.tech.name} · {t.status === "DRAFT" ? "Draft" : `Submitted${t.total != null ? ` · $${Number(t.total).toFixed(2)}` : ""}`}
+                  </p>
+                </div>
+                {(user.role === "ADMIN" || t.tech.id === user.id) && (
+                  <Link href={`/portal/employee/tickets/${t.id}`} className="btn-small-outline whitespace-nowrap">
+                    {t.status === "DRAFT" ? "Continue" : "View"}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
-        )}
+          {job.status !== "CANCELLED" && (
+            <form action={createTicketDraft} className="mt-3">
+              <input type="hidden" name="jobId" value={job.id} />
+              <button type="submit" className="btn-small">
+                Start ticket for this job
+              </button>
+            </form>
+          )}
+        </section>
+
+        <section className="card">
+          <h2 className="font-bold text-navy">Job notes</h2>
+          <p className="mt-1 text-xs text-gray-500">Timestamped — visible to you and the office, never the customer.</p>
+          <form action={addJobNote} className="mt-3">
+            <input type="hidden" name="jobId" value={job.id} />
+            <textarea name="body" rows={2} placeholder="Add a note…" className="input" />
+            <div className="mt-2 flex items-center justify-between">
+              <PhotoInput />
+              <button type="submit" className="btn-small">Add note</button>
+            </div>
+          </form>
+          <ul className="mt-4 space-y-3">
+            {job.notes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
+            {job.notes.map((n) => (
+              <li key={n.id} className="rounded-lg bg-navy-50 p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                  {(user.role === "ADMIN" || n.author.id === user.id) && (
+                    <form action={deleteJobNote}>
+                      <input type="hidden" name="noteId" value={n.id} />
+                      <button type="submit" className="whitespace-nowrap text-xs font-medium text-red-600 hover:underline">
+                        Delete
+                      </button>
+                    </form>
+                  )}
+                </div>
+                <Attachments items={n.attachments} />
+                <p className="mt-1 text-xs text-gray-500">{n.author.name} · {fmtDateTime(n.createdAt)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="card">
+          <h2 className="font-bold text-navy">Customer notes</h2>
+          <p className="mt-1 text-xs text-gray-500">Internal history for this customer (staff only).</p>
+          {job.client ? (
+            <>
+              <form action={addCustomerNote} className="mt-3 space-y-2">
+                <input type="hidden" name="clientId" value={job.client.id} />
+                <textarea name="body" required rows={2} placeholder="Add a customer note…" className="input" />
+                <button type="submit" className="btn-small">Add</button>
+              </form>
+              <ul className="mt-4 space-y-3">
+                {customerNotes.length === 0 && <li className="text-sm text-gray-500">No notes yet.</li>}
+                {customerNotes.map((n) => (
+                  <li key={n.id} className="rounded-lg bg-amber-50 p-3 text-sm">
+                    <p className="whitespace-pre-wrap text-gray-800">{n.body}</p>
+                    <p className="mt-1 text-xs text-gray-500">{n.author.name} · {fmtDateTime(n.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-gray-500">This job isn&apos;t linked to a portal client.</p>
+          )}
+        </section>
       </div>
-    </>
+    </div>
   );
 }
