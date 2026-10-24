@@ -52,3 +52,7 @@ npm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# python (van-app)
+__pycache__/
+*.pyc

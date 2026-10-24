@@ -396,3 +396,15 @@ export async function deleteDocument(formData: FormData) {
   }
   revalidatePath("/portal/admin/payments");
 }
+
+// ---------- Van terminals ----------
+
+export async function revokeVanDevice(formData: FormData) {
+  await assertRole("ADMIN");
+  const id = String(formData.get("id"));
+  await prisma.vanDevice.updateMany({
+    where: { id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  revalidatePath("/portal/admin/devices");
+}

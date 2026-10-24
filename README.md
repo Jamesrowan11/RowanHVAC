@@ -166,6 +166,25 @@ Admins and employees can start threads with anyone (recipient picker); clients
 can only message "the company" and never see a staff directory. Membership is
 enforced server-side.
 
+## Van terminals (Toughbook desktop app)
+
+`van-app/` is an offline-first **desktop app** for the technicians' Panasonic
+Toughbook CF-29 laptops (Python 3.4+/Tkinter, so it runs on Windows XP). Each
+van keeps a local copy of its tech's jobs, works without signal, and syncs
+through this portal, so every van and the office see the same jobs, statuses,
+and notes. Install steps and details: [`van-app/README.md`](van-app/README.md).
+
+- API (part of the portal, nothing extra to deploy): `POST /api/van/v1/login`,
+  `/api/van/v1/sync`, `/api/van/v1/logout`. Vans authenticate with a per-device
+  bearer token (only its hash is stored, in `VanDevice`).
+- Same access rules as the employee dashboard: a van only sees and changes jobs
+  assigned to its tech, and can't move a cancelled job.
+- Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle
+  for 30 days stop working.
+- The portal must be served over **HTTPS** (on Plesk: *SSL/TLS Certificates →
+  Let's Encrypt* for the portal's domain). The app ships the Let's Encrypt root
+  certificates because Windows XP doesn't have them.
+
 ## Inbound email webhook
 
 `POST /api/email/inbound` accepts a JSON body
@@ -210,6 +229,7 @@ server.js               # Passenger entry point for the portal on cPanel
 .cpanel.yml             # cPanel Git deployment tasks (portal + optional public)
 scripts/cpanel-deploy.sh# portal: install → migrate → build → restart
 scripts/build-public.sh # public: build static export → copy to docroot
+van-app/                # desktop app for the van Toughbooks (Python/Tkinter)
 tests/                  # Vitest unit tests
 .github/workflows/      # CI + optional cPanel auto-deploy
 ```

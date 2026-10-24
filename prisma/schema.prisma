@@ -85,6 +85,9 @@ model User {
 
   // Password resets
   passwordResets PasswordResetToken[]
+
+  // Van terminals (Toughbooks) signed in as this user
+  vanDevices VanDevice[]
 }
 
 // Single-use, expiring password-reset tokens. Only a hash of the token is stored.
@@ -96,6 +99,25 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// A van terminal (e.g. a Panasonic Toughbook) signed in as a technician. The
+// device authenticates every sync with a long-lived bearer token; only a hash of
+// that token is stored. Admins can revoke a device (lost/stolen laptop) from
+// the portal, and a token unused for VAN_TOKEN_IDLE_DAYS stops working.
+model VanDevice {
+  id         String    @id @default(cuid())
+  name       String    @db.VarChar(120)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  appVersion String?   @db.VarChar(40)
+  lastIp     String?   @db.VarChar(64)
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
 }

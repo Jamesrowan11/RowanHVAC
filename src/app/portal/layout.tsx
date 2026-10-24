@@ -12,6 +12,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { href: "/portal/admin/payments", label: "Payments & Docs" },
     { href: "/portal/admin/email", label: "Compose Email" },
     { href: "/portal/admin/announcements", label: "Announcements" },
+    { href: "/portal/admin/devices", label: "Van Terminals" },
     { href: "/portal/messages", label: "Messages" },
     { href: "/portal/profile", label: "My Profile" },
   ],

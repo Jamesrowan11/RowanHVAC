@@ -54,6 +54,14 @@ jobs:
       - name: Build portal
         run: npm run build
 
+      # ---- Van terminal desktop app ----
+      - name: Van app tests + Python 3.4 compatibility check
+        working-directory: van-app
+        run: |
+          python3 -m unittest discover -s tests -v
+          pip install vermin
+          vermin -t=3.4- --no-tips --violations rowanvan RowanVan.pyw
+
       # ---- Public static site ----
       - name: Install public-site dependencies
         working-directory: public-site
