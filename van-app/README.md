@@ -11,9 +11,9 @@ office using the web portal, sees the same jobs, statuses, and notes.
 | --- | --- |
 | ![Messages](docs/messages.png) | ![Email](docs/email.png) |
 
-| Manuals |
-| --- |
-| ![Manuals](docs/manuals.png) |
+| Manuals | Vehicle (OBD-II) |
+| --- | --- |
+| ![Manuals](docs/manuals.png) | ![Vehicle](docs/vehicle.png) |
 
 ## What a tech can do
 
@@ -33,6 +33,9 @@ office using the web portal, sees the same jobs, statuses, and notes.
   tabs** (e.g. Carrier → 24ACC6). Tap **Open Manual** to view it; once opened,
   it stays on the laptop and works with no signal. **Download All** saves the
   whole library (best on shop Wi-Fi).
+- **Vehicle (OBD-II)**: with an OBD-II adapter plugged in, the van's speed is
+  logged and its engine trouble codes are read. Both go to the office admins.
+  The header shows the live speed, or **CHECK ENGINE** with the codes.
 - Read company **announcements**
 
 Changes save instantly on the laptop. The header shows **Online / OFFLINE**,
@@ -83,6 +86,54 @@ files are only downloaded when a tech opens one or taps **Download All**. Each
 download is checked (SHA-256), so a dropped connection never leaves a broken
 file. Opening needs a PDF reader on the laptop. On Windows XP install
 **Adobe Reader XI** or **Foxit Reader** (the last versions that support XP).
+
+## Vehicle speed and trouble codes (OBD-II)
+
+**What you need:** an **ELM327 OBD-II adapter** (about $15–30) for each van.
+
+- **Best for the CF-29: the RS-232 (serial cable) kind.** The CF-29 has a real
+  serial port (COM1) on the back, so there are no drivers to install and nothing
+  to pair.
+- USB adapters work too (install the adapter's USB-serial driver; it shows up
+  as COM3/COM4…). Bluetooth adapters work once paired (Windows creates a COM
+  port for them).
+- Plug the adapter into the van's OBD-II port, under the dashboard near the
+  steering column.
+
+**Set up in the app (once per van):** Menu → **Vehicle (OBD-II)**. Pick the
+port (COM1 for the serial cable), leave speed on **auto**, tap **Test
+Connection** with the ignition on, tick **Read speed and codes**, and **Save**.
+
+What happens then:
+
+- **Speed** is read every 10 seconds (adjustable: 5–60 s) and stored with
+  the time on the laptop, then uploaded with each sync. No signal? Readings
+  wait on the laptop and go up later. The van's clock being wrong is
+  corrected on upload.
+- **Trouble codes** (stored and pending, plus the check-engine light) are
+  read when the adapter connects and every 5 minutes after that. When they
+  change, a report goes to the office. The header turns red with
+  **CHECK ENGINE** and the codes. The app only *reads* codes; it never clears
+  them.
+- With the ignition off the adapter is idle ("OBD: waiting") and nothing is
+  logged.
+
+**For the admins:** Portal → **Admin → Vehicles** (admins only):
+
+- **Fleet status:** each van's last speed and time, its driver, and any
+  check-engine codes.
+- **A day's speed chart** for any van. Hover to read the speed at each moment,
+  or type a time into **Speed at time** to get the reading closest to it.
+- **Times over the speed limit** you choose (top speed and from/to times).
+- **Trouble code history** with plain-English meanings for common codes.
+- **Emails to all admins:** a **speed alert** when a van goes over
+  `SPEED_ALERT_MPH` (default 80 mph, at most one per van per hour), and an email
+  when a van reports a **new trouble code** or the check-engine light comes on.
+
+![Admin Vehicles page](docs/portal-vehicles.png)
+
+> Let your technicians know (in writing) that company vans log speed and
+> diagnostics. The app shows it openly: the live speed is always in the header.
 
 ## Email from your Roundcube mailbox
 
@@ -188,6 +239,10 @@ signed in, and any unsent changes are kept. They live in `%APPDATA%\RowanVan`
 - Point it at a local portal with `http://localhost:3000` (plain http is only
   allowed for localhost). Set `ROWANVAN_HOME` to use a separate data folder.
 - More code: `messages_tab.py`, `email_tab.py`, `manuals_tab.py` +
-  `manuals.py` (download cache), `ui_common.py` (shared look), `addresses.py`.
+  `manuals.py` (download cache), `obd.py` (ELM327 driver + speed logger),
+  `vehicle_dialog.py`, `ui_common.py` (shared look), `addresses.py`.
+- `vendor/serial` is bundled [pyserial](https://github.com/pyserial/pyserial)
+  3.5 (BSD), so the laptops need nothing but Python.
 - Server side: `src/app/api/van/v1/*`, `src/lib/vanSync.ts`, `src/lib/vanServer.ts`,
-  `src/lib/mailbox.ts`, `src/lib/manuals.ts`.
+  `src/lib/mailbox.ts`, `src/lib/manuals.ts`, `src/lib/vehicle.ts`,
+  `src/lib/vehicleAlerts.ts`.

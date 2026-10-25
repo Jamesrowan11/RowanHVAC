@@ -25,6 +25,7 @@ echo Using %PYW%
 echo Copying the app to %DEST% ...
 xcopy "%~dp0..\rowanvan" "%DEST%\rowanvan\" /E /I /Y /Q >nul
 xcopy "%~dp0..\certs" "%DEST%\certs\" /E /I /Y /Q >nul
+xcopy "%~dp0..\vendor" "%DEST%\vendor\" /E /I /Y /Q >nul
 copy /Y "%~dp0..\RowanVan.pyw" "%DEST%\RowanVan.pyw" >nul
 
 rem Shortcuts (VBScript works on every Windows version back to XP)

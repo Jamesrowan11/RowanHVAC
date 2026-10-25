@@ -11,7 +11,9 @@ if ! python3 -c "import tkinter" 2>/dev/null; then
 fi
 
 mkdir -p "$DEST"
-cp -r "$HERE/rowanvan" "$HERE/certs" "$HERE/RowanVan.pyw" "$DEST/"
+cp -r "$HERE/rowanvan" "$HERE/certs" "$HERE/vendor" "$HERE/RowanVan.pyw" "$DEST/"
+# Serial port access for the OBD-II adapter
+if ! id -nG | grep -qw dialout; then sudo usermod -aG dialout "$USER" || true; fi
 
 ENTRY="[Desktop Entry]
 Type=Application

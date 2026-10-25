@@ -5,10 +5,11 @@ import threading
 import time
 
 from . import api, manuals
-from .store import Store
+from .store import Store, utc_now_iso
 
 INTERVAL_SECONDS = 60
 BATCH = 200
+SPEED_BATCH = 1000
 
 
 class SyncEngine(threading.Thread):
@@ -53,15 +54,28 @@ def sync_once(store):
             # With changes to push, always ask for the full snapshot: if the
             # server rejected one, our optimistic local copy must be corrected.
             known_hash = None if ops else store.get("snapshot_hash")
-            resp = api.sync(server, token, ops, known_hash)
-            store.ack(resp.get("results") or [])
+            # Vehicle speed readings ride along as one batch op. They aren't
+            # in the outbox (one row per reading would bloat it); the readings
+            # are dropped locally once the server confirms the batch.
+            speeds = store.unsent_speeds(SPEED_BATCH)
+            speed_op = None
+            if speeds:
+                speed_op = {"opId": "speed-" + speeds[-1]["t"], "type": "speed.batch",
+                            "deviceNow": utc_now_iso(), "readings": speeds}
+            resp = api.sync(server, token, ops + ([speed_op] if speed_op else []), known_hash)
+            results = resp.get("results") or []
+            store.ack(results)
+            if speed_op:
+                for r in results:
+                    if r.get("opId") == speed_op["opId"] and not r.get("retry"):
+                        store.drop_speeds_through(speeds[-1]["t"])
             if ops:
                 changed = True
             if not resp.get("unchanged"):
                 store.replace_snapshot(resp.get("snapshot") or {}, resp.get("snapshotHash"))
                 manuals.prune(store)
                 changed = True
-            if len(ops) < BATCH:
+            if len(ops) < BATCH and len(speeds) < SPEED_BATCH:
                 break
     except api.SignedOut as e:
         store.sign_out()

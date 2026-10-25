@@ -17,6 +17,8 @@ from .sync import SyncEngine
 from .messages_tab import MessagesTab
 from .email_tab import EmailTab
 from .manuals_tab import ManualsTab
+from .obd import SpeedLogger
+from .vehicle_dialog import VehicleDialog
 from .ui_common import (NAVY, NAVY_LIGHT, ORANGE, WHITE, GREEN, RED, GREY, STATUS_LABELS,
                         STATUS_COLORS, VIEWS, FONT, FONT_BOLD, FONT_BIG, FONT_SMALL,
                         today_str, fmt_day, fmt_utc, big_button)
@@ -29,6 +31,9 @@ class App(object):
         self.events = queue.Queue()
         self.engine = SyncEngine(db_path(), self.events)
         self.engine.start()
+        self.obd = SpeedLogger(db_path(), self.events)
+        self.obd.start()
+        self.obd_state = {"state": "off"}
 
         root.title("Rowan HVAC - Van Terminal")
         root.geometry("1024x740")
@@ -68,6 +73,7 @@ class App(object):
 
     def quit(self):
         self.engine.stop()
+        self.obd.stop()
         self.root.destroy()
 
     def _swap(self, frame):
@@ -87,7 +93,11 @@ class App(object):
         try:
             while True:
                 kind, info = self.events.get_nowait()
-                if kind == "signed_out":
+                if kind == "obd":
+                    self.obd_state = info
+                    if isinstance(self.frame, MainScreen):
+                        self.frame.refresh_vehicle()
+                elif kind == "signed_out":
                     self.show_login("This van was signed out: " + info)
                 elif isinstance(self.frame, MainScreen):
                     self.frame.on_sync_event(kind, info)
@@ -233,6 +243,11 @@ class MainScreen(tk.Frame):
         tk.Label(bar, text="ROWAN HVAC", font=FONT_BIG, fg=WHITE, bg=NAVY).pack(side="left", padx=12, pady=6)
         tk.Label(bar, text=self.store.get("user_name", ""), font=FONT_BOLD, fg=ORANGE,
                  bg=NAVY).pack(side="left", padx=8)
+        # Live speed / check-engine indicator; tap for the vehicle settings.
+        self.vehicle_label = tk.Label(bar, font=FONT_BOLD, fg=WHITE, bg=NAVY, padx=8, pady=2,
+                                      cursor="hand2")
+        self.vehicle_label.pack(side="left", padx=4)
+        self.vehicle_label.bind("<Button-1>", lambda e: VehicleDialog(self))
         big_button(bar, "Menu", self.open_menu, bg="#2c4170").pack(side="right", padx=(4, 8), pady=6)
         self.sync_button = big_button(bar, "Sync Now", self.app.engine.sync_now, bg=ORANGE)
         self.sync_button.pack(side="right", padx=4, pady=6)
@@ -320,6 +335,7 @@ class MainScreen(tk.Frame):
         self.email_tab.refresh()
         self.manuals_tab.refresh()
         self.refresh_badges()
+        self.refresh_vehicle()
         self.refresh_status()
 
     def refresh_news(self):
@@ -492,13 +508,30 @@ class MainScreen(tk.Frame):
     def open_menu(self):
         menu = tk.Menu(self, tearoff=0, font=("Tahoma", 14))
         menu.add_command(label="Full screen (F11)", command=self.app.toggle_fullscreen)
+        menu.add_command(label="Vehicle (OBD-II)...", command=lambda: VehicleDialog(self))
         menu.add_command(label="Sign out of this van", command=self.sign_out)
         menu.add_separator()
         menu.add_command(label="Close the app", command=self.app.quit)
         menu.tk_popup(self.winfo_rootx() + self.winfo_width() - 260, self.winfo_rooty() + 60)
 
+    def refresh_vehicle(self):
+        info = self.app.obd_state
+        codes = self.store.current_codes() or {}
+        state = info.get("state")
+        if codes.get("milOn") or codes.get("stored"):
+            text = "CHECK ENGINE " + " ".join((codes.get("stored") or [])[:3])
+            self.vehicle_label.config(text=text, bg=RED, fg=WHITE)
+        elif state == "ok":
+            self.vehicle_label.config(text="{0} mph".format(info.get("mph")), bg=NAVY, fg=WHITE)
+        elif state in ("connecting", "vehicle_off"):
+            self.vehicle_label.config(text="OBD: waiting", bg=NAVY, fg="#c9d1de")
+        elif state == "error":
+            self.vehicle_label.config(text="OBD: no adapter", bg=NAVY, fg="#c9d1de")
+        else:
+            self.vehicle_label.config(text="", bg=NAVY)
+
     def sign_out(self):
-        pending = self.store.pending_count()
+        pending = self.store.pending_count() + (1 if self.store.speed_count() else 0)
         warning = "Sign out of this van?"
         if pending:
             warning += ("\n\n{0} change(s) have not been sent to the office yet and will be LOST. "

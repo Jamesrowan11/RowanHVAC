@@ -120,6 +120,9 @@ so the quote form's cross-origin POST is allowed.
 | `MAIL_SENT_FOLDER`     |    no    | Force the Sent folder name (normally auto-detected).                  |
 | `MAIL_TLS_ALLOW_SELF_SIGNED` | no | `1` if the mail server still uses Plesk's self-signed certificate.  |
 | `MAILBOX_SECRET`       |    no    | Encrypts stored mailbox passwords (defaults to a key derived from `AUTH_SECRET`). |
+| `APP_TIMEZONE`         |    no    | Company time zone for the Vehicles page (default `America/New_York`). |
+| `SPEED_ALERT_MPH`      |    no    | Email admins when a van exceeds this speed (default 80; `0` = off).   |
+| `SPEED_RETENTION_DAYS` |    no    | How long van speed readings are kept (default 365).                   |
 
 **Public site** (`public-site/.env.local`, inlined at build time):
 
@@ -198,6 +201,12 @@ Messages page). Techs can also **send email from their own Roundcube mailbox**
   Staff can open them; vans download them on demand
   (`GET /api/van/v1/manuals/:id`) and keep them for offline use. If nginx in
   Plesk rejects big uploads, raise *Apache & nginx Settings → client_max_body_size*.
+- **Vehicles (OBD-II)**: with an ELM327 adapter on the van's OBD-II port, the
+  van app logs speed every few seconds and reads trouble codes. Readings ride
+  along with each sync (`VehicleSpeed`, `VehicleCodeReport`). Admins see them
+  under **Admin → Vehicles** (fleet status, a day's speed chart, speed at a
+  given time, stretches over a limit, code history with descriptions) and get
+  emailed on speeding (`SPEED_ALERT_MPH`) and on new trouble codes.
 - Same access rules as the employee dashboard: a van only sees and changes jobs
   assigned to its tech, and can't move a cancelled job.
 - Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle

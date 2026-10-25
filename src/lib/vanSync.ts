@@ -48,6 +48,7 @@ export const SNAPSHOT_CONVERSATION_DAYS = 90;
 export const SNAPSHOT_MESSAGES_PER_CONVERSATION = 50;
 export const SNAPSHOT_DIRECTORY = 500;
 export const SNAPSHOT_MANUALS = 5000;
+export const MAX_SPEED_READINGS = 1000;
 
 export function generateDeviceToken(): { raw: string; hash: string } {
   const raw = crypto.randomBytes(32).toString("hex");
@@ -139,6 +140,29 @@ const emailOp = z.object({
   body: z.string().trim().min(1).max(20_000),
 });
 
+// Vehicle speed readings from the OBD-II adapter (not stored in the van's
+// outbox; one batch per sync). opId is derived from the last reading's time.
+const speedOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("speed.batch"),
+  deviceNow: isoDate,
+  readings: z
+    .array(z.object({ t: isoDate, mph: z.number().min(0).max(250) }))
+    .max(MAX_SPEED_READINGS),
+});
+
+// Trouble codes, sent when they change.
+const dtcCode = z.string().regex(/^[PCBU][0-3][0-9A-F]{3}$/);
+const codesOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("obd.codes"),
+  id: vanId,
+  at: isoDate,
+  milOn: z.boolean(),
+  stored: z.array(dtcCode).max(50),
+  pending: z.array(dtcCode).max(50),
+});
+
 export const opSchema = z.discriminatedUnion("type", [
   statusOp,
   noteOp,
@@ -146,6 +170,8 @@ export const opSchema = z.discriminatedUnion("type", [
   startOp,
   readOp,
   emailOp,
+  speedOp,
+  codesOp,
 ]);
 export type VanOp = z.infer<typeof opSchema>;
 
@@ -155,7 +181,8 @@ export const syncSchema = z.object({
   snapshotHash: z.string().max(64).optional(),
   // Ops are validated one by one so a single malformed op is rejected on its
   // own instead of blocking the whole outbox behind it.
-  ops: z.array(z.unknown()).max(MAX_OPS_PER_SYNC).default([]),
+  // +1: the speed batch rides along with a full batch of outbox ops.
+  ops: z.array(z.unknown()).max(MAX_OPS_PER_SYNC + 1).default([]),
 });
 
 export type OpResult = {

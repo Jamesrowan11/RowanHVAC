@@ -3,6 +3,8 @@ import { COMPANY_SIGNATURE } from "@/lib/email";
 import { notifyParticipants } from "@/lib/messaging";
 import { decryptSecret, describeMailError, sendFromMailbox } from "@/lib/mailbox";
 import { rateLimit } from "@/lib/rateLimit";
+import { alignReadings } from "@/lib/vehicle";
+import { afterCodesReport, afterSpeedBatch } from "@/lib/vehicleAlerts";
 import {
   bearerToken,
   clampNoteTime,
@@ -34,6 +36,7 @@ import type { Role } from "@prisma/client";
 
 export type VanCaller = {
   deviceId: string;
+  deviceName: string;
   user: { id: string; name: string; email: string; role: Role };
 };
 
@@ -61,6 +64,7 @@ export async function authenticateDevice(
 
   return {
     deviceId: device.id,
+    deviceName: device.name,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
   };
 }
@@ -104,6 +108,9 @@ async function applyOp(caller: VanCaller, op: VanOp): Promise<OpResult> {
       return applyMessageOp(caller, op);
     case "email.send":
       return applyEmailOp(caller, op);
+    case "speed.batch":
+    case "obd.codes":
+      return applyVehicleOp(caller, op);
   }
 }
 
@@ -308,6 +315,46 @@ async function applyEmailOp(caller: VanCaller, op: EmailOp): Promise<OpResult> {
   }
   await prisma.emailLog.update({ where: { id: op.id }, data: { status: "SENT" } });
   return { opId: op.opId, ok: true };
+}
+
+// ---------- Vehicle data (OBD-II) ----------
+
+type VehicleOp = Extract<VanOp, { type: "speed.batch" | "obd.codes" }>;
+
+async function applyVehicleOp(caller: VanCaller, op: VehicleOp): Promise<OpResult> {
+  const ok: OpResult = { opId: op.opId, ok: true };
+  const van = { deviceId: caller.deviceId, vanName: caller.deviceName, driverName: caller.user.name };
+
+  if (op.type === "speed.batch") {
+    const readings = alignReadings(op.readings, op.deviceNow);
+    if (readings.length) {
+      // skipDuplicates: a batch resent after a lost reply is ignored.
+      await prisma.vehicleSpeed.createMany({
+        data: readings.map((r) => ({ ...van, driverId: caller.user.id, recordedAt: r.recordedAt, mph: r.mph })),
+        skipDuplicates: true,
+      });
+      await afterSpeedBatch(van, readings);
+    }
+    return ok;
+  }
+
+  // obd.codes
+  if (await prisma.vehicleCodeReport.findUnique({ where: { id: op.id }, select: { id: true } })) {
+    return ok; // resent
+  }
+  const [aligned] = alignReadings([{ t: op.at, mph: 0 }], op.at);
+  const report = await prisma.vehicleCodeReport.create({
+    data: {
+      id: op.id,
+      ...van,
+      recordedAt: aligned?.recordedAt ?? new Date(),
+      milOn: op.milOn,
+      storedCodes: op.stored.join(","),
+      pendingCodes: op.pending.join(","),
+    },
+  });
+  await afterCodesReport(report);
+  return ok;
 }
 
 // ---------- Snapshot of the technician's working set ----------

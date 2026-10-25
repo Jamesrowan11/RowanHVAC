@@ -141,6 +141,39 @@ model Mailbox {
   updatedAt         DateTime @updatedAt
 }
 
+// Vehicle speed readings from a van's OBD-II adapter (van app), sent to the
+// admins' Vehicles page. Grouped by van name (the device name entered at sign
+// in), since a laptop gets a new VanDevice row each time it signs in.
+// (deviceId, recordedAt) is unique so a resent batch is ignored.
+model VehicleSpeed {
+  id         BigInt   @id @default(autoincrement())
+  deviceId   String
+  vanName    String   @db.VarChar(120)
+  driverId   String?
+  driverName String   @db.VarChar(120)
+  recordedAt DateTime @db.DateTime(3)
+  mph        Int      @db.SmallInt
+
+  @@unique([deviceId, recordedAt])
+  @@index([vanName, recordedAt])
+}
+
+// OBD-II diagnostic trouble codes reported by a van whenever they change.
+// The latest report per van is its current state ("check engine: P0301").
+model VehicleCodeReport {
+  id           String   @id // device-generated "van_..." id (idempotent resend)
+  deviceId     String
+  vanName      String   @db.VarChar(120)
+  driverName   String   @db.VarChar(120)
+  recordedAt   DateTime @db.DateTime(3)
+  milOn        Boolean
+  storedCodes  String   @db.VarChar(1000) // comma-separated, e.g. "P0301,P0420"
+  pendingCodes String   @db.VarChar(1000)
+  createdAt    DateTime @default(now())
+
+  @@index([vanName, recordedAt])
+}
+
 // Public quote / service request form submissions, and client-submitted requests.
 model Request {
   id            String        @id @default(cuid())

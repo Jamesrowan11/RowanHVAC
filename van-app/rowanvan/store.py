@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS manuals (
     id TEXT PRIMARY KEY, brand TEXT, model TEXT, equipment_type TEXT, title TEXT,
     original_name TEXT, size INTEGER, sha256 TEXT, position INTEGER
 );
+CREATE TABLE IF NOT EXISTS speed_log (t TEXT PRIMARY KEY, mph INTEGER);
 CREATE TABLE IF NOT EXISTS problems (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT, created_at TEXT,
     seen INTEGER DEFAULT 0
@@ -117,10 +118,10 @@ class Store(object):
         and van name so the next sign-in is quick)."""
         with self.conn:
             for table in ("jobs", "notes", "announcements", "outbox", "problems",
-                          "conversations", "messages", "directory", "emails", "manuals"):
+                          "conversations", "messages", "directory", "emails", "manuals", "speed_log"):
                 self.conn.execute("DELETE FROM " + table)
             for key in ("token", "user_id", "user_name", "user_email", "snapshot_hash", "last_sync",
-                        "mailbox_address"):
+                        "mailbox_address", "obd_codes", "obd_codes_sent"):
                 self.conn.execute("DELETE FROM meta WHERE key = ?", (key,))
 
     # ---- local changes (queued for the server) ----
@@ -488,6 +489,48 @@ class Store(object):
     def manual(self, manual_id):
         row = self.conn.execute("SELECT * FROM manuals WHERE id = ?", (manual_id,)).fetchone()
         return dict(row) if row else None
+
+    # ---- vehicle speed (OBD-II) ----
+
+    def add_speed(self, mph):
+        with self.conn:
+            self.conn.execute("INSERT OR REPLACE INTO speed_log (t, mph) VALUES (?, ?)",
+                              (utc_now_iso(), int(mph)))
+
+    def unsent_speeds(self, limit=1000):
+        return [{"t": r["t"], "mph": r["mph"]} for r in self.conn.execute(
+            "SELECT t, mph FROM speed_log ORDER BY t LIMIT ?", (limit,)
+        ).fetchall()]
+
+    def drop_speeds_through(self, t):
+        """Forgets readings the server has (up to and including time t)."""
+        with self.conn:
+            self.conn.execute("DELETE FROM speed_log WHERE t <= ?", (t,))
+
+    def record_codes(self, codes):
+        """Saves the latest trouble-code reading; queues a report for the
+        office only when it differs from the last one sent."""
+        key = json.dumps([bool(codes.get("milOn")), sorted(codes.get("stored") or []),
+                          sorted(codes.get("pending") or [])])
+        with self.conn:
+            self.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('obd_codes', ?)",
+                              (json.dumps(codes),))
+            last = self.conn.execute("SELECT value FROM meta WHERE key = 'obd_codes_sent'").fetchone()
+            if last and last["value"] == key:
+                return False
+            self.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('obd_codes_sent', ?)",
+                              (key,))
+            self._queue({"type": "obd.codes", "id": "van_" + new_id(), "at": utc_now_iso(),
+                         "milOn": bool(codes.get("milOn")), "stored": list(codes.get("stored") or []),
+                         "pending": list(codes.get("pending") or [])})
+            return True
+
+    def current_codes(self):
+        value = self.get("obd_codes")
+        return json.loads(value) if value else None
+
+    def speed_count(self):
+        return self.conn.execute("SELECT COUNT(*) FROM speed_log").fetchone()[0]
 
     def unseen_problems(self):
         return [dict(r) for r in self.conn.execute(
