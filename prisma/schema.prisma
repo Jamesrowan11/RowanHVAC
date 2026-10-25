@@ -88,6 +88,9 @@ model User {
 
   // Van terminals (Toughbooks) signed in as this user
   vanDevices VanDevice[]
+
+  // Staff member's own company mailbox (the one they use in Roundcube)
+  mailbox Mailbox?
 }
 
 // Single-use, expiring password-reset tokens. Only a hash of the token is stored.
@@ -120,6 +123,21 @@ model VanDevice {
   createdAt  DateTime  @default(now())
 
   @@index([userId])
+}
+
+// A staff member's own company mailbox (the account they use in Roundcube
+// webmail). Lets them send email from the van app as themselves, through the
+// company mail server, with a copy saved to their Roundcube "Sent" folder.
+// The mailbox password is encrypted at rest (AES-256-GCM, see
+// src/lib/mailbox.ts) and never sent back to any client.
+model Mailbox {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address           String   @db.VarChar(254)
+  passwordEncrypted String   @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Public quote / service request form submissions, and client-submitted requests.
@@ -243,6 +261,9 @@ model EmailLog {
   body         String      @db.Text
   status       EmailStatus @default(LOGGED)
   direction    String      @default("OUTBOUND") // OUTBOUND | INBOUND
+  // Set when sent from a staff member's own mailbox (van app) rather than the
+  // company's EMAIL_FROM address.
+  fromAddress  String?     @db.VarChar(254)
   createdAt    DateTime    @default(now())
 
   @@index([senderUserId])

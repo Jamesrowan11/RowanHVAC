@@ -5,7 +5,11 @@ keeps a local copy of each tech's jobs, so it **works with no signal**, and
 syncs with the portal on the Plesk server whenever it can. Every van, plus the
 office using the web portal, sees the same jobs, statuses, and notes.
 
-![Van app screenshot](docs/screenshot.png)
+![Jobs](docs/screenshot.png)
+
+| Messages | Email |
+| --- | --- |
+| ![Messages](docs/messages.png) | ![Email](docs/email.png) |
 
 ## What a tech can do
 
@@ -14,6 +18,13 @@ office using the web portal, sees the same jobs, statuses, and notes.
 - **Start Job**, then **Complete Job…** (with the work summary the customer sees
   in their portal history), or go **Back to Scheduled**
 - Add **job notes** (internal, never shown to customers)
+- **Messages**: the same conversations as the portal's Messages page. Reply,
+  or tap **+ New Message** to write to the office, another tech, or a customer.
+  Unread messages show on the tab, e.g. **Messages (2)**.
+- **Email**: send email **as yourself, from your company mailbox** (the one you
+  use in Roundcube at webmail.rowanheatingandair.com). Each sent email also
+  appears in your webmail **Sent** folder. On a job, **Email Customer**
+  pre-fills the customer's address.
 - Read company **announcements**
 
 Changes save instantly on the laptop. The header shows **Online / OFFLINE**,
@@ -42,6 +53,43 @@ up the moment there's a connection (it checks every 60 seconds, or tap
   Notes written in the field are always kept.
 - Jobs reassigned to another tech disappear from the old tech's van on the next
   sync.
+- Messages and emails written with no signal are queued, marked **(not sent
+  yet)** or **Waiting to send**, and go out automatically.
+
+## Email from your Roundcube mailbox
+
+Roundcube is only the web page. The mailbox itself lives on the company mail
+server (Plesk), so the app sends through that server as you:
+
+```
+ Van app ──HTTPS──► Portal ──SMTP (your login)──► mail server ──► customer
+                          └─IMAP (your login)──► your "Sent" folder (shows in Roundcube)
+```
+
+**Each tech, once:** open the **Email** tab → enter your email address and
+**the same password you use for webmail** → **Connect** (needs signal). If you
+later change your webmail password, the app will say it was rejected; just
+connect again with the new password.
+
+- Your password is checked right away, then stored **encrypted on the
+  company server**, never on the laptop. A stolen laptop can't reveal it, and
+  **Revoke** under Admin → Van Terminals also stops that laptop from sending.
+- Emails get your name and the company signature added at the bottom.
+- If the mail server is unreachable, the email waits and retries
+  automatically. If it's refused (bad address, password changed), it's marked
+  **NOT SENT** with the reason, and an orange banner tells you.
+- Every van email is also recorded in the portal's email history.
+
+**Office / server setup:** the defaults suit a standard Plesk mail setup
+(server `mail.rowanheatingandair.com`, ports 587 and 993). If yours differs,
+set `MAIL_HOST` etc. in the portal's `.env` (see `.env.example`):
+
+- Mail runs on the same Plesk server as the portal → `MAIL_HOST="localhost"`.
+- Plesk mail still uses its default self-signed certificate → either secure
+  mail with Let's Encrypt in Plesk (*Mail → Mail Settings → SSL/TLS
+  certificate for mail*) or set `MAIL_TLS_ALLOW_SELF_SIGNED="1"`.
+- The right server name is shown in Plesk under *Mail → (mailbox) → Mail
+  client settings*.
 
 ## Install on a CF-29
 
@@ -111,4 +159,7 @@ signed in, and any unsent changes are kept. They live in `%APPDATA%\RowanVan`
 - Tests: `python -m unittest discover -s tests`
 - Point it at a local portal with `http://localhost:3000` (plain http is only
   allowed for localhost). Set `ROWANVAN_HOME` to use a separate data folder.
-- Server side: `src/app/api/van/v1/*`, `src/lib/vanSync.ts`, `src/lib/vanServer.ts`.
+- More code: `messages_tab.py`, `email_tab.py`, `ui_common.py` (shared look),
+  `addresses.py`.
+- Server side: `src/app/api/van/v1/*`, `src/lib/vanSync.ts`, `src/lib/vanServer.ts`,
+  `src/lib/mailbox.ts`.

@@ -39,6 +39,10 @@ class FakeServer(object):
         self.cancelled = False
         self.calls = []
         self.offline = False
+        self.conversations = {}  # id -> {"subject", "messages": [...], "lastReadAt"}
+        self.emails = []
+        self.mail_down = False
+        self.mail_rejects = False
 
     def __call__(self, server, token, ops, snapshot_hash):
         self.calls.append({"ops": ops, "hash": snapshot_hash})
@@ -51,6 +55,28 @@ class FakeServer(object):
                     results.append({"opId": op["opId"], "ok": False, "error": "Job cancelled"})
                     continue
                 self.status = op["status"]
+            elif op["type"] == "msg.start":
+                if op["recipientIds"] == ["gone"]:
+                    results.append({"opId": op["opId"], "ok": False, "error": "Nobody to send to"})
+                    continue
+                self.conversations.setdefault(op["conversationId"], {
+                    "subject": op.get("subject"), "lastReadAt": None,
+                    "messages": [{"id": op["id"], "body": op["body"], "mine": True}]})
+            elif op["type"] == "msg.send":
+                msgs = self.conversations[op["conversationId"]]["messages"]
+                if op["id"] not in [m["id"] for m in msgs]:
+                    msgs.append({"id": op["id"], "body": op["body"], "mine": True})
+            elif op["type"] == "msg.read":
+                self.conversations[op["conversationId"]]["lastReadAt"] = "2026-10-25T23:59:59.000Z"
+            elif op["type"] == "email.send":
+                if self.mail_down:
+                    results.append({"opId": op["opId"], "ok": False, "retry": True, "error": "Mail server down"})
+                    continue
+                if self.mail_rejects:
+                    results.append({"opId": op["opId"], "ok": False, "error": "Password rejected"})
+                    continue
+                if op["id"] not in [e["id"] for e in self.emails]:
+                    self.emails.append(op)
             else:
                 if op["id"] not in [n["id"] for n in self.notes]:
                     self.notes.append({"id": op["id"], "body": op["body"], "authorName": "Tech One",
@@ -58,13 +84,22 @@ class FakeServer(object):
             results.append({"opId": op["opId"], "ok": True})
         status = "CANCELLED" if self.cancelled else self.status
         snap = snapshot(status=status, notes=list(self.notes))
-        h = "h-" + status + "-" + str(len(self.notes))
+        snap["conversations"] = [{
+            "id": cid, "subject": c["subject"], "updatedAt": "2026-10-25T12:00:00.000Z",
+            "lastReadAt": c["lastReadAt"], "participants": ["Office"],
+            "messages": [dict(m, senderName="Tech One" if m["mine"] else "Office",
+                              createdAt="2026-10-25T12:00:00.000Z") for m in c["messages"]],
+        } for cid, c in sorted(self.conversations.items())]
+        snap["directory"] = [{"id": "admin1", "name": "Office", "role": "ADMIN"}]
+        snap["mailbox"] = {"address": "jake@rowanheatingandair.com"}
+        h = "h-" + status + "-" + str(len(self.notes)) + "-" + repr(sorted(
+            (k, len(c["messages"]), c["lastReadAt"]) for k, c in self.conversations.items()))
         if snapshot_hash == h:
             return {"ok": True, "results": results, "snapshotHash": h, "unchanged": True}
         return {"ok": True, "results": results, "snapshotHash": h, "unchanged": False, "snapshot": snap}
 
 
-class SyncTests(unittest.TestCase):
+class StoreTestCase(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         self.store = Store(os.path.join(self.dir, "t.db"))
@@ -79,6 +114,9 @@ class SyncTests(unittest.TestCase):
         self.store.close()
         shutil.rmtree(self.dir)
 
+
+
+class SyncTests(StoreTestCase):
     def test_first_sync_downloads_jobs(self):
         self.assertEqual(sync.sync_once(self.store), ("synced", {"changed": True}))
         jobs = self.store.jobs("today", TODAY)
@@ -89,7 +127,7 @@ class SyncTests(unittest.TestCase):
     def test_unchanged_sync_sends_hash_and_keeps_data(self):
         sync.sync_once(self.store)
         self.assertEqual(sync.sync_once(self.store), ("synced", {"changed": False}))
-        self.assertEqual(self.server.calls[-1]["hash"], "h-SCHEDULED-0")
+        self.assertEqual(self.server.calls[-1]["hash"], "h-SCHEDULED-0-[]")
         self.assertEqual(len(self.store.jobs("today", TODAY)), 1)
 
     def test_offline_changes_show_locally_then_upload(self):
@@ -159,6 +197,85 @@ class SyncTests(unittest.TestCase):
         self.assertIsNone(self.store.get("token"))
         self.assertEqual(self.store.jobs("open", TODAY), [])
         self.assertEqual(self.store.get("server"), "https://portal.example.com")
+
+
+class MessagingTests(StoreTestCase):
+    def test_start_conversation_and_reply_offline(self):
+        sync.sync_once(self.store)
+        self.assertEqual(self.store.directory()[0]["name"], "Office")
+        self.server.offline = True
+        conv = self.store.start_conversation([("admin1", "Office")], "Parts", "Need a capacitor", "Tech One")
+        self.store.send_message(conv, "Never mind, found one", "Tech One")
+        sync.sync_once(self.store)
+        msgs = self.store.messages(conv)
+        self.assertEqual([m["pending"] for m in msgs], [1, 1])
+        self.assertEqual(self.store.conversations()[0]["participants"], ["Office"])
+
+        self.server.offline = False
+        sync.sync_once(self.store)
+        self.assertEqual(len(self.server.conversations[conv]["messages"]), 2)
+        self.assertEqual([m["pending"] for m in self.store.messages(conv)], [0, 0])
+        self.assertEqual(self.store.conversation(conv)["pending"], 0)
+        self.assertEqual(self.store.pending_count(), 0)
+
+    def test_incoming_message_is_unread_until_opened(self):
+        self.server.conversations["c1"] = {"subject": None, "lastReadAt": None, "messages": [
+            {"id": "m1", "body": "Can you take a call in Fulton?", "mine": False}]}
+        sync.sync_once(self.store)
+        self.assertEqual(self.store.unread_total(), 1)
+        self.store.mark_read("c1")
+        self.assertEqual(self.store.unread_total(), 0)
+        sync.sync_once(self.store)  # server's read marker comes back
+        self.assertEqual(self.store.unread_total(), 0)
+        self.assertEqual(self.server.conversations["c1"]["lastReadAt"], "2026-10-25T23:59:59.000Z")
+
+    def test_new_thread_is_read_without_queueing_a_marker(self):
+        self.server.offline = True
+        conv = self.store.start_conversation([("admin1", "Office")], "", "Hi", "Tech One")
+        self.store.mark_read(conv)
+        self.assertEqual(self.store.pending_count(), 1)
+
+    def test_rejected_new_thread_is_removed_and_reported(self):
+        sync.sync_once(self.store)
+        conv = self.store.start_conversation([("gone", "Old Tech")], "", "Hello?", "Tech One")
+        sync.sync_once(self.store)
+        self.assertIsNone(self.store.conversation(conv))
+        self.assertEqual(self.store.messages(conv), [])
+        self.assertEqual([p["message"] for p in self.store.unseen_problems()], ["Nobody to send to"])
+
+
+class EmailTests(StoreTestCase):
+    def test_email_waits_while_mail_server_is_down_then_sends(self):
+        sync.sync_once(self.store)
+        self.assertEqual(self.store.get("mailbox_address"), "jake@rowanheatingandair.com")
+        self.server.mail_down = True
+        email_id = self.store.queue_email(["pat@example.com"], "Your visit", "All done")
+        sync.sync_once(self.store)
+        e = self.store.emails()[0]
+        self.assertEqual((e["state"], e["error"]), ("waiting", "Mail server down"))
+        self.assertEqual(self.store.pending_count(), 1)
+        self.assertEqual(self.store.unseen_problems(), [])  # temporary: no banner
+
+        self.server.mail_down = False
+        sync.sync_once(self.store)
+        self.assertEqual(self.store.emails()[0]["state"], "sent")
+        self.assertEqual([x["id"] for x in self.server.emails], [email_id])
+        self.assertEqual(self.store.pending_count(), 0)
+
+    def test_rejected_email_is_marked_not_sent(self):
+        sync.sync_once(self.store)
+        self.server.mail_rejects = True
+        self.store.queue_email(["pat@example.com"], "Hi", "Body")
+        sync.sync_once(self.store)
+        e = self.store.emails()[0]
+        self.assertEqual((e["state"], e["error"]), ("failed", "Password rejected"))
+        self.assertEqual(self.store.pending_count(), 0)
+        self.assertEqual(len(self.store.unseen_problems()), 1)
+
+    def test_split_addresses(self):
+        from rowanvan.addresses import split_addresses
+        self.assertEqual(split_addresses("a@x.com, b@y.org; a@x.com\nbad"),
+                         (["a@x.com", "b@y.org"], ["bad"]))
 
 
 class ServerUrlTests(unittest.TestCase):

@@ -114,6 +114,12 @@ so the quote form's cross-origin POST is allowed.
 | `RESEND_API_KEY`       |    no    | If set, email sends via Resend. If unset, email is logged to console.|
 | `UPLOAD_DIR`           |    no    | Where uploaded documents are stored (use a persistent path on cPanel).|
 | `INBOUND_EMAIL_SECRET` |    no    | Shared secret required by the inbound-email webhook.                  |
+| `MAIL_HOST`            |    no    | Company mail server for the van app's Email tab (default `mail.rowanheatingandair.com`). |
+| `MAIL_SMTP_PORT` / `MAIL_IMAP_PORT` | no | Mail ports (defaults 587 STARTTLS / 993).               |
+| `MAIL_ALLOWED_DOMAIN`  |    no    | Only mailboxes at this domain can be connected (default `rowanheatingandair.com`). |
+| `MAIL_SENT_FOLDER`     |    no    | Force the Sent folder name (normally auto-detected).                  |
+| `MAIL_TLS_ALLOW_SELF_SIGNED` | no | `1` if the mail server still uses Plesk's self-signed certificate.  |
+| `MAILBOX_SECRET`       |    no    | Encrypts stored mailbox passwords (defaults to a key derived from `AUTH_SECRET`). |
 
 **Public site** (`public-site/.env.local`, inlined at build time):
 
@@ -170,13 +176,22 @@ enforced server-side.
 
 `van-app/` is an offline-first **desktop app** for the technicians' Panasonic
 Toughbook CF-29 laptops (Python 3.4+/Tkinter, so it runs on Windows XP). Each
-van keeps a local copy of its tech's jobs, works without signal, and syncs
-through this portal, so every van and the office see the same jobs, statuses,
-and notes. Install steps and details: [`van-app/README.md`](van-app/README.md).
+van keeps a local copy of its tech's jobs and messages, works without signal,
+and syncs through this portal, so every van and the office see the same jobs,
+statuses, notes, and **messages** (the same conversations as the portal's
+Messages page). Techs can also **send email from their own Roundcube mailbox**
+(webmail.rowanheatingandair.com). Install steps and details:
+[`van-app/README.md`](van-app/README.md).
 
 - API (part of the portal, nothing extra to deploy): `POST /api/van/v1/login`,
-  `/api/van/v1/sync`, `/api/van/v1/logout`. Vans authenticate with a per-device
-  bearer token (only its hash is stored, in `VanDevice`).
+  `/api/van/v1/sync`, `/api/van/v1/mailbox`, `/api/van/v1/logout`. Vans
+  authenticate with a per-device bearer token (only its hash is stored, in
+  `VanDevice`).
+- Email from the van goes out **through the portal**, which signs in to the
+  company mail server as that tech (SMTP to send, IMAP to save a copy in their
+  Sent folder). Mailbox passwords are stored encrypted (`Mailbox` table,
+  AES-256-GCM) and never stored on the laptops. Every van email is also
+  recorded in `EmailLog`. See the `MAIL_*` settings above.
 - Same access rules as the employee dashboard: a van only sees and changes jobs
   assigned to its tech, and can't move a cancelled job.
 - Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle

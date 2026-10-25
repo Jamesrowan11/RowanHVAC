@@ -74,6 +74,37 @@ describe("parseOp", () => {
   });
 });
 
+describe("parseOp: messages and email", () => {
+  const vid = (c: string) => "van_" + c.repeat(32);
+
+  it("accepts replies, new threads, read markers and emails", () => {
+    for (const op of [
+      { opId: "m1", type: "msg.send", id: vid("1"), conversationId: "c1", body: "On my way" },
+      {
+        opId: "m2", type: "msg.start", conversationId: vid("2"), id: vid("3"),
+        recipientIds: ["u2"], subject: "Parts", body: "Need a capacitor",
+      },
+      { opId: "m3", type: "msg.read", conversationId: "c1" },
+      {
+        opId: "e1", type: "email.send", id: vid("4"), to: ["pat@example.com"],
+        subject: "Your service visit", body: "All done!",
+      },
+    ]) {
+      expect(parseOp(op)).toHaveProperty("op");
+    }
+  });
+
+  it("rejects bad email recipients, empty bodies and server-style ids", () => {
+    const bad = [
+      { opId: "e2", type: "email.send", id: vid("5"), to: ["not-an-email"], subject: "s", body: "b" },
+      { opId: "e3", type: "email.send", id: vid("6"), to: [], subject: "s", body: "b" },
+      { opId: "m4", type: "msg.send", id: vid("7"), conversationId: "c1", body: "   " },
+      { opId: "m5", type: "msg.start", conversationId: "cl_server_id", id: vid("8"), recipientIds: ["u"], body: "x" },
+    ];
+    for (const op of bad) expect(parseOp(op)).toHaveProperty("result");
+  });
+});
+
 describe("clampNoteTime", () => {
   const now = new Date("2026-10-24T12:00:00Z");
 

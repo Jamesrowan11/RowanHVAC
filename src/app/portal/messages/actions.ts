@@ -4,36 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { isParticipant } from "@/lib/messaging";
-import { sendEmail } from "@/lib/email";
+import { isParticipant, notifyParticipants } from "@/lib/messaging";
 
 export type NewThreadState = { ok: boolean; error?: string };
-
-/**
- * Notify the other participants of a conversation by email (through the email layer).
- */
-async function notifyParticipants(
-  conversationId: string,
-  senderId: string,
-  senderName: string,
-  preview: string,
-) {
-  const others = await prisma.conversationParticipant.findMany({
-    where: { conversationId, userId: { not: senderId } },
-    include: { user: { select: { email: true, active: true } } },
-  });
-  const recipients = others
-    .filter((p) => p.user.active)
-    .map((p) => p.user.email);
-  if (recipients.length === 0) return;
-
-  await sendEmail({
-    to: recipients,
-    subject: `New message from ${senderName} — Rowan portal`,
-    body: `You have a new message in your Rowan portal:\n\n"${preview.slice(0, 300)}"\n\nLog in to your portal to read and reply.`,
-    senderUserId: senderId,
-  });
-}
 
 export async function startConversation(
   _prev: NewThreadState,

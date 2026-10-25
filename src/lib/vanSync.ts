@@ -12,8 +12,8 @@ import { z } from "zod";
  *              unchanged: true } | { ..., unchanged: false, snapshot }
  *
  * Ops are idempotent so a device can safely resend them after a dropped
- * connection: notes carry a device-generated id, and status changes just set a
- * value. The snapshot is the full working set for the technician, so jobs that
+ * connection: notes, messages and emails carry a device-generated id, and
+ * status changes / read markers just set a value. The snapshot is the full working set for the technician, so jobs that
  * were reassigned or deleted simply disappear from the device — no tombstones,
  * and no reliance on the van's clock being right.
  */
@@ -32,9 +32,21 @@ export const SNAPSHOT_ANNOUNCEMENTS = 20;
 
 export const MAX_OPS_PER_SYNC = 200;
 
-// Device-generated note ids look like "van_" + 32 hex chars (a uuid4 without
-// dashes), so they can never collide with Prisma cuids.
-export const VAN_NOTE_ID = /^van_[0-9a-f]{32}$/;
+// Device-generated ids (notes, messages, conversations, emails) look like
+// "van_" + 32 hex chars (a uuid4 without dashes), so they can never collide
+// with Prisma cuids.
+export const VAN_ID = /^van_[0-9a-f]{32}$/;
+
+export const MAX_MESSAGE_RECIPIENTS = 20;
+export const MAX_EMAIL_RECIPIENTS = 25; // same cap as the portal's Compose Email
+export const EMAILS_PER_HOUR = 60;
+
+// Conversations sent to a van: the most recently active ones, each with its
+// latest messages.
+export const SNAPSHOT_CONVERSATIONS = 40;
+export const SNAPSHOT_CONVERSATION_DAYS = 90;
+export const SNAPSHOT_MESSAGES_PER_CONVERSATION = 50;
+export const SNAPSHOT_DIRECTORY = 500;
 
 export function generateDeviceToken(): { raw: string; hash: string } {
   const raw = crypto.randomBytes(32).toString("hex");
@@ -81,13 +93,59 @@ const statusOp = z.object({
 const noteOp = z.object({
   opId: z.string().min(1).max(64),
   type: z.literal("note.add"),
-  id: z.string().regex(VAN_NOTE_ID),
+  id: z.string().regex(VAN_ID),
   jobId: z.string().min(1).max(64),
   body: z.string().trim().min(1).max(10_000),
   createdAt: isoDate,
 });
 
-export const opSchema = z.discriminatedUnion("type", [statusOp, noteOp]);
+const vanId = z.string().regex(VAN_ID);
+
+// Reply in an existing conversation.
+const messageOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("msg.send"),
+  id: vanId,
+  conversationId: z.string().min(1).max(64),
+  body: z.string().trim().min(1).max(10_000),
+});
+
+// Start a new conversation (the van picks both ids so it can show the thread
+// straight away, before it reaches the server).
+const startOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("msg.start"),
+  conversationId: vanId,
+  id: vanId,
+  recipientIds: z.array(z.string().min(1).max(64)).min(1).max(MAX_MESSAGE_RECIPIENTS),
+  subject: z.string().trim().max(255).optional(),
+  body: z.string().trim().min(1).max(10_000),
+});
+
+const readOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("msg.read"),
+  conversationId: z.string().min(1).max(64),
+});
+
+// Email sent from the technician's own mailbox (see src/lib/mailbox.ts).
+const emailOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("email.send"),
+  id: vanId,
+  to: z.array(z.string().trim().email().max(254)).min(1).max(MAX_EMAIL_RECIPIENTS),
+  subject: z.string().trim().min(1).max(255),
+  body: z.string().trim().min(1).max(20_000),
+});
+
+export const opSchema = z.discriminatedUnion("type", [
+  statusOp,
+  noteOp,
+  messageOp,
+  startOp,
+  readOp,
+  emailOp,
+]);
 export type VanOp = z.infer<typeof opSchema>;
 
 export const syncSchema = z.object({
@@ -105,7 +163,18 @@ export type OpResult = {
   // A rejected op will never succeed (job cancelled, reassigned, invalid), so
   // the device should drop it from its outbox and tell the technician.
   error?: string;
+  // Temporary failure (e.g. mail server unreachable): keep the op queued and
+  // send it again on a later sync.
+  retry?: boolean;
 };
+
+export const mailboxSchema = z.union([
+  z.object({ disconnect: z.literal(true) }),
+  z.object({
+    address: z.string().trim().toLowerCase().email().max(254),
+    password: z.string().min(1).max(500),
+  }),
+]);
 
 /** Parses one raw op; returns either the op or a permanent rejection. */
 export function parseOp(raw: unknown): { op: VanOp } | { result: OpResult } {

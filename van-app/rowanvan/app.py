@@ -1,8 +1,6 @@
 """The desktop window. Laid out for the CF-29's 10.4" 1024x768 touchscreen:
 big touch targets, large type, high contrast for reading in daylight."""
 
-import calendar
-import datetime
 import queue
 import socket
 import sys
@@ -16,59 +14,11 @@ from . import VERSION, api
 from .paths import db_path
 from .store import Store
 from .sync import SyncEngine
-
-NAVY = "#1a2b4a"
-NAVY_LIGHT = "#e8ecf3"
-ORANGE = "#f57c1f"
-WHITE = "#ffffff"
-GREEN = "#1e7b34"
-RED = "#b3261e"
-GREY = "#5b6b85"
-
-STATUS_LABELS = {
-    "SCHEDULED": "Scheduled",
-    "IN_PROGRESS": "In Progress",
-    "COMPLETED": "Completed",
-    "CANCELLED": "Cancelled",
-}
-STATUS_COLORS = {
-    "SCHEDULED": "#1d4ed8",
-    "IN_PROGRESS": "#b45309",
-    "COMPLETED": GREEN,
-    "CANCELLED": GREY,
-}
-VIEWS = [("today", "Today"), ("open", "All Open"), ("upcoming", "Upcoming"), ("done", "Done")]
-
-FONT = ("Tahoma", 12)  # Tahoma ships with XP and is crisp at small sizes
-FONT_BOLD = ("Tahoma", 12, "bold")
-FONT_BIG = ("Tahoma", 18, "bold")
-FONT_SMALL = ("Tahoma", 10)
-
-
-def today_str():
-    return datetime.date.today().isoformat()
-
-
-def fmt_day(day):
-    try:
-        d = datetime.datetime.strptime(day, "%Y-%m-%d").date()
-    except (TypeError, ValueError):
-        return day or ""
-    if d == datetime.date.today():
-        return "Today"
-    if d == datetime.date.today() + datetime.timedelta(days=1):
-        return "Tomorrow"
-    return d.strftime("%a %b ") + str(d.day)
-
-
-def fmt_utc(iso):
-    """'2026-10-24T14:05:00.000Z' -> local '10/24 10:05 AM'."""
-    try:
-        t = calendar.timegm(time.strptime(iso[:19], "%Y-%m-%dT%H:%M:%S"))
-    except (TypeError, ValueError):
-        return iso or ""
-    lt = time.localtime(t)
-    return time.strftime("%m/%d ", lt) + time.strftime("%I:%M %p", lt).lstrip("0")
+from .messages_tab import MessagesTab
+from .email_tab import EmailTab
+from .ui_common import (NAVY, NAVY_LIGHT, ORANGE, WHITE, GREEN, RED, GREY, STATUS_LABELS,
+                        STATUS_COLORS, VIEWS, FONT, FONT_BOLD, FONT_BIG, FONT_SMALL,
+                        today_str, fmt_day, fmt_utc, big_button)
 
 
 class App(object):
@@ -144,13 +94,6 @@ class App(object):
             pass
         self.root.after(300, self._poll)
 
-
-def big_button(parent, text, command, bg=NAVY, fg=WHITE, **kw):
-    return tk.Button(
-        parent, text=text, command=command, bg=bg, fg=fg, activebackground=bg,
-        activeforeground=fg, font=FONT_BOLD, relief="flat", padx=16, pady=10,
-        cursor="hand2", disabledforeground="#c9d1de", **kw
-    )
 
 
 class LoginScreen(tk.Frame):
@@ -263,9 +206,16 @@ class MainScreen(tk.Frame):
         self.tabs = ttk.Notebook(self)
         self.tabs.pack(fill="both", expand=True, padx=8, pady=8)
         self.jobs_tab = tk.Frame(self.tabs, bg=NAVY_LIGHT)
+        self.messages_tab = MessagesTab(self.tabs, self)
+        self.email_tab = EmailTab(self.tabs, self)
         self.news_tab = tk.Frame(self.tabs, bg=WHITE)
         self.tabs.add(self.jobs_tab, text="  Jobs  ")
+        self.tabs.add(self.messages_tab, text="  Messages  ")
+        self.tabs.add(self.email_tab, text="  Email  ")
         self.tabs.add(self.news_tab, text="  Announcements  ")
+        # Switching to Messages counts as reading the open conversation.
+        self.tabs.bind("<<NotebookTabChanged>>", lambda e: self.tabs.select() == str(self.messages_tab)
+                       and self.messages_tab.show_detail())
         self._build_jobs_tab()
         self._build_news_tab()
 
@@ -363,6 +313,9 @@ class MainScreen(tk.Frame):
             self.tree.selection_set(jobs[0]["id"])
         self.show_detail()
         self.refresh_news()
+        self.messages_tab.refresh()
+        self.email_tab.refresh()
+        self.refresh_badges()
         self.refresh_status()
 
     def refresh_news(self):
@@ -433,8 +386,15 @@ class MainScreen(tk.Frame):
             rows.append(("Summary", job["summary"]))
         for r, (label, value) in enumerate(rows):
             tk.Label(info, text=label, font=FONT, fg=GREY, bg=WHITE, anchor="nw").grid(row=r, column=0, sticky="nw", padx=(0, 12))
-            tk.Label(info, text=value or "", font=FONT_BOLD, fg=NAVY, bg=WHITE, anchor="w",
-                     justify="left", wraplength=470).grid(row=r, column=1, sticky="w")
+            cell = tk.Frame(info, bg=WHITE)
+            cell.grid(row=r, column=1, sticky="w")
+            tk.Label(cell, text=value or "", font=FONT_BOLD, fg=NAVY, bg=WHITE, anchor="w",
+                     justify="left", wraplength=470 if label != "Email" else 300).pack(side="left")
+            if label == "Email":
+                tk.Button(cell, text="Email Customer", command=lambda: self.email_customer(job),
+                          bg=NAVY, fg=WHITE, activebackground=NAVY, activeforeground=WHITE,
+                          font=FONT_BOLD, relief="flat", padx=10, pady=2,
+                          cursor="hand2").pack(side="left", padx=(12, 0))
 
         actions = tk.Frame(self.detail, bg=WHITE)
         actions.pack(fill="x", pady=8)
@@ -509,6 +469,17 @@ class MainScreen(tk.Frame):
         self.app.engine.sync_now()
         self.show_detail()
         self.refresh_status()
+
+    def refresh_badges(self):
+        unread = self.messages_tab.unread_total()
+        self.tabs.tab(self.messages_tab, text="  Messages ({0})  ".format(unread) if unread else "  Messages  ")
+
+    def email_customer(self, job):
+        self.tabs.select(self.email_tab)
+        self.email_tab.prefill(job["client_email"], "Your Rowan HVAC service - " + (job["service_needed"] or ""))
+
+    def flash(self, message):
+        messagebox.showwarning("Rowan Van", message)
 
     def dismiss_problems(self):
         self.store.dismiss_problems()

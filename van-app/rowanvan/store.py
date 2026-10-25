@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS outbox (
     seq INTEGER PRIMARY KEY AUTOINCREMENT,
     op_id TEXT UNIQUE, payload TEXT, created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY, subject TEXT, updated_at TEXT, last_read_at TEXT,
+    participants TEXT, pending INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY, conversation_id TEXT, body TEXT, sender_name TEXT,
+    mine INTEGER, created_at TEXT, pending INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS messages_conversation ON messages (conversation_id);
+CREATE TABLE IF NOT EXISTS directory (id TEXT PRIMARY KEY, name TEXT, role TEXT, position INTEGER);
+CREATE TABLE IF NOT EXISTS emails (
+    id TEXT PRIMARY KEY, to_addrs TEXT, subject TEXT, body TEXT, created_at TEXT,
+    state TEXT, error TEXT
+);
 CREATE TABLE IF NOT EXISTS problems (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT, created_at TEXT,
     seen INTEGER DEFAULT 0
@@ -61,7 +75,8 @@ OPEN_STATUSES = ("SCHEDULED", "IN_PROGRESS")
 
 
 def utc_now_iso():
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    # Same shape as the server's timestamps so they sort together as text.
+    return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
 
 
 def new_id():
@@ -97,9 +112,11 @@ class Store(object):
         """Forget the account and all cached customer data (keeps the server URL
         and van name so the next sign-in is quick)."""
         with self.conn:
-            for table in ("jobs", "notes", "announcements", "outbox", "problems"):
+            for table in ("jobs", "notes", "announcements", "outbox", "problems",
+                          "conversations", "messages", "directory", "emails"):
                 self.conn.execute("DELETE FROM " + table)
-            for key in ("token", "user_id", "user_name", "user_email", "snapshot_hash", "last_sync"):
+            for key in ("token", "user_id", "user_name", "user_email", "snapshot_hash", "last_sync",
+                        "mailbox_address"):
                 self.conn.execute("DELETE FROM meta WHERE key = ?", (key,))
 
     # ---- local changes (queued for the server) ----
@@ -134,6 +151,74 @@ class Store(object):
                 "body": body, "createdAt": created,
             })
             return note_id
+
+    def send_message(self, conversation_id, body, my_name):
+        with self.conn:
+            msg_id = "van_" + new_id()
+            now = utc_now_iso()
+            self.conn.execute(
+                "INSERT INTO messages (id, conversation_id, body, sender_name, mine, created_at, pending)"
+                " VALUES (?, ?, ?, ?, 1, ?, 1)",
+                (msg_id, conversation_id, body, my_name, now),
+            )
+            self.conn.execute(
+                "UPDATE conversations SET updated_at = ?, last_read_at = ? WHERE id = ?",
+                (now, now, conversation_id),
+            )
+            self._queue({"type": "msg.send", "id": msg_id, "conversationId": conversation_id, "body": body})
+            return msg_id
+
+    def start_conversation(self, recipients, subject, body, my_name):
+        """recipients: list of (user_id, name). Returns the new conversation id."""
+        with self.conn:
+            conv_id = "van_" + new_id()
+            msg_id = "van_" + new_id()
+            now = utc_now_iso()
+            self.conn.execute(
+                "INSERT INTO conversations (id, subject, updated_at, last_read_at, participants, pending)"
+                " VALUES (?, ?, ?, ?, ?, 1)",
+                (conv_id, subject or None, now, now, json.dumps([n for _, n in recipients])),
+            )
+            self.conn.execute(
+                "INSERT INTO messages (id, conversation_id, body, sender_name, mine, created_at, pending)"
+                " VALUES (?, ?, ?, ?, 1, ?, 1)",
+                (msg_id, conv_id, body, my_name, now),
+            )
+            op = {"type": "msg.start", "conversationId": conv_id, "id": msg_id,
+                  "recipientIds": [i for i, _ in recipients], "body": body}
+            if subject:
+                op["subject"] = subject
+            self._queue(op)
+            return conv_id
+
+    def mark_read(self, conversation_id):
+        """Clears the unread badge now; tells the server on the next sync."""
+        with self.conn:
+            self.conn.execute(
+                "UPDATE conversations SET last_read_at = ? WHERE id = ?",
+                (utc_now_iso(), conversation_id),
+            )
+            # A thread still waiting to be created on the server is read by definition.
+            if not self._is_pending_conversation(conversation_id):
+                self._queue({"type": "msg.read", "conversationId": conversation_id})
+
+    def _is_pending_conversation(self, conversation_id):
+        row = self.conn.execute(
+            "SELECT pending FROM conversations WHERE id = ?", (conversation_id,)
+        ).fetchone()
+        return bool(row and row["pending"])
+
+    def queue_email(self, to_addrs, subject, body):
+        with self.conn:
+            email_id = "van_" + new_id()
+            self.conn.execute(
+                "INSERT INTO emails (id, to_addrs, subject, body, created_at, state)"
+                " VALUES (?, ?, ?, ?, ?, 'queued')",
+                (email_id, ", ".join(to_addrs), subject, body, utc_now_iso()),
+            )
+            self._queue({"type": "email.send", "id": email_id, "to": list(to_addrs),
+                         "subject": subject, "body": body})
+            return email_id
 
     def _apply_status(self, op):
         if op.get("status") == "COMPLETED" and op.get("summary"):
@@ -170,13 +255,40 @@ class Store(object):
                 if row is None:
                     continue
                 op = json.loads(row["payload"])
+                kind = op.get("type")
+                if r.get("retry"):
+                    # Temporary problem (e.g. mail server down): keep it queued.
+                    if kind == "email.send":
+                        self.conn.execute(
+                            "UPDATE emails SET state = 'waiting', error = ? WHERE id = ?",
+                            (r.get("error"), op["id"]),
+                        )
+                    continue
                 self.conn.execute("DELETE FROM outbox WHERE op_id = ?", (op_id,))
-                if op.get("type") == "note.add":
-                    if r.get("ok"):
+                ok = bool(r.get("ok"))
+                if kind == "note.add":
+                    if ok:
                         self.conn.execute("UPDATE notes SET pending = 0 WHERE id = ?", (op["id"],))
                     else:
                         self.conn.execute("DELETE FROM notes WHERE id = ?", (op["id"],))
-                if not r.get("ok"):
+                elif kind in ("msg.send", "msg.start"):
+                    if ok:
+                        self.conn.execute("UPDATE messages SET pending = 0 WHERE id = ?", (op["id"],))
+                    else:
+                        self.conn.execute("DELETE FROM messages WHERE id = ?", (op["id"],))
+                    if kind == "msg.start":
+                        if ok:
+                            self.conn.execute("UPDATE conversations SET pending = 0 WHERE id = ?",
+                                              (op["conversationId"],))
+                        else:
+                            self.conn.execute("DELETE FROM conversations WHERE id = ?",
+                                              (op["conversationId"],))
+                elif kind == "email.send":
+                    self.conn.execute(
+                        "UPDATE emails SET state = ?, error = ? WHERE id = ?",
+                        ("sent" if ok else "failed", None if ok else r.get("error"), op["id"]),
+                    )
+                if not ok:
                     self.conn.execute(
                         "INSERT INTO problems (message, created_at) VALUES (?, ?)",
                         (r.get("error") or "A change could not be saved.", utc_now_iso()),
@@ -204,12 +316,46 @@ class Store(object):
                     " VALUES (?, ?, ?, ?, ?)",
                     (a["id"], a.get("title"), a.get("body"), a.get("authorName"), a.get("createdAt")),
                 )
+            self.conn.execute("DELETE FROM conversations WHERE pending = 0")
+            self.conn.execute("DELETE FROM messages WHERE pending = 0")
+            for c in snapshot.get("conversations", []):
+                self.conn.execute(
+                    "INSERT OR REPLACE INTO conversations"
+                    " (id, subject, updated_at, last_read_at, participants, pending)"
+                    " VALUES (?, ?, ?, ?, ?, 0)",
+                    (c["id"], c.get("subject"), c.get("updatedAt"), c.get("lastReadAt"),
+                     json.dumps(c.get("participants") or [])),
+                )
+                for m in c.get("messages", []):
+                    self.conn.execute(
+                        "INSERT OR REPLACE INTO messages"
+                        " (id, conversation_id, body, sender_name, mine, created_at, pending)"
+                        " VALUES (?, ?, ?, ?, ?, ?, 0)",
+                        (m["id"], c["id"], m.get("body"), m.get("senderName"),
+                         1 if m.get("mine") else 0, m.get("createdAt")),
+                    )
+            self.conn.execute("DELETE FROM directory")
+            for pos, d in enumerate(snapshot.get("directory", [])):
+                self.conn.execute(
+                    "INSERT INTO directory (id, name, role, position) VALUES (?, ?, ?, ?)",
+                    (d["id"], d.get("name"), d.get("role"), pos),
+                )
+            mailbox = snapshot.get("mailbox")
+            if mailbox and mailbox.get("address"):
+                self.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('mailbox_address', ?)",
+                                  (mailbox["address"],))
+            else:
+                self.conn.execute("DELETE FROM meta WHERE key = 'mailbox_address'")
             # Changes made while this sync was in flight are still in the
             # outbox: keep showing them.
+            now = utc_now_iso()
             for row in self.conn.execute("SELECT payload FROM outbox ORDER BY seq").fetchall():
                 op = json.loads(row["payload"])
                 if op.get("type") == "job.status":
                     self._apply_status(op)
+                elif op.get("type") in ("msg.read", "msg.send"):
+                    self.conn.execute("UPDATE conversations SET last_read_at = ? WHERE id = ?",
+                                      (now, op["conversationId"]))
             user = snapshot.get("user") or {}
             for key, field in (("user_id", "id"), ("user_name", "name"), ("user_email", "email")):
                 if user.get(field):
@@ -253,6 +399,46 @@ class Store(object):
     def announcements(self):
         return [dict(r) for r in self.conn.execute(
             "SELECT * FROM announcements ORDER BY created_at DESC"
+        ).fetchall()]
+
+    def conversations(self):
+        rows = self.conn.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.mine = 0"
+            "   AND (c.last_read_at IS NULL OR m.created_at > c.last_read_at)) AS unread,"
+            " (SELECT body FROM messages m WHERE m.conversation_id = c.id"
+            "   ORDER BY m.pending DESC, m.created_at DESC LIMIT 1) AS last_body"
+            " FROM conversations c ORDER BY c.pending DESC, c.updated_at DESC"
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["participants"] = json.loads(d["participants"] or "[]")
+            result.append(d)
+        return result
+
+    def conversation(self, conversation_id):
+        for c in self.conversations():
+            if c["id"] == conversation_id:
+                return c
+        return None
+
+    def messages(self, conversation_id):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM messages WHERE conversation_id = ? ORDER BY pending, created_at, id",
+            (conversation_id,),
+        ).fetchall()]
+
+    def unread_total(self):
+        return sum(c["unread"] for c in self.conversations())
+
+    def directory(self):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM directory ORDER BY position"
+        ).fetchall()]
+
+    def emails(self, limit=50):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM emails ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()]
 
     def unseen_problems(self):
