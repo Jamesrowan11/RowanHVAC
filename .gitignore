@@ -56,3 +56,6 @@ npm-debug.log*
 # python (van-app)
 __pycache__/
 *.pyc
+
+# packaged van app zips (build output)
+/dist/
