@@ -16,6 +16,7 @@ from .store import Store
 from .sync import SyncEngine
 from .messages_tab import MessagesTab
 from .email_tab import EmailTab
+from .manuals_tab import ManualsTab
 from .ui_common import (NAVY, NAVY_LIGHT, ORANGE, WHITE, GREEN, RED, GREY, STATUS_LABELS,
                         STATUS_COLORS, VIEWS, FONT, FONT_BOLD, FONT_BIG, FONT_SMALL,
                         today_str, fmt_day, fmt_utc, big_button)
@@ -208,10 +209,12 @@ class MainScreen(tk.Frame):
         self.jobs_tab = tk.Frame(self.tabs, bg=NAVY_LIGHT)
         self.messages_tab = MessagesTab(self.tabs, self)
         self.email_tab = EmailTab(self.tabs, self)
+        self.manuals_tab = ManualsTab(self.tabs, self)
         self.news_tab = tk.Frame(self.tabs, bg=WHITE)
         self.tabs.add(self.jobs_tab, text="  Jobs  ")
         self.tabs.add(self.messages_tab, text="  Messages  ")
         self.tabs.add(self.email_tab, text="  Email  ")
+        self.tabs.add(self.manuals_tab, text="  Manuals  ")
         self.tabs.add(self.news_tab, text="  Announcements  ")
         # Switching to Messages counts as reading the open conversation.
         self.tabs.bind("<<NotebookTabChanged>>", lambda e: self.tabs.select() == str(self.messages_tab)
@@ -315,6 +318,7 @@ class MainScreen(tk.Frame):
         self.refresh_news()
         self.messages_tab.refresh()
         self.email_tab.refresh()
+        self.manuals_tab.refresh()
         self.refresh_badges()
         self.refresh_status()
 

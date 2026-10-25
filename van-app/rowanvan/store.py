@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS emails (
     id TEXT PRIMARY KEY, to_addrs TEXT, subject TEXT, body TEXT, created_at TEXT,
     state TEXT, error TEXT
 );
+CREATE TABLE IF NOT EXISTS manuals (
+    id TEXT PRIMARY KEY, brand TEXT, model TEXT, equipment_type TEXT, title TEXT,
+    original_name TEXT, size INTEGER, sha256 TEXT, position INTEGER
+);
 CREATE TABLE IF NOT EXISTS problems (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT, created_at TEXT,
     seen INTEGER DEFAULT 0
@@ -113,7 +117,7 @@ class Store(object):
         and van name so the next sign-in is quick)."""
         with self.conn:
             for table in ("jobs", "notes", "announcements", "outbox", "problems",
-                          "conversations", "messages", "directory", "emails"):
+                          "conversations", "messages", "directory", "emails", "manuals"):
                 self.conn.execute("DELETE FROM " + table)
             for key in ("token", "user_id", "user_name", "user_email", "snapshot_hash", "last_sync",
                         "mailbox_address"):
@@ -334,6 +338,14 @@ class Store(object):
                         (m["id"], c["id"], m.get("body"), m.get("senderName"),
                          1 if m.get("mine") else 0, m.get("createdAt")),
                     )
+            self.conn.execute("DELETE FROM manuals")
+            for pos, m in enumerate(snapshot.get("manuals", [])):
+                self.conn.execute(
+                    "INSERT INTO manuals (id, brand, model, equipment_type, title, original_name, size,"
+                    " sha256, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (m["id"], m.get("brand"), m.get("model"), m.get("equipmentType"), m.get("title"),
+                     m.get("originalName"), m.get("size"), m.get("sha256"), pos),
+                )
             self.conn.execute("DELETE FROM directory")
             for pos, d in enumerate(snapshot.get("directory", [])):
                 self.conn.execute(
@@ -440,6 +452,42 @@ class Store(object):
         return [dict(r) for r in self.conn.execute(
             "SELECT * FROM emails ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()]
+
+    def manuals(self, query=""):
+        """Every word of query must match brand, model, type, or title."""
+        sql = "SELECT * FROM manuals"
+        args = []
+        words = (query or "").lower().split()[:6]
+        if words:
+            sql += " WHERE " + " AND ".join(
+                "(lower(brand) LIKE ? OR lower(model) LIKE ? OR lower(equipment_type) LIKE ?"
+                " OR lower(coalesce(title, '')) LIKE ?)" for _ in words)
+            for w in words:
+                args.extend(["%" + w + "%"] * 4)
+        return [dict(r) for r in self.conn.execute(sql + " ORDER BY position", args).fetchall()]
+
+    def manual_brands(self):
+        """[(brand, count)] - one tab per brand. Grouped case-insensitively."""
+        return [(r[0], r[1]) for r in self.conn.execute(
+            "SELECT MIN(brand), COUNT(*) FROM manuals GROUP BY lower(brand) ORDER BY lower(brand)"
+        ).fetchall()]
+
+    def manual_models(self, brand):
+        """[(model, count)] for one brand - the second row of tabs."""
+        return [(r[0], r[1]) for r in self.conn.execute(
+            "SELECT MIN(model), COUNT(*) FROM manuals WHERE lower(brand) = lower(?)"
+            " GROUP BY lower(model) ORDER BY lower(model)", (brand,)
+        ).fetchall()]
+
+    def manuals_for(self, brand, model):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT * FROM manuals WHERE lower(brand) = lower(?) AND lower(model) = lower(?)"
+            " ORDER BY position", (brand, model)
+        ).fetchall()]
+
+    def manual(self, manual_id):
+        row = self.conn.execute("SELECT * FROM manuals WHERE id = ?", (manual_id,)).fetchone()
+        return dict(row) if row else None
 
     def unseen_problems(self):
         return [dict(r) for r in self.conn.execute(

@@ -192,6 +192,12 @@ Messages page). Techs can also **send email from their own Roundcube mailbox**
   Sent folder). Mailbox passwords are stored encrypted (`Mailbox` table,
   AES-256-GCM) and never stored on the laptops. Every van email is also
   recorded in `EmailLog`. See the `MAIL_*` settings above.
+- **Equipment manuals** (`Manual` table, files in `UPLOAD_DIR`): admins upload
+  them under **Manuals** (brand tabs → model tabs, up to 50 MB each, via the
+  `/portal/manuals/upload` route since server actions cap bodies at 10 MB).
+  Staff can open them; vans download them on demand
+  (`GET /api/van/v1/manuals/:id`) and keep them for offline use. If nginx in
+  Plesk rejects big uploads, raise *Apache & nginx Settings → client_max_body_size*.
 - Same access rules as the employee dashboard: a van only sees and changes jobs
   assigned to its tech, and can't move a cancelled job.
 - Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle

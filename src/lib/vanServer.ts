@@ -15,6 +15,7 @@ import {
   SNAPSHOT_CONVERSATION_DAYS,
   SNAPSHOT_CONVERSATIONS,
   SNAPSHOT_DIRECTORY,
+  SNAPSHOT_MANUALS,
   SNAPSHOT_MAX_JOBS,
   SNAPSHOT_MESSAGES_PER_CONVERSATION,
   type OpResult,
@@ -362,6 +363,17 @@ export async function buildSnapshot(caller: VanCaller) {
     select: { id: true, name: true, role: true },
   });
 
+  // The whole manuals library (metadata only; vans download the files
+  // separately, on demand or all at once on shop Wi-Fi).
+  const manuals = await prisma.manual.findMany({
+    orderBy: [{ brand: "asc" }, { model: "asc" }, { createdAt: "asc" }],
+    take: SNAPSHOT_MANUALS,
+    select: {
+      id: true, brand: true, model: true, equipmentType: true, title: true,
+      originalName: true, size: true, sha256: true,
+    },
+  });
+
   const mailbox = await prisma.mailbox.findUnique({
     where: { userId: caller.user.id },
     select: { address: true },
@@ -370,6 +382,7 @@ export async function buildSnapshot(caller: VanCaller) {
   return {
     user: caller.user,
     mailbox: mailbox ? { address: mailbox.address } : null,
+    manuals,
     directory,
     conversations: conversations.map((c) => {
       const mine = c.participants.find((p) => p.userId === caller.user.id);

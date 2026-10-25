@@ -4,7 +4,7 @@ minute, and immediately whenever the technician changes something."""
 import threading
 import time
 
-from . import api
+from . import api, manuals
 from .store import Store
 
 INTERVAL_SECONDS = 60
@@ -59,6 +59,7 @@ def sync_once(store):
                 changed = True
             if not resp.get("unchanged"):
                 store.replace_snapshot(resp.get("snapshot") or {}, resp.get("snapshotHash"))
+                manuals.prune(store)
                 changed = True
             if len(ops) < BATCH:
                 break

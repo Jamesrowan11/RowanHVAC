@@ -47,6 +47,7 @@ export const SNAPSHOT_CONVERSATIONS = 40;
 export const SNAPSHOT_CONVERSATION_DAYS = 90;
 export const SNAPSHOT_MESSAGES_PER_CONVERSATION = 50;
 export const SNAPSHOT_DIRECTORY = 500;
+export const SNAPSHOT_MANUALS = 5000;
 
 export function generateDeviceToken(): { raw: string; hash: string } {
   const raw = crypto.randomBytes(32).toString("hex");

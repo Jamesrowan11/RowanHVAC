@@ -11,6 +11,10 @@ office using the web portal, sees the same jobs, statuses, and notes.
 | --- | --- |
 | ![Messages](docs/messages.png) | ![Email](docs/email.png) |
 
+| Manuals |
+| --- |
+| ![Manuals](docs/manuals.png) |
+
 ## What a tech can do
 
 - See their jobs: **Today**, **All Open**, **Upcoming**, **Done**
@@ -25,6 +29,10 @@ office using the web portal, sees the same jobs, statuses, and notes.
   use in Roundcube at webmail.rowanheatingandair.com). Each sent email also
   appears in your webmail **Sent** folder. On a job, **Email Customer**
   pre-fills the customer's address.
+- **Manuals**: equipment manuals organized in **brand tabs**, then **model
+  tabs** (e.g. Carrier → 24ACC6). Tap **Open Manual** to view it; once opened,
+  it stays on the laptop and works with no signal. **Download All** saves the
+  whole library (best on shop Wi-Fi).
 - Read company **announcements**
 
 Changes save instantly on the laptop. The header shows **Online / OFFLINE**,
@@ -55,6 +63,26 @@ up the moment there's a connection (it checks every 60 seconds, or tap
   sync.
 - Messages and emails written with no signal are queued, marked **(not sent
   yet)** or **Waiting to send**, and go out automatically.
+
+## Equipment manuals
+
+**Office:** Portal → **Manuals** → *Upload a manual*. Enter the **brand** and
+**model number**, pick the equipment type (air conditioner, furnace, heat
+pump…), add an optional title ("Installation manual", "Wiring diagram"), and
+choose the PDF (or a photo/scan), up to 50 MB.
+
+- Brands and models become **tabs** automatically. Type a new brand or model
+  to create its tab; uploading while viewing a tab pre-fills it.
+  Capitalization doesn't matter ("carrier" goes into "Carrier").
+- A model can have several manuals (installation, service, wiring, parts).
+- Techs can also open manuals in the portal. Customers can't see them.
+- Deleting a manual removes it from every van on its next sync.
+
+**In the van:** the manual list comes down with every sync (a few KB); the
+files are only downloaded when a tech opens one or taps **Download All**. Each
+download is checked (SHA-256), so a dropped connection never leaves a broken
+file. Opening needs a PDF reader on the laptop. On Windows XP install
+**Adobe Reader XI** or **Foxit Reader** (the last versions that support XP).
 
 ## Email from your Roundcube mailbox
 
@@ -159,7 +187,7 @@ signed in, and any unsent changes are kept. They live in `%APPDATA%\RowanVan`
 - Tests: `python -m unittest discover -s tests`
 - Point it at a local portal with `http://localhost:3000` (plain http is only
   allowed for localhost). Set `ROWANVAN_HOME` to use a separate data folder.
-- More code: `messages_tab.py`, `email_tab.py`, `ui_common.py` (shared look),
-  `addresses.py`.
+- More code: `messages_tab.py`, `email_tab.py`, `manuals_tab.py` +
+  `manuals.py` (download cache), `ui_common.py` (shared look), `addresses.py`.
 - Server side: `src/app/api/van/v1/*`, `src/lib/vanSync.ts`, `src/lib/vanServer.ts`,
-  `src/lib/mailbox.ts`.
+  `src/lib/mailbox.ts`, `src/lib/manuals.ts`.

@@ -408,3 +408,16 @@ export async function revokeVanDevice(formData: FormData) {
   });
   revalidatePath("/portal/admin/devices");
 }
+
+// ---------- Equipment manuals ----------
+
+export async function deleteManual(formData: FormData) {
+  await assertRole("ADMIN");
+  const id = String(formData.get("id"));
+  const manual = await prisma.manual.findUnique({ where: { id } });
+  if (manual) {
+    await prisma.manual.delete({ where: { id } });
+    await deleteFile(manual.storedName);
+  }
+  revalidatePath("/portal/manuals");
+}

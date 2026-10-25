@@ -278,6 +278,64 @@ class EmailTests(StoreTestCase):
                          (["a@x.com", "b@y.org"], ["bad"]))
 
 
+class ManualTests(StoreTestCase):
+    MANUALS = [
+        {"id": "m1", "brand": "Carrier", "model": "24ACC6", "equipmentType": "Air Conditioner",
+         "title": "Installation", "originalName": "24acc6-im.pdf", "size": 11, "sha256": None},
+        {"id": "m2", "brand": "Carrier", "model": "24ACC6", "equipmentType": "Air Conditioner",
+         "title": "Wiring diagram", "originalName": "wiring.PDF", "size": 5, "sha256": None},
+        {"id": "m3", "brand": "carrier", "model": "59SC5", "equipmentType": "Furnace",
+         "title": None, "originalName": "59sc5.pdf", "size": 3, "sha256": None},
+        {"id": "m4", "brand": "Trane", "model": "XR14", "equipmentType": "Heat Pump",
+         "title": "Service facts", "originalName": "xr14.pdf", "size": 4, "sha256": None},
+    ]
+
+    def setUp(self):
+        StoreTestCase.setUp(self)
+        os.environ["ROWANVAN_HOME"] = self.dir
+        snap = snapshot()
+        snap["manuals"] = self.MANUALS
+        self.store.replace_snapshot(snap, "h")
+
+    def tearDown(self):
+        os.environ.pop("ROWANVAN_HOME", None)
+        StoreTestCase.tearDown(self)
+
+    def test_brand_and_model_tabs(self):
+        # "carrier" and "Carrier" are one tab
+        self.assertEqual(self.store.manual_brands(), [("Carrier", 3), ("Trane", 1)])
+        self.assertEqual(self.store.manual_models("Carrier"), [("24ACC6", 2), ("59SC5", 1)])
+        self.assertEqual([m["id"] for m in self.store.manuals_for("CARRIER", "24acc6")], ["m1", "m2"])
+
+    def test_search_matches_every_word(self):
+        self.assertEqual([m["id"] for m in self.store.manuals("carrier furnace")], ["m3"])
+        self.assertEqual([m["id"] for m in self.store.manuals("xr14")], ["m4"])
+        self.assertEqual(len(self.store.manuals("")), 4)
+
+    def test_download_verifies_and_prunes(self):
+        import hashlib
+        from rowanvan import manuals
+        body = b"%PDF-1.4 hi"
+        m = self.store.manual("m1")
+        m["sha256"] = hashlib.sha256(body).hexdigest()
+        real = api.get_stream
+        api.get_stream = lambda server, path, token: iter([(body[:4], 4), (body[4:], len(body))])
+        try:
+            path = manuals.download(self.store, m)
+            self.assertEqual(open(path, "rb").read(), body)
+            self.assertTrue(path.endswith(".pdf"))
+            bad = dict(m, sha256="0" * 64)
+            self.assertRaises(api.ApiError, manuals.download, self.store, bad)
+        finally:
+            api.get_stream = real
+        # The manual is deleted in the portal -> its file goes on the next sync.
+        snap = snapshot()
+        snap["manuals"] = self.MANUALS[1:]
+        self.store.replace_snapshot(snap, "h2")
+        manuals.prune(self.store)
+        self.assertFalse(os.path.exists(path))
+
+
 class ServerUrlTests(unittest.TestCase):
     def test_requires_https_except_localhost(self):
         self.assertEqual(api.normalize_server("portal.example.com/"), "https://portal.example.com")

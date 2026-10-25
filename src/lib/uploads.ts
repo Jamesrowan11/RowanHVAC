@@ -1,4 +1,5 @@
-import { promises as fs } from "fs";
+import { createReadStream, promises as fs } from "fs";
+import { Readable } from "stream";
 import path from "path";
 import crypto from "crypto";
 
@@ -30,7 +31,7 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function storeFile(
   file: File,
-): Promise<{ storedName: string; size: number; mimeType: string }> {
+): Promise<{ storedName: string; size: number; mimeType: string; sha256: string }> {
   const dir = rootDir();
   await fs.mkdir(dir, { recursive: true });
 
@@ -40,13 +41,28 @@ export async function storeFile(
   const bytes = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(path.join(dir, storedName), bytes);
 
-  return { storedName, size: bytes.length, mimeType: file.type };
+  return {
+    storedName,
+    size: bytes.length,
+    mimeType: file.type,
+    sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
+  };
 }
 
 export async function readFile(storedName: string): Promise<Buffer> {
   // Guard against path traversal — only a bare filename is ever valid.
   const safe = path.basename(storedName);
   return fs.readFile(path.join(rootDir(), safe));
+}
+
+/** Streams a stored file (for large files such as equipment manuals). */
+export async function openFileStream(
+  storedName: string,
+): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
+  const full = path.join(rootDir(), path.basename(storedName));
+  const { size } = await fs.stat(full);
+  const stream = Readable.toWeb(createReadStream(full)) as ReadableStream<Uint8Array>;
+  return { stream, size };
 }
 
 export async function deleteFile(storedName: string): Promise<void> {

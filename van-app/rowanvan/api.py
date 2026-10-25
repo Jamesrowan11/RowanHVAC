@@ -102,6 +102,40 @@ def post(server, path, payload, token=None, timeout=30):
     return data
 
 
+def get_stream(server, path, token, timeout=60, chunk_size=65536):
+    """GETs a (large) file, yielding (chunk, bytes_so_far)."""
+    headers = {"User-Agent": "RowanVan/" + VERSION, "Authorization": "Bearer " + token}
+    req = Request(server + path, headers=headers)
+    kwargs = {"timeout": timeout}
+    if server.startswith("https://"):
+        kwargs["context"] = _ssl_context()
+    try:
+        resp = urlopen(req, **kwargs)
+    except HTTPError as e:
+        if e.code == 401:
+            raise SignedOut("Signed out.", 401)
+        if e.code == 404:
+            raise ApiError("That manual is no longer available.", 404)
+        raise Offline("Server error " + str(e.code))
+    except (ssl.SSLError, ssl.CertificateError) as e:
+        raise ApiError("Secure connection failed (" + str(e) + "). Check the van's date and time.")
+    except (URLError, socket.timeout, socket.error, OSError) as e:
+        raise Offline(str(getattr(e, "reason", e)))
+    done = 0
+    try:
+        while True:
+            try:
+                chunk = resp.read(chunk_size)
+            except (socket.timeout, socket.error, OSError) as e:
+                raise Offline("Connection lost: " + str(e))
+            if not chunk:
+                break
+            done += len(chunk)
+            yield chunk, done
+    finally:
+        resp.close()
+
+
 def _read(resp):
     raw = resp.read()
     if resp.headers.get("Content-Encoding", "").lower() == "gzip":

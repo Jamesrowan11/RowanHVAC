@@ -77,6 +77,7 @@ model User {
   announcements   Announcement[]
   sentEmails      EmailLog[]     @relation("SentEmails")
   uploadedDocs    Document[]     @relation("UploadedDocuments")
+  uploadedManuals Manual[]
   createdPayments PaymentLink[]  @relation("CreatedPayments")
 
   // Messaging
@@ -250,6 +251,29 @@ model Document {
 
   @@index([clientId])
   @@index([uploadedById])
+}
+
+// Equipment manuals (installation / service manuals, wiring diagrams, spec
+// sheets), one or more per unit model, e.g. a Carrier 24ACC6 air conditioner.
+// Uploaded by admins; readable by all staff in the portal and in the van app,
+// which keeps downloaded manuals on the laptop for offline use.
+model Manual {
+  id            String   @id @default(cuid())
+  brand         String   @db.VarChar(120)
+  model         String   @db.VarChar(160) // model number / series
+  equipmentType String   @db.VarChar(60) // see MANUAL_EQUIPMENT_TYPES
+  title         String?  @db.VarChar(255) // e.g. "Installation manual"
+  originalName  String   @db.VarChar(400)
+  storedName    String
+  mimeType      String
+  size          Int
+  sha256        String   @db.Char(64)
+  uploadedById  String?
+  uploadedBy    User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([brand, model])
 }
 
 model EmailLog {
