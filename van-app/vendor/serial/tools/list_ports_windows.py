@@ -127,9 +127,19 @@ CM_Get_Device_IDW = cfgmgr32.CM_Get_Device_IDW
 CM_Get_Device_IDW.argtypes = [DWORD, PTSTR, ULONG, ULONG]
 CM_Get_Device_IDW.restype = LONG
 
-CM_MapCrToWin32Err = cfgmgr32.CM_MapCrToWin32Err
-CM_MapCrToWin32Err.argtypes = [DWORD, DWORD]
-CM_MapCrToWin32Err.restype = DWORD
+try:
+    CM_MapCrToWin32Err = cfgmgr32.CM_MapCrToWin32Err
+    CM_MapCrToWin32Err.argtypes = [DWORD, DWORD]
+    CM_MapCrToWin32Err.restype = DWORD
+except AttributeError:
+    # [Rowan Van patch] CM_MapCrToWin32Err only exists on Windows 8+. On XP/7
+    # map the config-manager codes this module checks for by hand.
+    _CR_TO_WIN32 = {0x0D: 1168, 0x25: 1168}  # CR_NO_SUCH_DEVNODE / CR_NO_SUCH_VALUE -> ERROR_NOT_FOUND
+
+    def CM_MapCrToWin32Err(cr, default):
+        cr = getattr(cr, "value", cr)
+        default = getattr(default, "value", default)
+        return _CR_TO_WIN32.get(cr, default or 31)  # 31 = ERROR_GEN_FAILURE
 
 
 DIGCF_PRESENT = 2

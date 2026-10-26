@@ -185,9 +185,19 @@ WaitCommEvent = _stdcall_libraries['kernel32'].WaitCommEvent
 WaitCommEvent.restype = BOOL
 WaitCommEvent.argtypes = [HANDLE, LPDWORD, LPOVERLAPPED]
 
-CancelIoEx = _stdcall_libraries['kernel32'].CancelIoEx
-CancelIoEx.restype = BOOL
-CancelIoEx.argtypes = [HANDLE, LPOVERLAPPED]
+try:
+    CancelIoEx = _stdcall_libraries['kernel32'].CancelIoEx
+    CancelIoEx.restype = BOOL
+    CancelIoEx.argtypes = [HANDLE, LPOVERLAPPED]
+except AttributeError:
+    # [Rowan Van patch] Windows XP has no CancelIoEx (Vista+). CancelIo cancels
+    # the calling thread's pending I/O on the handle, which is what we need.
+    _CancelIo = _stdcall_libraries['kernel32'].CancelIo
+    _CancelIo.restype = BOOL
+    _CancelIo.argtypes = [HANDLE]
+
+    def CancelIoEx(handle, overlapped):
+        return _CancelIo(handle)
 
 ONESTOPBIT = 0  # Variable c_int
 TWOSTOPBITS = 2  # Variable c_int

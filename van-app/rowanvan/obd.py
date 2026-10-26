@@ -22,8 +22,14 @@ import time
 from .paths import app_dir
 
 sys.path.insert(0, os.path.join(app_dir(), "vendor"))
-import serial  # noqa: E402  (bundled pyserial, see vendor/README.md)
-from serial.tools import list_ports  # noqa: E402
+# Bundled pyserial (see vendor/README.md). OBD-II is optional: if serial
+# support can't load on some laptop, the rest of the app must still open.
+try:
+    import serial  # noqa: E402
+    SERIAL_ERROR = None
+except Exception as e:  # pragma: no cover - platform specific
+    serial = None
+    SERIAL_ERROR = "{0}: {1}".format(type(e).__name__, e)
 
 BAUD_RATES = (38400, 9600, 115200, 57600)  # 38400 is the ELM327 default
 DEFAULT_INTERVAL = 10  # seconds between readings
@@ -37,11 +43,27 @@ class ObdError(Exception):
 
 def available_ports():
     """[(device, description)] of the serial ports on this laptop."""
-    try:
-        ports = sorted(list_ports.comports())
-    except Exception:  # pragma: no cover - platform quirks
+    if serial is None:
         return []
-    return [(p.device, p.description or p.device) for p in ports]
+    try:
+        from serial.tools import list_ports
+        return [(p.device, p.description or p.device) for p in sorted(list_ports.comports())]
+    except Exception:
+        pass
+    # Fallback (old Windows): try opening COM1..COM16.
+    found = []
+    if sys.platform.startswith("win"):
+        for n in range(1, 17):
+            name = "COM{0}".format(n)
+            try:
+                serial.Serial(name).close()
+                found.append((name, name))
+            except serial.SerialException as e:
+                if "denied" in str(e).lower():  # exists, but in use
+                    found.append((name, name + " (in use)"))
+            except Exception:
+                pass
+    return found
 
 
 def parse_speed_kmh(lines):
@@ -114,6 +136,8 @@ class Elm327(object):
     """Minimal ELM327 driver: just enough to read vehicle speed."""
 
     def __init__(self, port, baud):
+        if serial is None:
+            raise ObdError("Serial port support couldn't load on this laptop ({0}).".format(SERIAL_ERROR))
         try:
             self.ser = serial.serial_for_url(port, baudrate=baud, timeout=0.2)
         except (serial.SerialException, ValueError, OSError) as e:

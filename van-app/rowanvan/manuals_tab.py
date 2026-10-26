@@ -176,8 +176,11 @@ class ManualsTab(tk.Frame):
         elif rows:
             self.tree.selection_set(rows[0]["id"])
 
+        empty_msg = "No manuals yet. The office uploads them in the portal under Manuals."
         if not self.store.manuals():
-            self.status.config(text="No manuals yet. The office uploads them in the portal under Manuals.", fg=GREY)
+            self.status.config(text=empty_msg, fg=GREY)
+        elif self.status.cget("text") == empty_msg:
+            self.status.config(text="")
         missing = [m for m in self.store.manuals() if not manuals.is_downloaded(m)]
         self.all_button.config(
             text="Download All ({0})".format(fmt_size(sum(m["size"] or 0 for m in missing))) if missing

@@ -11,8 +11,9 @@ Each thread must use its own Store (SQLite connections are per-thread).
 
 import json
 import sqlite3
+import binascii
+import os
 import time
-import uuid
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -85,7 +86,9 @@ def utc_now_iso():
 
 
 def new_id():
-    return uuid.uuid4().hex
+    # 32 random hex chars. (Not the uuid module: on old Pythons it drags in
+    # ctypes at import time, an extra startup risk on the XP laptops.)
+    return binascii.hexlify(os.urandom(16)).decode("ascii")
 
 
 class Store(object):
