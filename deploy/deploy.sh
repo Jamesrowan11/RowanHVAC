@@ -11,6 +11,9 @@
 #   - public site served from /var/www/rowanhvac-public  (PUBLIC_DIR)
 #   - .env present in APP_DIR (DATABASE_URL, AUTH_SECRET, …)
 #   - node, npm, pm2 installed; MariaDB running
+#
+# Set SKIP_PUBLIC=1 to only update the portal (e.g. on Plesk, where the
+# marketing site is hosted separately or not at all).
 
 set -euo pipefail
 
@@ -35,6 +38,11 @@ npm run build
 echo "==> Reloading portal under PM2"
 pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js
 pm2 save
+
+if [ "${SKIP_PUBLIC:-0}" = "1" ]; then
+  echo "==> Done (SKIP_PUBLIC=1: public site not rebuilt)."
+  exit 0
+fi
 
 echo "==> Building & publishing the static public site"
 mkdir -p "$PUBLIC_DIR"

@@ -349,6 +349,16 @@ Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
 `https://rowanhvacportal.rowancopy.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
+## Deploying on DigitalOcean + Plesk (SSH)
+
+Step-by-step guide: [`deploy/plesk/README.md`](deploy/plesk/README.md). In
+short: create the site, Let's Encrypt cert, and MySQL database with `plesk bin`,
+install Node 20 + PM2, clone to `/var/www/rowanhvac-app`, fill in `.env`, then
+`npm ci && npx prisma migrate deploy && npm run build && pm2 start
+ecosystem.config.js`. Finally point the domain at `127.0.0.1:3000` with
+`deploy/plesk/nginx-directives.conf`. Update later with
+`SKIP_PUBLIC=1 bash deploy/deploy.sh`.
+
 ## Deploying on Windows Server (e.g. AWS EC2 Windows)
 
 The app runs unchanged on Windows. IIS handles the public ports + SSL and
