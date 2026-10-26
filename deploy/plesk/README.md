@@ -75,6 +75,18 @@ swap (that needs SSH: `fallocate -l 2G /swapfile && chmod 600 /swapfile &&
 mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >>
 /etc/fstab`).
 
+**Browser says "Not secure" (https crossed out):** the subdomain has no
+valid certificate yet, and the van app won't connect until it does. On the
+subdomain → *SSL/TLS Certificates* → **Let's Encrypt** → tick the
+`portal.` name (and `www.` only if it has DNS) → *Get it free*. Then *Hosting
+Settings* → *Certificate*: pick the Let's Encrypt one → *OK*. Let's Encrypt
+only works once the DNS A record points at this droplet.
+
+**Seeing the marketing home page instead of the login page?** That's the
+app's front page. Its **Portal Login** button goes to the login screen. To
+make the portal address open the login page directly, add `PORTAL_ONLY="1"` to
+`.env`, then *Run script* `build` and *Restart App*.
+
 **If the site shows Plesk's default page or "Web application could not be
 started":** recheck the step 8 values, open *Logs* on the subdomain, and make
 sure step 9 finished (`.next` folder exists in `portal-app`).

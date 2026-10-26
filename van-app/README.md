@@ -224,6 +224,9 @@ signed in, and any unsent changes are kept. They live in `%APPDATA%\RowanVan`
 
 | Problem | Fix |
 | --- | --- |
+| Double-clicking does nothing | Run `C:\RowanVan\RowanVan-debug.bat`: it shows the error in a window. Errors are also saved to `C:\RowanVan\rowanvan-error.log`. |
+| "needs Python 3.4 or newer" | An old Python 2 opened it. Install Python 3.4.4 (XP) or newer, re-run `windows\install.bat`, use the desktop icon. |
+| "installed without Tcl/Tk" | Re-run the Python installer → Modify → tick Tcl/Tk. |
 | "Secure connection failed" | Check the laptop's **date and time**. A dead CMOS battery on an old Toughbook resets the clock, which breaks HTTPS. |
 | "Can't reach the portal" at sign-in | Check the address and that the van has internet (hotspot / cellular card). |
 | Stuck on "OFFLINE" | No connection. Keep working; changes send automatically later. |

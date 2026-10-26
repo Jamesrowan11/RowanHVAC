@@ -5,7 +5,7 @@ setlocal
 set DEST=C:\RowanVan
 
 set PYW=
-for %%P in (C:\Python34 C:\Python35 C:\Python36 C:\Python37 C:\Python38 "%ProgramFiles%\Python34") do (
+for %%P in (C:\Python34 C:\Python35 C:\Python36 C:\Python37 C:\Python38 C:\Python39 C:\Python310 C:\Python311 C:\Python312 C:\Python313 "%ProgramFiles%\Python34") do (
   if not defined PYW if exist "%%~P\pythonw.exe" set PYW=%%~P\pythonw.exe
 )
 if not defined PYW for /d %%P in ("%LOCALAPPDATA%\Programs\Python\Python3*") do (
@@ -27,6 +27,7 @@ xcopy "%~dp0..\rowanvan" "%DEST%\rowanvan\" /E /I /Y /Q >nul
 xcopy "%~dp0..\certs" "%DEST%\certs\" /E /I /Y /Q >nul
 xcopy "%~dp0..\vendor" "%DEST%\vendor\" /E /I /Y /Q >nul
 copy /Y "%~dp0..\RowanVan.pyw" "%DEST%\RowanVan.pyw" >nul
+copy /Y "%~dp0RowanVan-debug.bat" "%DEST%\RowanVan-debug.bat" >nul
 
 rem Shortcuts (VBScript works on every Windows version back to XP)
 set VBS=%TEMP%\rowanvan_shortcut.vbs
