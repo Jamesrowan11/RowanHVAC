@@ -4,14 +4,14 @@ import type { EmailStatus } from "@prisma/client";
 
 export const EMAIL_FROM =
   process.env.EMAIL_FROM ||
-  "Rowan Heating & Air Conditioning <info@rowanhvac.com>";
+  "Rowan Heating & Air Conditioning <info@rowanheatingandair.com>";
 
 export const COMPANY_SIGNATURE = `
 
 —
 Rowan Heating & Air Conditioning
 Family-owned and operated in Howard County since 1958
-Phone: 410-531-0008  •  Email: info@rowanhvac.com
+Phone: 410-531-0008  •  Email: info@rowanheatingandair.com
 P.O. Box 109, Fulton, MD 20759`;
 
 export const MAX_RECIPIENTS = 25;

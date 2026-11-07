@@ -197,8 +197,8 @@ sh linux/install.sh
 
 Open **Rowan Van** and enter:
 
-- **Portal address**: your portal's URL on the Plesk server, e.g.
-  `https://rowanhvacportal.yourdomain.com` (must be `https://`)
+- **Website address**: already filled in as `https://rowanheatingandair.com`
+  (the same site customers visit; the vans sync with it)
 - The tech's **portal email and password** (EMPLOYEE or ADMIN accounts only)
 - A **van name**, e.g. `Van 3`. This is how the office tells laptops apart.
 
@@ -228,7 +228,7 @@ signed in, and any unsent changes are kept. They live in `%APPDATA%\RowanVan`
 | "needs Python 3.4 or newer" | An old Python 2 opened it. Install Python 3.4.4 (XP) or newer, re-run `windows\install.bat`, use the desktop icon. |
 | "installed without Tcl/Tk" | Re-run the Python installer → Modify → tick Tcl/Tk. |
 | "Secure connection failed" | Check the laptop's **date and time**. A dead CMOS battery on an old Toughbook resets the clock, which breaks HTTPS. |
-| "Can't reach the portal" at sign-in | Check the address and that the van has internet (hotspot / cellular card). |
+| "Can't reach rowanheatingandair.com" at sign-in | Check the address and that the van has internet (hotspot / cellular card). |
 | Stuck on "OFFLINE" | No connection. Keep working; changes send automatically later. |
 | Orange banner | The office changed something that conflicted with an offline change. Read it, tap **OK**. |
 

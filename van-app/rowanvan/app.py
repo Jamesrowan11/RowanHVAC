@@ -10,7 +10,7 @@ import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from . import VERSION, api
+from . import DEFAULT_SERVER, MOVED_SERVERS, VERSION, api
 from .paths import db_path
 from .store import Store
 from .sync import SyncEngine
@@ -28,6 +28,8 @@ class App(object):
     def __init__(self, root):
         self.root = root
         self.store = Store(db_path())
+        if (self.store.get("server") or "").rstrip("/") in MOVED_SERVERS:
+            self.store.set("server", DEFAULT_SERVER)
         self.events = queue.Queue()
         self.engine = SyncEngine(db_path(), self.events)
         self.engine.start()
@@ -119,7 +121,7 @@ class LoginScreen(tk.Frame):
                  font=FONT, fg=GREY, bg=WHITE).pack(pady=(0, 16))
 
         store = app.store
-        self.server = self._field(card, "Portal address", store.get("server", "https://"))
+        self.server = self._field(card, "Website address", store.get("server") or DEFAULT_SERVER)
         self.email = self._field(card, "Email", store.get("last_email", ""))
         self.password = self._field(card, "Password", "", show="*")
         self.device = self._field(card, "Van name (e.g. Van 3)",
@@ -163,7 +165,7 @@ class LoginScreen(tk.Frame):
             try:
                 result["data"] = api.login(server, email, password, device)
             except api.Offline:
-                result["error"] = "Can't reach the portal. Check the address and the van's internet connection."
+                result["error"] = "Can't reach rowanheatingandair.com. Check the address and the van's internet connection."
             except api.ApiError as e:
                 result["error"] = str(e)
 

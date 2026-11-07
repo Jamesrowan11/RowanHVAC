@@ -17,10 +17,9 @@ set -euo pipefail
 # Move to the project root (parent of this script's directory).
 cd "$(dirname "$0")/.."
 APP_ROOT="$(pwd)"
-echo "==> Deploying Rowan HVAC (portal) from ${APP_ROOT}"
+echo "==> Deploying Rowan HVAC (website + portal) from ${APP_ROOT}"
 
-# Optional deploy configuration (git-ignored). May set PUBLIC_DEPLOY_PATH to also
-# build and publish the static marketing site to its subdomain document root.
+# Optional deploy configuration (git-ignored), e.g. to export extra variables.
 if [ -f "${APP_ROOT}/deploy.config" ]; then
   # shellcheck disable=SC1091
   . "${APP_ROOT}/deploy.config"
@@ -49,13 +48,4 @@ mkdir -p "${APP_ROOT}/uploads"
 mkdir -p "${APP_ROOT}/tmp"
 touch "${APP_ROOT}/tmp/restart.txt"
 
-echo "==> Portal deploy complete. Passenger will restart on the next request."
-
-# If configured, also (re)build and publish the static public marketing site.
-if [ -n "${PUBLIC_DEPLOY_PATH:-}" ]; then
-  echo "==> Building & publishing the public site to ${PUBLIC_DEPLOY_PATH}"
-  PUBLIC_DEPLOY_PATH="${PUBLIC_DEPLOY_PATH}" \
-    NEXT_PUBLIC_PORTAL_URL="${NEXT_PUBLIC_PORTAL_URL:-}" \
-    NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-}" \
-    bash "${APP_ROOT}/scripts/build-public.sh"
-fi
+echo "==> Deploy complete. Passenger will restart on the next request."

@@ -4,31 +4,28 @@ A full-stack web application for **Rowan Heating & Air Conditioning** — a
 family-owned HVAC company serving Highland, Fulton, and Howard County, Maryland
 since 1958.
 
-It ships as **two deployables in one repo**, built for GoDaddy cPanel hosting on
-two subdomains:
+Everything runs as **one app on one domain, `rowanheatingandair.com`**:
 
-- **(A) Public marketing website** — `rowanhvac.rowancopy.com`. A statically
-  exported single page (hero, services, "why choose us", service area, real
-  customer reviews, a quote form, footer). Plain HTML/CSS/JS — runs on any
-  GoDaddy plan with **no server**. SEO-optimized with Open Graph and
-  `HVACBusiness` JSON-LD (founding date 1958). Its quote form POSTs to the
-  portal's API and the submission appears in the admin dashboard. Lives in
-  `public-site/`.
-- **(B) Role-based portal** — `rowanhvacportal.rowancopy.com`. The login-gated
-  Node.js app: one login, three roles (`CLIENT`, `EMPLOYEE`, `ADMIN`), each with
-  its own dashboard, plus in-app messaging, document/payment sharing, and a
-  pluggable email layer. This is the repo root.
+| Address | What it is |
+| --- | --- |
+| `rowanheatingandair.com/` | The **public website**: services, why choose us, service area, real customer reviews, a quote form. SEO-ready (Open Graph, `HVACBusiness` JSON-LD). Quote requests land straight in the admin dashboard. |
+| `rowanheatingandair.com/login` | **Sign-in** for customers, technicians and the office (one login, three roles: `CLIENT`, `EMPLOYEE`, `ADMIN`). |
+| `rowanheatingandair.com/portal` | The **portal**: each role's dashboard, jobs, messaging, documents and payments, manuals, vehicles, email. |
+| `rowanheatingandair.com/api/van/v1/*` | The **van app's sync API** (the Toughbook desktop app in `van-app/`). |
+
+Webmail stays at `webmail.rowanheatingandair.com` (Plesk/Roundcube); the van
+app's Email tab sends through that same mail server.
 
 ## Tech stack
 
 - **Next.js (App Router)** + React + TypeScript
 - **Tailwind CSS** (navy `#1a2b4a` primary, warm-orange `#f57c1f` accent)
-- **Prisma ORM** + **MySQL / MariaDB** (what GoDaddy cPanel provides; drop in any
-  hosted connection string)
+- **Prisma ORM** + **MySQL / MariaDB** (what Plesk / cPanel provide)
 - **Auth.js / NextAuth v5** — email + password, bcrypt-hashed, JWT sessions
 - **Resend** for transactional email (optional — falls back to console logging)
-- The portal runs as a long-lived Node process behind **Phusion Passenger**
-  (cPanel "Setup Node.js App"); the public site is a **static export**.
+- One long-lived Node process (`server.js`) behind Plesk's **Phusion Passenger**
+  (or PM2 + nginx) serves the website, portal and van API.
+- **Van app:** Python 3.4+ / Tkinter desktop app (`van-app/`), runs on Windows XP
 
 ## Security model
 
@@ -63,7 +60,7 @@ two subdomains:
 - A MySQL / MariaDB database (GoDaddy cPanel provides this; locally you can run
   MariaDB/MySQL)
 
-## Local setup (portal)
+## Local setup
 
 ```bash
 # 1. Install dependencies (also runs `prisma generate`)
@@ -83,33 +80,18 @@ npm run db:seed
 
 # 5. Run it
 npm run dev
-#    open http://localhost:3000   (redirects to /login)
+#    open http://localhost:3000   (home page; portal at /login)
 ```
-
-## Local setup (public site)
-
-```bash
-cd public-site
-npm install
-cp .env.example .env.local        # point NEXT_PUBLIC_PORTAL_URL at your portal
-npm run dev                        # http://localhost:3100
-# or build the static export:
-npm run build                      # outputs public-site/out/
-```
-
-For local testing, set the portal's `PUBLIC_SITE_ORIGIN=http://localhost:3100`
-so the quote form's cross-origin POST is allowed.
 
 ### Environment variables
 
-**Portal** (`.env` in the repo root):
+`.env` in the repo root (see `.env.example`):
 
 | Variable               | Required | Purpose                                                               |
 | ---------------------- | :------: | --------------------------------------------------------------------- |
 | `DATABASE_URL`         |   yes    | MySQL connection string (`mysql://user:pass@host:3306/db`).           |
 | `AUTH_SECRET`          |   yes    | Secret used to sign session JWTs.                                     |
-| `AUTH_URL`             |   rec.   | The portal's URL (callback URLs behind a subdomain).                  |
-| `PUBLIC_SITE_ORIGIN`   |   rec.   | Origin allowed to POST the public quote form (the marketing site).   |
+| `AUTH_URL`             |   rec.   | The site's address, `https://rowanheatingandair.com` (sign-in, links in emails). |
 | `EMAIL_FROM`           |    no    | From-address for outgoing email. Defaults to the company address.    |
 | `RESEND_API_KEY`       |    no    | If set, email sends via Resend. If unset, email is logged to console.|
 | `UPLOAD_DIR`           |    no    | Where uploaded documents are stored (use a persistent path on cPanel).|
@@ -123,13 +105,6 @@ so the quote form's cross-origin POST is allowed.
 | `APP_TIMEZONE`         |    no    | Company time zone for the Vehicles page (default `America/New_York`). |
 | `SPEED_ALERT_MPH`      |    no    | Email admins when a van exceeds this speed (default 80; `0` = off).   |
 | `SPEED_RETENTION_DAYS` |    no    | How long van speed readings are kept (default 365).                   |
-
-**Public site** (`public-site/.env.local`, inlined at build time):
-
-| Variable                 | Purpose                                          |
-| ------------------------ | ------------------------------------------------ |
-| `NEXT_PUBLIC_PORTAL_URL` | Portal URL for the login link and quote POST.    |
-| `NEXT_PUBLIC_SITE_URL`   | This site's own URL (canonical / OpenGraph).     |
 
 The app **runs fully without an email key** — every email is recorded in the
 `EmailLog` table and printed to the server console instead of being sent.
@@ -238,27 +213,25 @@ prisma/
   schema.prisma         # data model + enums (MySQL)
   migrations/           # SQL migrations
   seed.ts               # demo data
-src/                    # the PORTAL app (Node)
+src/                    # the app: website + portal + van API (Next.js)
   app/
-    page.tsx            # redirects to /login (portal is login-first)
-    login/              # auth pages + action
-    portal/             # role dashboards, messaging, profile, document route
+    page.tsx            # the public home page (quote form posts to a server action)
+    login/              # sign-in, forgot/reset password
+    portal/             # role dashboards, messaging, manuals, vehicles, profile
     api/
       auth/             # NextAuth route handler
       email/inbound/    # inbound email webhook
-      public/quote/     # CORS endpoint for the static site's quote form
-    actions/            # shared server actions (compose email)
+      van/v1/           # van app: login, sync, mailbox, manuals, logout
+    actions/            # shared server actions (quote form, compose email)
   components/           # portal UI
   lib/                  # prisma, auth helpers, email, uploads, messaging, rate limit
   auth.ts / auth.config.ts   # NextAuth v5 (Node + edge-safe split)
   middleware.ts         # first-gate route protection
-public-site/            # the PUBLIC marketing site (static export)
-  src/app/page.tsx      # the single marketing page
-  src/components/        # Logo, Stars, ServiceIcon, fetch-based QuoteForm
-server.js               # Passenger entry point for the portal on cPanel
-.cpanel.yml             # cPanel Git deployment tasks (portal + optional public)
-scripts/cpanel-deploy.sh# portal: install → migrate → build → restart
-scripts/build-public.sh # public: build static export → copy to docroot
+server.js               # Node entry point (Plesk/cPanel Passenger, PM2)
+deploy/plesk/           # DigitalOcean + Plesk deployment guide + nginx directives
+deploy/deploy.sh        # SSH redeploy: pull → install → migrate → build → reload
+.cpanel.yml             # cPanel Git deployment tasks
+scripts/cpanel-deploy.sh# cPanel: install → migrate → build → restart
 van-app/                # desktop app for the van Toughbooks (Python/Tkinter)
 tests/                  # Vitest unit tests
 .github/workflows/      # CI + optional cPanel auto-deploy
@@ -268,96 +241,47 @@ tests/                  # Vitest unit tests
 
 `.github/workflows/ci.yml` runs on every push and pull request: it spins up a
 MySQL service, installs dependencies, generates the Prisma client, applies
-migrations, runs the Vitest suite, builds the portal, **and** builds the static
-public site. This is the automated gate that proves a commit is deployable.
+migrations, runs the Vitest suite, builds the app, and runs the van app's tests
+plus a Python 3.4 compatibility check. This is the automated gate that proves a
+commit is deployable.
 
-## Deploying to GoDaddy cPanel (two subdomains)
+## Deploying to cPanel (alternative to Plesk)
 
-The project is split to match GoDaddy's hosting model:
+The same single app runs under cPanel's *Setup Node.js App*:
 
-| Subdomain                       | What runs there            | How                         |
-| ------------------------------- | -------------------------- | --------------------------- |
-| `rowanhvac.rowancopy.com`       | Public marketing site      | Static files (no server)    |
-| `rowanhvacportal.rowancopy.com` | Portal (login-gated)       | Node.js app (Passenger)     |
-
-### 1. Database (MySQL)
-
-cPanel → *MySQL® Databases*: create a database and a user, add the user to the
-database with **All Privileges**. cPanel prefixes names, e.g.
-`cpuser_rowanhvac` / `cpuser_dbuser`.
-
-### 2. Portal — `rowanhvacportal.rowancopy.com`
-
-1. **Subdomain:** cPanel → *Domains* → create `rowanhvacportal.rowancopy.com`.
-2. **Clone the repo:** cPanel → *Git™ Version Control* → clone this repo to e.g.
-   `/home/cpuser/rowanhvacportal` (this checkout is the app's Application Root).
-3. **`.env`:** create `.env` in that folder (git-ignored):
-   ```
-   DATABASE_URL="mysql://cpuser_dbuser:PASSWORD@localhost:3306/cpuser_rowanhvac"
-   AUTH_SECRET="<openssl rand -base64 32>"
-   AUTH_URL="https://rowanhvacportal.rowancopy.com"
-   PUBLIC_SITE_ORIGIN="https://rowanhvac.rowancopy.com"
-   EMAIL_FROM="Rowan Heating & Air Conditioning <info@rowanhvac.com>"
-   RESEND_API_KEY=""                              # optional
-   UPLOAD_DIR="/home/cpuser/rowanhvac-uploads"    # persistent, outside the repo
-   INBOUND_EMAIL_SECRET="<random>"
-   ```
-4. **Node app:** cPanel → *Setup Node.js App* → *Create*:
-   - Node.js version 20 (or 18+)
-   - Application root: the clone path
-   - Application URL: `rowanhvacportal.rowancopy.com`
-   - **Application startup file:** `server.js`
-   Create it, then *Run NPM Install*.
-5. **First deploy** (cPanel → *Terminal* or SSH):
-   ```bash
-   cd ~/rowanhvacportal
-   bash scripts/cpanel-deploy.sh   # install, migrate, build, restart Passenger
-   npm run db:seed                 # optional: load demo data the first time
-   ```
-   The portal is now live; visiting it redirects to `/login`.
-
-### 3. Public site — `rowanhvac.rowancopy.com`
-
-1. **Subdomain:** create `rowanhvac.rowancopy.com` and note its document root
-   (e.g. `/home/cpuser/rowanhvac.rowancopy.com`).
-2. **Build & publish the static files:**
-   ```bash
-   cd ~/rowanhvacportal
-   PUBLIC_DEPLOY_PATH="/home/cpuser/rowanhvac.rowancopy.com" \
-     NEXT_PUBLIC_PORTAL_URL="https://rowanhvacportal.rowancopy.com" \
-     NEXT_PUBLIC_SITE_URL="https://rowanhvac.rowancopy.com" \
-     bash scripts/build-public.sh
-   ```
-   This builds `public-site/out/` and copies it into the subdomain's docroot.
-   (Or upload the contents of `public-site/out/` via *File Manager*.)
+1. **Database:** cPanel → *MySQL® Databases*: create a database and a user
+   with **All Privileges** (cPanel prefixes names, e.g. `cpuser_rowanhvac`).
+2. **Code:** *Git™ Version Control* → clone this repo (e.g. `~/rowanhvac`).
+3. **`.env`** in that folder (see `.env.example`): at least `DATABASE_URL`,
+   `AUTH_SECRET`, `AUTH_URL="https://rowanheatingandair.com"`, and a
+   persistent `UPLOAD_DIR` outside the repo.
+4. **Node app:** *Setup Node.js App* → *Create*: Node 20, Application root =
+   the clone, Application URL = `rowanheatingandair.com`, startup file
+   `server.js`. Then *Run NPM Install*.
+5. **First deploy** (cPanel *Terminal*): `bash scripts/cpanel-deploy.sh`,
+   then `npm run db:seed` once for the starter accounts.
 
 ### Automated redeploys
 
 - **From cPanel:** *Git™ Version Control* → *Manage* → *Deploy HEAD Commit*.
   cPanel runs `.cpanel.yml` → `scripts/cpanel-deploy.sh` (install →
-  `prisma migrate deploy` → build → restart Passenger). To also rebuild and
-  publish the public site in the same step, copy `deploy.config.example` to
-  `deploy.config` and set `PUBLIC_DEPLOY_PATH`.
+  `prisma migrate deploy` → build → restart Passenger).
 - **From GitHub (push-to-deploy):** add the secrets documented in
   `.github/workflows/deploy-cpanel.yml` (`CPANEL_HOST`, `CPANEL_USER`,
   `CPANEL_API_TOKEN`, `CPANEL_REPO_ROOT`). Every push to `main` then triggers a
   cPanel deploy. Without the secrets the workflow is a harmless no-op.
 
-### Inbound email on cPanel
+### Inbound email
 
 Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
-`https://rowanhvacportal.rowancopy.com/api/email/inbound` with the
+`https://rowanheatingandair.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
-## Deploying on DigitalOcean + Plesk (SSH)
+## Deploying on DigitalOcean + Plesk (rowanheatingandair.com)
 
-Step-by-step guide: [`deploy/plesk/README.md`](deploy/plesk/README.md). In
-short: create the site, Let's Encrypt cert, and MySQL database with `plesk bin`,
-install Node 20 + PM2, clone to `/var/www/rowanhvac-app`, fill in `.env`, then
-`npm ci && npx prisma migrate deploy && npm run build && pm2 start
-ecosystem.config.js`. Finally point the domain at `127.0.0.1:3000` with
-`deploy/plesk/nginx-directives.conf`. Update later with
-`SKIP_PUBLIC=1 bash deploy/deploy.sh`.
+Step-by-step guide (Plesk panel or SSH): [`deploy/plesk/README.md`](deploy/plesk/README.md).
+The app goes on the main domain `rowanheatingandair.com`, so the website,
+portal and van API are one site with one certificate.
 
 ## Deploying on Windows Server (e.g. AWS EC2 Windows)
 
@@ -398,11 +322,10 @@ and `scripts/*.ps1` support this.
 
 ## Deploying to Vercel (alternative)
 
-The portal also deploys to Vercel (serverless) — set `DATABASE_URL` (a hosted
-MySQL URL such as PlanetScale), `AUTH_SECRET`, and run `npx prisma migrate
-deploy`. Note Vercel's filesystem is ephemeral, so move document uploads to
-object storage (the `src/lib/uploads.ts` interface is built for that swap). The
-public site can deploy to Vercel/Netlify or any static host.
+The app also deploys to Vercel (serverless): set `DATABASE_URL` (a hosted
+MySQL URL), `AUTH_SECRET`, and run `npx prisma migrate deploy`. Vercel's
+filesystem is ephemeral, so move uploads and manuals to object storage first
+(the `src/lib/uploads.ts` interface is built for that swap).
 
 ---
 

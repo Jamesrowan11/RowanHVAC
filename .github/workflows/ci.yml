@@ -28,7 +28,7 @@ jobs:
     env:
       DATABASE_URL: mysql://rowan:rowan@127.0.0.1:3306/rowanhvac
       AUTH_SECRET: ci-secret-not-for-production-0123456789abcdef
-      EMAIL_FROM: "Rowan Heating & Air Conditioning <info@rowanhvac.com>"
+      EMAIL_FROM: "Rowan Heating & Air Conditioning <info@rowanheatingandair.com>"
 
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +38,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      # ---- Portal (Node app) ----
-      - name: Install portal dependencies
+      # ---- Website + portal (one Node app) ----
+      - name: Install dependencies
         run: npm ci
 
       - name: Generate Prisma client
@@ -51,7 +51,7 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build portal
+      - name: Build website + portal
         run: npm run build
 
       # ---- Van terminal desktop app ----
@@ -61,15 +61,3 @@ jobs:
           python3 -m unittest discover -s tests -v
           pip install vermin
           vermin -t=3.4- --no-tips --violations rowanvan RowanVan.pyw
-
-      # ---- Public static site ----
-      - name: Install public-site dependencies
-        working-directory: public-site
-        run: npm ci || npm install
-
-      - name: Build public static site
-        working-directory: public-site
-        run: npm run build
-        env:
-          NEXT_PUBLIC_PORTAL_URL: https://rowanhvacportal.rowancopy.com
-          NEXT_PUBLIC_SITE_URL: https://rowanhvac.rowancopy.com

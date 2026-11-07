@@ -13,7 +13,6 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "cpanel:portal": "prisma migrate deploy && prisma generate && next build",
-    "deploy:public": "node scripts/deploy-public.mjs",
     "test": "vitest run"
   },
   "prisma": {

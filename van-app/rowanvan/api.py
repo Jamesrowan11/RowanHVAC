@@ -46,9 +46,9 @@ def check_server(url):
     cross the cellular network unencrypted."""
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
-        return "Enter the portal address, e.g. https://portal.example.com"
+        return "Enter the website address, e.g. https://rowanheatingandair.com"
     if parsed.scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1"):
-        return "The portal address must start with https://"
+        return "The website address must start with https://"
     return None
 
 

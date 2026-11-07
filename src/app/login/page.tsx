@@ -31,7 +31,7 @@ export default async function LoginPage() {
         </div>
         <p className="mt-6 text-center text-sm text-navy-500">
           <Link href="/" className="hover:text-accent">
-            ← Back to rowanhvac.com
+            ← Back to the home page
           </Link>
         </p>
       </div>

@@ -4,7 +4,7 @@ export const COMPANY = {
   foundingDate: "1958",
   phone: "410-531-0008",
   phoneHref: "tel:+14105310008",
-  email: "info@rowanhvac.com",
+  email: "info@rowanheatingandair.com",
   address: {
     pobox: "P.O. Box 109",
     city: "Fulton",
