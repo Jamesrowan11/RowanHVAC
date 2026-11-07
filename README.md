@@ -249,7 +249,7 @@ src/                    # the app: website + portal + van API (Next.js)
   middleware.ts         # first-gate route protection
 server.js               # Node entry point (PM2 cluster; also cPanel Passenger)
 ecosystem.config.js     # PM2 config (2 processes, 127.0.0.1:3000)
-deploy/digitalocean/    # load-balanced DigitalOcean guide, droplet setup, nginx, rolling deploy
+deploy/digitalocean/    # load-balanced DigitalOcean guide, DNS script, droplet setup, nginx, rolling deploy
 deploy/deploy.sh        # update one droplet: pull → install → migrate → build → reload
 .cpanel.yml             # cPanel Git deployment tasks
 scripts/cpanel-deploy.sh# cPanel: install → migrate → build → restart
@@ -269,7 +269,8 @@ commit is deployable.
 ## Deploying on DigitalOcean (load-balanced)
 
 Step-by-step: [`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
-In short: Managed MySQL + Spaces + Zoho Mail; two or more Ubuntu droplets
+In short: DigitalOcean DNS (`deploy/digitalocean/dns.sh` creates the
+records), Managed MySQL + Spaces + Zoho Mail; two or more Ubuntu droplets
 prepared with `deploy/digitalocean/setup-droplet.sh` and sharing one `.env`;
 a Load Balancer with a Let's Encrypt certificate and `/api/health` checks.
 Updates roll out one droplet at a time with

@@ -45,12 +45,50 @@ domain was bought: GoDaddy, Namecheap, Google/Squarespace, etc.), not Plesk.
 
 ## 1. DNS at DigitalOcean
 
-The load balancer's free Let's Encrypt certificate needs the domain's DNS at
-DigitalOcean: *Networking → Domains → Add domain* `rowanheatingandair.com`,
-then at your registrar set the nameservers to `ns1/ns2/ns3.digitalocean.com`.
-Records that lived only on the old server are gone. You only need the ones
-this guide adds: Zoho's (step 4) and the load balancer's (step 8). DNS
-changes can take a few hours to reach everyone.
+All DNS for `rowanheatingandair.com` lives in **DigitalOcean DNS** (free).
+It's also what lets the load balancer issue its free HTTPS certificate.
+
+1. *Networking → Domains → Add domain*: `rowanheatingandair.com`.
+2. At your **domain registrar**, change the domain's **nameservers** to
+   `ns1.digitalocean.com`, `ns2.digitalocean.com`, `ns3.digitalocean.com`.
+   This can take a few hours to take effect; check on dnschecker.org (type
+   *NS*). Do this early: the load balancer's certificate (step 8) only works
+   once it has.
+3. Add the records below as you reach each step, either in the control
+   panel or with the script.
+
+**All the DNS records** (*Networking → Domains → rowanheatingandair.com*):
+
+| Type | Hostname | Value | Priority | Added in |
+| --- | --- | --- | --- | --- |
+| MX | `@` | `mx.zoho.com` | 10 | step 4 |
+| MX | `@` | `mx2.zoho.com` | 20 | step 4 |
+| MX | `@` | `mx3.zoho.com` | 50 | step 4 |
+| TXT | `@` | `v=spf1 include:zoho.com ~all` | | step 4 |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:info@rowanheatingandair.com` | | step 4 |
+| TXT | `@` | `zoho-verification=zb…zmverify.zoho.com` (Zoho gives you this) | | step 4 |
+| TXT | `zmail._domainkey` (Zoho shows the exact name) | `v=DKIM1; k=rsa; p=…` (from Zoho) | | step 4 |
+| A | `@` | the load balancer | | step 8 |
+| A | `www` | the load balancer | | step 8 |
+
+(EU Zoho accounts: use `mx.zoho.eu` etc. and `include:zoho.eu`.) Only one SPF
+TXT record may exist; if you ever add another email sender, extend that one
+record instead of adding a second.
+
+**Or with the script** (`deploy/digitalocean/dns.sh`), from any Linux or Mac
+machine, e.g. droplet 1 once it exists: install `doctl`
+(`snap install doctl`), run `doctl auth init` with an API token
+(*API → Generate New Token*, read + write), then:
+
+```bash
+bash deploy/digitalocean/dns.sh        # domain + Zoho MX, SPF, DMARC
+ZOHO_VERIFY="zoho-verification=zb…" ZOHO_DKIM_SELECTOR="zmail" ZOHO_DKIM_VALUE="v=DKIM1; k=rsa; p=…" \
+  bash deploy/digitalocean/dns.sh      # + Zoho verification and DKIM (step 4)
+LB_IP=<load balancer IP> bash deploy/digitalocean/dns.sh   # + website (step 8)
+```
+
+It skips records that already exist and warns instead of overwriting an
+existing SPF or A record, so it's safe to re-run.
 
 ## 2. Database: Managed MySQL
 
@@ -79,12 +117,11 @@ app serves them only to signed-in users who may see them.
 
 1. Sign up at zoho.com/mail for **Mail Lite or higher**. The free plan has
    no IMAP/SMTP, which both the website and the van app's Email tab need.
-2. Add and verify `rowanheatingandair.com`, then add the DNS records Zoho
-   shows in *DigitalOcean → Networking → Domains*: **MX** (mx.zoho.com,
-   mx2…, mx3…), **SPF** TXT `v=spf1 include:zoho.com ~all`, **DKIM** TXT, and
-   a **DMARC** TXT such as `v=DMARC1; p=none; rua=mailto:info@rowanheatingandair.com`.
-   Website emails are sent through Zoho too, so this one SPF record covers
-   everything.
+2. Add `rowanheatingandair.com` in Zoho. Zoho shows a **verification** TXT
+   value and, later, a **DKIM** selector and value. Add them plus the MX, SPF
+   and DMARC records from the table in step 1 (or run `dns.sh`), then click
+   *Verify* in Zoho. Website emails are sent through Zoho too, so this one SPF
+   record covers everything.
 3. Create the mailboxes (info@, each tech…). For each user: *Settings →
    Mail → POP/IMAP Access* → **IMAP Access on**.
 4. For the website's automatic emails, pick the mailbox they come from
@@ -190,8 +227,10 @@ any time to add another admin or reset a forgotten admin password.
   - **Sticky sessions:** Cookies (keeps each visitor on one droplet
     during a rolling update)
 
-Then in *Networking → Domains → rowanheatingandair.com*: point **A** records
-for `@` and `www` at the load balancer (pick it from the list).
+Then point the website at it: in *Networking → Domains →
+rowanheatingandair.com*, add **A** records for `@` and `www` that point at the
+load balancer (pick it from the list), or run
+`LB_IP=<load balancer IP> bash deploy/digitalocean/dns.sh`.
 
 ## 9. Firewall
 
