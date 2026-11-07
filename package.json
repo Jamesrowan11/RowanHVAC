@@ -14,6 +14,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "cpanel:portal": "prisma migrate deploy && prisma generate && next build",
     "storage:migrate": "tsx scripts/migrate-uploads-to-spaces.ts",
+    "create-admin": "tsx scripts/create-admin.ts",
     "test": "vitest run"
   },
   "prisma": {

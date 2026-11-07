@@ -31,6 +31,16 @@ emails) is **Zoho Mail**.
 Do everything in **one region** (e.g. NYC3) so the droplets, database, Spaces
 and load balancer share a private network.
 
+**Starting from scratch** (no old server to copy from): follow steps 1–9 in
+order. You'll begin with an empty site, create your own admin account in
+step 7, and add staff, customers and manuals from the portal. Old mailboxes
+can't be recovered without the old server, so Zoho starts fresh too.
+
+**Who controls the domain:** if `rowanheatingandair.com`'s DNS was hosted on
+the old Plesk server, the site and email stopped resolving when it went away.
+Step 1 fixes that, but it needs access to your **domain registrar** (where the
+domain was bought: GoDaddy, Namecheap, Google/Squarespace, etc.), not Plesk.
+
 ---
 
 ## 1. DNS at DigitalOcean
@@ -38,8 +48,9 @@ and load balancer share a private network.
 The load balancer's free Let's Encrypt certificate needs the domain's DNS at
 DigitalOcean: *Networking → Domains → Add domain* `rowanheatingandair.com`,
 then at your registrar set the nameservers to `ns1/ns2/ns3.digitalocean.com`.
-Keep (or recreate) any existing records you still need. The Zoho records come
-in step 4.
+Records that lived only on the old server are gone. You only need the ones
+this guide adds: Zoho's (step 4) and the load balancer's (step 8). DNS
+changes can take a few hours to reach everyone.
 
 ## 2. Database: Managed MySQL
 
@@ -146,7 +157,7 @@ cd /var/www/rowanhvac-app
 npm ci
 npx prisma migrate deploy
 npm run build
-npm run db:seed        # NEW install only: demo accounts (admin@rowanhvac.com / Password123!)
+npm run create-admin -- --email you@rowanheatingandair.com --name "Your Name"
 pm2 start ecosystem.config.js && pm2 save
 curl -s http://127.0.0.1:3000/api/health      # {"ok":true}
 ```
@@ -156,8 +167,13 @@ On **droplet 2** (no migrate, no seed):
 su - rowan -c "cd /var/www/rowanhvac-app && npm ci && npm run build && pm2 start ecosystem.config.js && pm2 save"
 ```
 
-If you ran `db:seed`, sign in as the demo admin right away, change its email and
-password, and deactivate the other demo users.
+`create-admin` prints a **temporary password**. Once the site is up (step 8),
+sign in at `/login` with it and change it under **My Profile**. Then add
+office staff and technicians under **Admin → Users**. Run `create-admin` again
+any time to add another admin or reset a forgotten admin password.
+
+> Don't run `npm run db:seed` on the live site: it loads demo data and wipes
+> everything else. It refuses to run once real accounts exist.
 
 ## 8. Load balancer
 
@@ -186,7 +202,9 @@ for `@` and `www` at the load balancer (pick it from the list).
 
 The droplets are then reachable only through the load balancer.
 
-## 10. Moving data from the old (Plesk) server
+## 10. Only if you have an old server: moving its data
+
+Starting from scratch? Skip this step.
 
 1. **Database.** On the new database, step 7 has already created the
    tables. On the old server, dump data only and import it:
@@ -202,8 +220,15 @@ The droplets are then reachable only through the load balancer.
    su - rowan -c "cd /var/www/rowanhvac-app && UPLOAD_DIR=/path/to/old/uploads npm run storage:migrate"
    ```
    It uploads them to Spaces under the same names (safe to re-run).
-3. **Vans:** nothing to change. They use `https://rowanheatingandair.com`.
-   Techs reconnect the Email tab once with their **Zoho** login.
+3. **Vans:** see below.
+
+## The van laptops
+
+Nothing to reinstall: they already use `https://rowanheatingandair.com`.
+On a brand-new database their old sign-in is no longer valid, so each van
+shows the sign-in screen on its next sync. Create each tech's account first
+(**Admin → Users**, role *Employee*), then sign the van in with it. Techs
+connect the Email tab once with their **Zoho** login.
 
 ## Updating later
 

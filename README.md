@@ -120,9 +120,15 @@ npm run dev
 The app **runs fully without an email key** — every email is recorded in the
 `EmailLog` table and printed to the server console instead of being sent.
 
-## Demo accounts
+## Accounts
 
-After seeding, log in at `/login`. **Password for all accounts:** `Password123!`
+**Live site:** create the first admin with
+`npm run create-admin -- --email you@rowanheatingandair.com --name "Your Name"`
+(prints a temporary password), then add everyone else under **Admin → Users**.
+
+**Demo data (development only):** `npm run db:seed` wipes the database and
+loads the accounts below. It refuses to run on a database that already has
+accounts unless `SEED_RESET=1`. **Password for all demo accounts:** `Password123!`
 
 | Role     | Email                 |
 | -------- | --------------------- |
@@ -285,7 +291,7 @@ The same single app runs under cPanel's *Setup Node.js App*:
    the clone, Application URL = `rowanheatingandair.com`, startup file
    `server.js`. Then *Run NPM Install*.
 5. **First deploy** (cPanel *Terminal*): `bash scripts/cpanel-deploy.sh`,
-   then `npm run db:seed` once for the starter accounts.
+   then `npm run create-admin -- --email you@… --name "…"` once.
 
 #### Automated cPanel redeploys
 
@@ -326,7 +332,7 @@ and `scripts/*.ps1` support this.
    # AUTH_SECRET, AUTH_URL=https://yourdomain, etc.
    npm ci
    npx prisma migrate deploy
-   npm run db:seed        # first time only
+   npm run create-admin -- --email you@rowanheatingandair.com --name "Your Name"
    npm run build
    npm install -g pm2
    pm2 start server.js --name rowanhvac

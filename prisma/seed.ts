@@ -17,6 +17,18 @@ function daysFromNow(n: number): Date {
 async function main() {
   console.log("Seeding Rowan Heating & Air Conditioning database…");
 
+  // This demo seed WIPES the database first. Never let it run over real
+  // data by accident: refuse if any accounts exist, unless explicitly forced.
+  const existing = await prisma.user.count();
+  if (existing > 0 && process.env.SEED_RESET !== "1") {
+    console.error(
+      `Refusing to seed: the database already has ${existing} account(s), and seeding deletes ALL data.\n` +
+        "For a live site, create your admin with:  npm run create-admin -- --email you@rowanheatingandair.com --name \"Your Name\"\n" +
+        "To really wipe and load demo data:      SEED_RESET=1 npm run db:seed",
+    );
+    process.exit(1);
+  }
+
   // Clean slate (safe for a demo seed).
   await prisma.message.deleteMany();
   await prisma.conversationParticipant.deleteMany();
