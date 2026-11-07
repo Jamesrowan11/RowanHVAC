@@ -2,7 +2,7 @@
 
 A desktop app for the technicians' **Panasonic Toughbook CF-29** laptops. It
 keeps a local copy of each tech's jobs, so it **works with no signal**, and
-syncs with the portal on the Plesk server whenever it can. Every van, plus the
+syncs with rowanheatingandair.com whenever it can. Every van, plus the
 office using the web portal, sees the same jobs, statuses, and notes.
 
 ![Jobs](docs/screenshot.png)
@@ -26,8 +26,8 @@ office using the web portal, sees the same jobs, statuses, and notes.
   or tap **+ New Message** to write to the office, another tech, or a customer.
   Unread messages show on the tab, e.g. **Messages (2)**.
 - **Email**: send email **as yourself, from your company mailbox** (the one you
-  use in Roundcube at webmail.rowanheatingandair.com). Each sent email also
-  appears in your webmail **Sent** folder. On a job, **Email Customer**
+  use in Zoho Mail). Each sent email also appears in your Zoho **Sent**
+  folder. On a job, **Email Customer**
   pre-fills the customer's address.
 - **Manuals**: equipment manuals organized in **brand tabs**, then **model
   tabs** (e.g. Carrier → 24ACC6). Tap **Open Manual** to view it; once opened,
@@ -46,9 +46,10 @@ up the moment there's a connection (it checks every 60 seconds, or tap
 ## How sync works
 
 ```
- Toughbook (van 1) ─┐                         ┌─ Office (web portal)
- Toughbook (van 2) ─┼──HTTPS──► Plesk server ◄┤
- Toughbook (van 3) ─┘        (portal + MySQL) └─ Clients (web portal)
+ Toughbook (van 1) ─┐                                  ┌─ Office (web portal)
+ Toughbook (van 2) ─┼──HTTPS──► rowanheatingandair.com ◄┤
+ Toughbook (van 3) ─┘   (load balancer → app servers    └─ Customers (web portal)
+                         → one shared database)
 ```
 
 - The **server is the single source of truth.** Vans never talk to each other
@@ -135,20 +136,20 @@ What happens then:
 > Let your technicians know (in writing) that company vans log speed and
 > diagnostics. The app shows it openly: the live speed is always in the header.
 
-## Email from your Roundcube mailbox
+## Email from your Zoho mailbox
 
-Roundcube is only the web page. The mailbox itself lives on the company mail
-server (Plesk), so the app sends through that server as you:
+Company email is **Zoho Mail**. The app sends through Zoho as you:
 
 ```
- Van app ──HTTPS──► Portal ──SMTP (your login)──► mail server ──► customer
-                          └─IMAP (your login)──► your "Sent" folder (shows in Roundcube)
+ Van app ──HTTPS──► website ──SMTP (your login)──► Zoho Mail ──► customer
+                           └─IMAP (your login)──► your "Sent" folder (shows in Zoho)
 ```
 
-**Each tech, once:** open the **Email** tab → enter your email address and
-**the same password you use for webmail** → **Connect** (needs signal). If you
-later change your webmail password, the app will say it was rejected; just
-connect again with the new password.
+**Each tech, once:** open the **Email** tab → enter your Zoho email address
+and password → **Connect** (needs signal). If your Zoho account uses
+two-factor sign-in, create an **app-specific password** in Zoho (*Accounts →
+Security → App Passwords*) and use that. If you later change the password,
+the app will say it was rejected; just connect again.
 
 - Your password is checked right away, then stored **encrypted on the
   company server**, never on the laptop. A stolen laptop can't reveal it, and
@@ -159,16 +160,11 @@ connect again with the new password.
   **NOT SENT** with the reason, and an orange banner tells you.
 - Every van email is also recorded in the portal's email history.
 
-**Office / server setup:** the defaults suit a standard Plesk mail setup
-(server `mail.rowanheatingandair.com`, ports 587 and 993). If yours differs,
-set `MAIL_HOST` etc. in the portal's `.env` (see `.env.example`):
-
-- Mail runs on the same Plesk server as the portal → `MAIL_HOST="localhost"`.
-- Plesk mail still uses its default self-signed certificate → either secure
-  mail with Let's Encrypt in Plesk (*Mail → Mail Settings → SSL/TLS
-  certificate for mail*) or set `MAIL_TLS_ALLOW_SELF_SIGNED="1"`.
-- The right server name is shown in Plesk under *Mail → (mailbox) → Mail
-  client settings*.
+**Office setup:** Zoho Mail **Lite or higher** (the free plan has no
+IMAP/SMTP), with **IMAP access** turned on for each tech (*Zoho Mail →
+Settings → Mail → POP/IMAP Access*). The server defaults are Zoho's
+(`smtppro.zoho.com`, `imappro.zoho.com`); an EU Zoho account sets
+`MAIL_SMTP_HOST`/`MAIL_IMAP_HOST` to the `.eu` names in the `.env`.
 
 ## Install on a CF-29
 

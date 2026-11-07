@@ -165,7 +165,7 @@ def logout(server, token):
 
 
 def connect_mailbox(server, token, address, password):
-    """Checks the technician's webmail login on the server and saves it there
+    """Checks the technician's Zoho Mail login on the server and saves it there
     (encrypted). The password is never stored on the laptop."""
     return post(server, "/api/van/v1/mailbox", {"address": address, "password": password},
                 token=token, timeout=45)

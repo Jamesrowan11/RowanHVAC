@@ -1,5 +1,5 @@
 """Email tab: send email as yourself from your company mailbox (the same
-account as Roundcube webmail). Sent emails also land in your webmail Sent
+account as Zoho Mail). Sent emails also land in your Zoho Mail Sent
 folder. Emails queue like everything else and go out once the van has signal."""
 
 import tkinter as tk
@@ -48,9 +48,9 @@ class EmailTab(tk.Frame):
         card = tk.Frame(self.body, bg=WHITE, padx=28, pady=22)
         card.place(relx=0.5, rely=0.42, anchor="center")
         tk.Label(card, text="Connect your email", font=FONT_BIG, fg=NAVY, bg=WHITE).pack(anchor="w")
-        tk.Label(card, text="Use the same email address and password you use for webmail\n"
-                            "(webmail.rowanheatingandair.com). Emails you send here come from\n"
-                            "you, and a copy is saved in your webmail Sent folder.",
+        tk.Label(card, text="Use your Zoho Mail address and password. Emails you send here\n"
+                            "come from you, and a copy is saved in your Zoho Sent folder.\n"
+                            "Using two-factor sign-in? Use a Zoho app-specific password.",
                  font=FONT, fg=GREY, bg=WHITE, justify="left").pack(anchor="w", pady=(4, 12))
         tk.Label(card, text="Email address", font=FONT_BOLD, fg=NAVY, bg=WHITE).pack(anchor="w")
         self.addr = tk.Entry(card, font=("Tahoma", 14), width=36, relief="solid", bd=1)

@@ -13,18 +13,26 @@ Everything runs as **one app on one domain, `rowanheatingandair.com`**:
 | `rowanheatingandair.com/portal` | The **portal**: each role's dashboard, jobs, messaging, documents and payments, manuals, vehicles, email. |
 | `rowanheatingandair.com/api/van/v1/*` | The **van app's sync API** (the Toughbook desktop app in `van-app/`). |
 
-Webmail stays at `webmail.rowanheatingandair.com` (Plesk/Roundcube); the van
-app's Email tab sends through that same mail server.
+Company email (mailboxes and webmail) is **Zoho Mail** for
+`@rowanheatingandair.com`. The website's automatic emails are sent through a
+Zoho mailbox (e.g. info@), and the van app's Email tab sends as each tech
+through their own Zoho mailbox.
+
+It runs on **DigitalOcean**: Ubuntu droplets behind a **Load Balancer**, with
+**Managed MySQL** and **Spaces** (file storage) shared by all droplets. See
+[`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
 
 ## Tech stack
 
 - **Next.js (App Router)** + React + TypeScript
 - **Tailwind CSS** (navy `#1a2b4a` primary, warm-orange `#f57c1f` accent)
-- **Prisma ORM** + **MySQL / MariaDB** (what Plesk / cPanel provide)
+- **Prisma ORM** + **MySQL** (DigitalOcean Managed MySQL)
 - **Auth.js / NextAuth v5** — email + password, bcrypt-hashed, JWT sessions
-- **Resend** for transactional email (optional — falls back to console logging)
-- One long-lived Node process (`server.js`) behind Plesk's **Phusion Passenger**
-  (or PM2 + nginx) serves the website, portal and van API.
+- **Email:** sent over SMTP from a company Zoho mailbox (nodemailer); Resend
+  is an optional alternative; with neither, emails are logged to the console
+- **Files:** DigitalOcean Spaces (S3 API) behind a load balancer, or local disk
+- `server.js` under **PM2** (cluster mode) behind **nginx** on each droplet
+  serves the website, portal and van API
 - **Van app:** Python 3.4+ / Tkinter desktop app (`van-app/`), runs on Windows XP
 
 ## Security model
@@ -92,15 +100,18 @@ npm run dev
 | `DATABASE_URL`         |   yes    | MySQL connection string (`mysql://user:pass@host:3306/db`).           |
 | `AUTH_SECRET`          |   yes    | Secret used to sign session JWTs.                                     |
 | `AUTH_URL`             |   rec.   | The site's address, `https://rowanheatingandair.com` (sign-in, links in emails). |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | LB | Same value on every droplet so any droplet can handle any form. |
+| `SPACES_BUCKET` / `SPACES_REGION` / `SPACES_KEY` / `SPACES_SECRET` | LB | DigitalOcean Spaces for documents + manuals. Unset = local disk (`UPLOAD_DIR`). |
+| `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | rec. | Company Zoho mailbox the website's emails are sent from (e.g. info@). |
 | `EMAIL_FROM`           |    no    | From-address for outgoing email. Defaults to the company address.    |
-| `RESEND_API_KEY`       |    no    | If set, email sends via Resend. If unset, email is logged to console.|
-| `UPLOAD_DIR`           |    no    | Where uploaded documents are stored (use a persistent path on cPanel).|
+| `RESEND_API_KEY`       |    no    | Alternative to `EMAIL_SMTP_*`: send via Resend. With neither, email is logged to console. |
+| `UPLOAD_DIR`           |    no    | Local-disk storage folder, only when Spaces isn't configured.         |
 | `INBOUND_EMAIL_SECRET` |    no    | Shared secret required by the inbound-email webhook.                  |
-| `MAIL_HOST`            |    no    | Company mail server for the van app's Email tab (default `mail.rowanheatingandair.com`). |
-| `MAIL_SMTP_PORT` / `MAIL_IMAP_PORT` | no | Mail ports (defaults 587 STARTTLS / 993).               |
+| `MAIL_SMTP_HOST` / `MAIL_IMAP_HOST` | no | Mail servers (default Zoho: `smtppro.zoho.com` / `imappro.zoho.com`; `.eu` for EU). `MAIL_HOST` sets both. |
+| `MAIL_SMTP_PORT` / `MAIL_IMAP_PORT` | no | Mail ports (defaults 465 TLS / 993).                    |
 | `MAIL_ALLOWED_DOMAIN`  |    no    | Only mailboxes at this domain can be connected (default `rowanheatingandair.com`). |
 | `MAIL_SENT_FOLDER`     |    no    | Force the Sent folder name (normally auto-detected).                  |
-| `MAIL_TLS_ALLOW_SELF_SIGNED` | no | `1` if the mail server still uses Plesk's self-signed certificate.  |
+| `MAIL_TLS_ALLOW_SELF_SIGNED` | no | `1` only for a self-hosted mail server with a self-signed certificate. |
 | `MAILBOX_SECRET`       |    no    | Encrypts stored mailbox passwords (defaults to a key derived from `AUTH_SECRET`). |
 | `APP_TIMEZONE`         |    no    | Company time zone for the Vehicles page (default `America/New_York`). |
 | `SPEED_ALERT_MPH`      |    no    | Email admins when a van exceeds this speed (default 80; `0` = off).   |
@@ -157,8 +168,8 @@ Toughbook CF-29 laptops (Python 3.4+/Tkinter, so it runs on Windows XP). Each
 van keeps a local copy of its tech's jobs and messages, works without signal,
 and syncs through this portal, so every van and the office see the same jobs,
 statuses, notes, and **messages** (the same conversations as the portal's
-Messages page). Techs can also **send email from their own Roundcube mailbox**
-(webmail.rowanheatingandair.com). Install steps and details:
+Messages page). Techs can also **send email from their own Zoho mailbox**.
+Install steps and details:
 [`van-app/README.md`](van-app/README.md).
 
 - API (part of the portal, nothing extra to deploy): `POST /api/van/v1/login`,
@@ -170,12 +181,12 @@ Messages page). Techs can also **send email from their own Roundcube mailbox**
   Sent folder). Mailbox passwords are stored encrypted (`Mailbox` table,
   AES-256-GCM) and never stored on the laptops. Every van email is also
   recorded in `EmailLog`. See the `MAIL_*` settings above.
-- **Equipment manuals** (`Manual` table, files in `UPLOAD_DIR`): admins upload
+- **Equipment manuals** (`Manual` table, files in Spaces): admins upload
   them under **Manuals** (brand tabs → model tabs, up to 50 MB each, via the
   `/portal/manuals/upload` route since server actions cap bodies at 10 MB).
   Staff can open them; vans download them on demand
-  (`GET /api/van/v1/manuals/:id`) and keep them for offline use. If nginx in
-  Plesk rejects big uploads, raise *Apache & nginx Settings → client_max_body_size*.
+  (`GET /api/van/v1/manuals/:id`) and keep them for offline use. nginx on the
+  droplets allows 60 MB request bodies for this.
 - **Vehicles (OBD-II)**: with an ELM327 adapter on the van's OBD-II port, the
   van app logs speed every few seconds and reads trouble codes. Readings ride
   along with each sync (`VehicleSpeed`, `VehicleCodeReport`). Admins see them
@@ -186,9 +197,9 @@ Messages page). Techs can also **send email from their own Roundcube mailbox**
   assigned to its tech, and can't move a cancelled job.
 - Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle
   for 30 days stop working.
-- The portal must be served over **HTTPS** (on Plesk: *SSL/TLS Certificates →
-  Let's Encrypt* for the portal's domain). The app ships the Let's Encrypt root
-  certificates because Windows XP doesn't have them.
+- The site must be served over **HTTPS** (the load balancer's Let's Encrypt
+  certificate). The van app ships the Let's Encrypt root certificates because
+  Windows XP doesn't have them.
 
 ## Inbound email webhook
 
@@ -201,10 +212,13 @@ with the company; every inbound message is recorded in `EmailLog`.
 
 ## File uploads
 
-Uploaded documents are stored on the local filesystem (`UPLOAD_DIR`, outside
-`/public`) and served only through an access-controlled route
-(`/portal/documents/[id]`). The storage interface (`src/lib/uploads.ts`) is a
-thin store/read/delete-by-key layer, so moving to S3/GCS is a localized change.
+Customer documents and equipment manuals are stored in **DigitalOcean
+Spaces** (private bucket, `SPACES_*`) so every droplet behind the load
+balancer sees every file, or on the local disk (`UPLOAD_DIR`) when Spaces
+isn't configured. Either way they're served only through access-controlled
+routes (`/portal/documents/[id]`, `/portal/manuals/[id]`,
+`/api/van/v1/manuals/:id`). `src/lib/uploads.ts` holds both backends;
+`npm run storage:migrate` copies an existing `UPLOAD_DIR` into Spaces.
 
 ## Project structure
 
@@ -227,9 +241,10 @@ src/                    # the app: website + portal + van API (Next.js)
   lib/                  # prisma, auth helpers, email, uploads, messaging, rate limit
   auth.ts / auth.config.ts   # NextAuth v5 (Node + edge-safe split)
   middleware.ts         # first-gate route protection
-server.js               # Node entry point (Plesk/cPanel Passenger, PM2)
-deploy/plesk/           # DigitalOcean + Plesk deployment guide + nginx directives
-deploy/deploy.sh        # SSH redeploy: pull → install → migrate → build → reload
+server.js               # Node entry point (PM2 cluster; also cPanel Passenger)
+ecosystem.config.js     # PM2 config (2 processes, 127.0.0.1:3000)
+deploy/digitalocean/    # load-balanced DigitalOcean guide, droplet setup, nginx, rolling deploy
+deploy/deploy.sh        # update one droplet: pull → install → migrate → build → reload
 .cpanel.yml             # cPanel Git deployment tasks
 scripts/cpanel-deploy.sh# cPanel: install → migrate → build → restart
 van-app/                # desktop app for the van Toughbooks (Python/Tkinter)
@@ -245,7 +260,18 @@ migrations, runs the Vitest suite, builds the app, and runs the van app's tests
 plus a Python 3.4 compatibility check. This is the automated gate that proves a
 commit is deployable.
 
-## Deploying to cPanel (alternative to Plesk)
+## Deploying on DigitalOcean (load-balanced)
+
+Step-by-step: [`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
+In short: Managed MySQL + Spaces + Zoho Mail; two or more Ubuntu droplets
+prepared with `deploy/digitalocean/setup-droplet.sh` and sharing one `.env`;
+a Load Balancer with a Let's Encrypt certificate and `/api/health` checks.
+Updates roll out one droplet at a time with
+`bash deploy/digitalocean/deploy-all.sh <droplet IPs>`.
+
+## Other hosting (not used for rowanheatingandair.com)
+
+### cPanel
 
 The same single app runs under cPanel's *Setup Node.js App*:
 
@@ -261,7 +287,7 @@ The same single app runs under cPanel's *Setup Node.js App*:
 5. **First deploy** (cPanel *Terminal*): `bash scripts/cpanel-deploy.sh`,
    then `npm run db:seed` once for the starter accounts.
 
-### Automated redeploys
+#### Automated cPanel redeploys
 
 - **From cPanel:** *Git™ Version Control* → *Manage* → *Deploy HEAD Commit*.
   cPanel runs `.cpanel.yml` → `scripts/cpanel-deploy.sh` (install →
@@ -271,19 +297,13 @@ The same single app runs under cPanel's *Setup Node.js App*:
   `CPANEL_API_TOKEN`, `CPANEL_REPO_ROOT`). Every push to `main` then triggers a
   cPanel deploy. Without the secrets the workflow is a harmless no-op.
 
-### Inbound email
+### Inbound email webhook URL
 
 Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
 `https://rowanheatingandair.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
-## Deploying on DigitalOcean + Plesk (rowanheatingandair.com)
-
-Step-by-step guide (Plesk panel or SSH): [`deploy/plesk/README.md`](deploy/plesk/README.md).
-The app goes on the main domain `rowanheatingandair.com`, so the website,
-portal and van API are one site with one certificate.
-
-## Deploying on Windows Server (e.g. AWS EC2 Windows)
+### Windows Server (e.g. AWS EC2 Windows)
 
 The app runs unchanged on Windows. IIS handles the public ports + SSL and
 reverse-proxies to the Node app (kept alive by PM2). Files in `deploy/windows/`
@@ -320,7 +340,7 @@ and `scripts/*.ps1` support this.
 6. **Updates later**: `./scripts/deploy.ps1` (pull → migrate → build → PM2
    reload).
 
-## Deploying to Vercel (alternative)
+### Vercel
 
 The app also deploys to Vercel (serverless): set `DATABASE_URL` (a hosted
 MySQL URL), `AUTH_SECRET`, and run `npx prisma migrate deploy`. Vercel's

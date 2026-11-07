@@ -4,33 +4,39 @@ import MailComposer from "nodemailer/lib/mail-composer";
 import { ImapFlow } from "imapflow";
 
 /**
- * Sending email as a staff member from their own company mailbox — the same
- * account they use in Roundcube webmail (webmail.rowanheatingandair.com).
+ * Sending email as a staff member from their own company mailbox (Zoho Mail
+ * for @rowanheatingandair.com): the same account they use in Zoho's webmail
+ * and phone app.
  *
- * Roundcube is only a web front-end; the mailbox itself lives on the mail
- * server (Postfix + Dovecot on Plesk). So we talk to that server directly:
- * SMTP (submission, with the user's own login) to send, then IMAP APPEND to
- * save the exact same message into their "Sent" folder, so it shows up in
- * Roundcube like anything else they sent.
+ * We talk to the mail provider directly with the user's own login: SMTP to
+ * send, then IMAP APPEND to save the exact same message into their "Sent"
+ * folder, so it shows up in Zoho like anything else they sent. (Zoho Mail's
+ * free plan has no IMAP/SMTP; Mail Lite or higher is needed, with IMAP access
+ * turned on for each user.)
  *
- * Configuration (all optional; defaults suit a standard Plesk mail setup):
- *   MAIL_HOST                  mail server hostname (default mail.rowanheatingandair.com)
- *   MAIL_SMTP_PORT             587 (STARTTLS) or 465 (TLS)       default 587
+ * Configuration (all optional; defaults are Zoho's servers for organization
+ * accounts in the US data center):
+ *   MAIL_SMTP_HOST             default smtppro.zoho.com (EU: smtppro.zoho.eu)
+ *   MAIL_IMAP_HOST             default imappro.zoho.com (EU: imappro.zoho.eu)
+ *   MAIL_HOST                  sets both at once (e.g. a self-hosted server)
+ *   MAIL_SMTP_PORT             465 (TLS) or 587 (STARTTLS)        default 465
  *   MAIL_IMAP_PORT             993 (TLS)                          default 993
  *   MAIL_ALLOWED_DOMAIN        only mailboxes @ this domain       default rowanheatingandair.com
  *   MAIL_SENT_FOLDER           force a Sent folder name (normally auto-detected)
- *   MAIL_TLS_ALLOW_SELF_SIGNED set to "1" if the mail server still uses Plesk's
- *                              default self-signed certificate
+ *   MAIL_TLS_ALLOW_SELF_SIGNED "1" only for a self-hosted server with a
+ *                              self-signed certificate
  *   MAILBOX_SECRET             key for encrypting stored mailbox passwords
  *                              (defaults to one derived from AUTH_SECRET)
  */
 
 export function mailConfig() {
-  const host = process.env.MAIL_HOST || "mail.rowanheatingandair.com";
-  const smtpPort = Number(process.env.MAIL_SMTP_PORT || 587);
-  const local = host === "localhost" || host === "127.0.0.1";
+  const smtpHost = process.env.MAIL_SMTP_HOST || process.env.MAIL_HOST || "smtppro.zoho.com";
+  const imapHost = process.env.MAIL_IMAP_HOST || process.env.MAIL_HOST || "imappro.zoho.com";
+  const smtpPort = Number(process.env.MAIL_SMTP_PORT || 465);
+  const local = [smtpHost, imapHost].some((h) => h === "localhost" || h === "127.0.0.1");
   return {
-    host,
+    smtpHost,
+    imapHost,
     smtpPort,
     imapPort: Number(process.env.MAIL_IMAP_PORT || 993),
     allowedDomain: (process.env.MAIL_ALLOWED_DOMAIN || "rowanheatingandair.com").toLowerCase(),
@@ -77,10 +83,10 @@ export function decryptSecret(stored: string): string | null {
 
 export type MailboxLogin = { address: string; password: string };
 
-function smtpTransport(login: MailboxLogin) {
+export function smtpTransport(login: MailboxLogin) {
   const cfg = mailConfig();
   return nodemailer.createTransport({
-    host: cfg.host,
+    host: cfg.smtpHost,
     port: cfg.smtpPort,
     secure: cfg.smtpPort === 465,
     requireTLS: cfg.smtpPort !== 465, // never send the password unencrypted
@@ -102,7 +108,7 @@ export function describeMailError(err: unknown): MailFailure {
   const e = err as { code?: string; responseCode?: number; message?: string };
   if (e.code === "EAUTH" || e.responseCode === 535) {
     return {
-      message: "Your email password was rejected. Reconnect your email in the van app (Email tab).",
+      message: "Your email password was rejected. Reconnect your email in the van app (Email tab). With Zoho two-factor sign-in, use an app-specific password.",
       retry: false,
     };
   }
@@ -168,7 +174,7 @@ export async function sendFromMailbox(login: MailboxLogin, email: OutgoingEmail)
 async function appendToSent(login: MailboxLogin, raw: Buffer) {
   const cfg = mailConfig();
   const client = new ImapFlow({
-    host: cfg.host,
+    host: cfg.imapHost,
     port: cfg.imapPort,
     secure: true,
     auth: { user: login.address, pass: login.password },
@@ -185,7 +191,7 @@ async function appendToSent(login: MailboxLogin, raw: Buffer) {
 }
 
 /**
- * Finds the folder Roundcube uses for sent mail: the one flagged \Sent, else
+ * Finds the mailbox's sent-mail folder: the one flagged \Sent, else
  * one named like "Sent" (Plesk's Dovecot often names it "INBOX.Sent").
  */
 export function pickSentFolder(

@@ -30,10 +30,14 @@ function vehiclesLink(vanName: string, day?: string) {
   return `${appBaseUrl()}/portal/admin/vehicles?${p}`;
 }
 
-// At most one speeding email per van per hour (in-memory; fine for a single
-// portal process).
-const lastSpeedAlert = new Map<string, number>();
+// Housekeeping runs at most hourly per server process (harmless if several
+// servers behind the load balancer each do it).
 let lastPrune = 0;
+
+/** Subject line of a speed alert; also how we find the last one sent. */
+export function speedAlertSubject(vanName: string, mph?: number) {
+  return `Speed alert: ${vanName} at ${mph ?? ""}`;
+}
 
 export async function afterSpeedBatch(
   van: { vanName: string; driverName: string },
@@ -51,16 +55,23 @@ export async function afterSpeedBatch(
   if (!limit) return;
   const fast = readings.filter((r) => r.mph > limit);
   if (fast.length === 0) return;
-  const last = lastSpeedAlert.get(van.vanName) ?? 0;
-  if (Date.now() - last < 60 * 60_000) return;
-  lastSpeedAlert.set(van.vanName, Date.now());
+  // At most one speeding email per van per hour. Checked in the shared email
+  // log rather than in memory, so it holds across all servers.
+  const recent = await prisma.emailLog.findFirst({
+    where: {
+      subject: { startsWith: speedAlertSubject(van.vanName) },
+      createdAt: { gte: new Date(Date.now() - 60 * 60_000) },
+    },
+    select: { id: true },
+  });
+  if (recent) return;
 
   const top = fast.reduce((a, b) => (b.mph > a.mph ? b : a));
   const to = await adminEmails();
   if (to.length === 0) return;
   await sendEmail({
     to,
-    subject: `Speed alert: ${van.vanName} at ${top.mph} mph`,
+    subject: `${speedAlertSubject(van.vanName, top.mph)} mph`,
     body:
       `${van.vanName} (driver: ${van.driverName}) went over ${limit} mph.\n\n` +
       `Top speed: ${top.mph} mph at ${fmtTime(top.recordedAt, APP_TIMEZONE)}.\n` +

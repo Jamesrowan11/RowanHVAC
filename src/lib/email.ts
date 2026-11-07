@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import { smtpTransport } from "@/lib/mailbox";
 import type { EmailStatus } from "@prisma/client";
 
 export const EMAIL_FROM =
@@ -25,9 +26,41 @@ type SendArgs = {
 };
 
 /**
- * Pluggable email sender. Sends via Resend when RESEND_API_KEY is configured;
- * otherwise logs the full email to the server console. Every attempt is recorded
- * in EmailLog with the sending user's id.
+ * The company mailbox the website sends its automatic emails from (password
+ * resets, quote and message notifications, vehicle alerts), e.g.
+ * info@rowanheatingandair.com on Zoho Mail. Uses the same SMTP server as the
+ * van app's Email tab (MAIL_SMTP_HOST / MAIL_SMTP_PORT).
+ *   EMAIL_SMTP_USER      the mailbox address
+ *   EMAIL_SMTP_PASSWORD  its password (a Zoho app-specific password if that
+ *                        account uses two-factor sign-in)
+ */
+export function smtpSender(): { user: string; password: string } | null {
+  const user = process.env.EMAIL_SMTP_USER?.trim();
+  const password = process.env.EMAIL_SMTP_PASSWORD;
+  return user && password ? { user, password } : null;
+}
+
+/**
+ * Zoho (like most providers) only lets a mailbox send as itself. Keep the
+ * display name from EMAIL_FROM, but send from the authenticated mailbox; if
+ * EMAIL_FROM names a different address, replies go there.
+ */
+export function smtpFromHeaders(user: string, emailFrom = EMAIL_FROM) {
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(emailFrom);
+  const name = (m ? m[1] : "").replace(/^"|"$/g, "") || "Rowan Heating & Air Conditioning";
+  const address = (m ? m[2] : emailFrom).trim();
+  return {
+    from: { name, address: user },
+    ...(address.toLowerCase() !== user.toLowerCase() && address.includes("@") ? { replyTo: address } : {}),
+  };
+}
+
+/**
+ * Pluggable email sender, in order of preference:
+ * 1. the company mailbox over SMTP (EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD),
+ * 2. Resend (RESEND_API_KEY),
+ * 3. otherwise the full email is logged to the server console.
+ * Every attempt is recorded in EmailLog with the sending user's id.
  */
 export async function sendEmail({
   to,
@@ -46,8 +79,25 @@ export async function sendEmail({
 
   let status: EmailStatus = "LOGGED";
 
+  const smtp = smtpSender();
   const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey && recipients.length > 0) {
+  if (smtp && recipients.length > 0) {
+    const transport = smtpTransport({ address: smtp.user, password: smtp.password });
+    try {
+      await transport.sendMail({
+        ...smtpFromHeaders(smtp.user),
+        to: recipients,
+        subject,
+        text: finalBody,
+      });
+      status = "SENT";
+    } catch (err) {
+      status = "FAILED";
+      console.error("[email] SMTP send failed:", (err as Error).message);
+    } finally {
+      transport.close();
+    }
+  } else if (apiKey && recipients.length > 0) {
     try {
       const resend = new Resend(apiKey);
       const { error } = await resend.emails.send({

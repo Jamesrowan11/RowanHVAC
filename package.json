@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "cpanel:portal": "prisma migrate deploy && prisma generate && next build",
+    "storage:migrate": "tsx scripts/migrate-uploads-to-spaces.ts",
     "test": "vitest run"
   },
   "prisma": {
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
+    "@aws-sdk/client-s3": "^3.1153.0",
     "@prisma/client": "^6.2.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",

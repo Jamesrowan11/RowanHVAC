@@ -7,7 +7,7 @@ import { encryptSecret, isAllowedMailbox, mailConfig, verifyMailbox } from "@/li
 
 /**
  * Connects (or disconnects) the technician's own company mailbox — the account
- * they use in Roundcube — so the van app can send email as them. The password
+ * they use in Zoho Mail — so the van app can send email as them. The password
  * is checked against the mail server right away, then stored encrypted.
  */
 export async function POST(req: Request) {
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         ok: false,
         error: failure.retry
           ? "Couldn't reach the company mail server. Try again in a few minutes."
-          : "That email address and password didn't work. Use the same login as webmail (Roundcube).",
+          : "That email address and password didn't work. Use your Zoho Mail login (or a Zoho app-specific password if you use two-factor sign-in), and make sure IMAP access is on in Zoho Mail settings.",
       },
       { status: failure.retry ? 503 : 422 },
     );
