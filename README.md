@@ -4,20 +4,16 @@ A full-stack web application for **Rowan Heating & Air Conditioning** — a
 family-owned HVAC company serving Highland, Fulton, and Howard County, Maryland
 since 1958.
 
-It ships as **two deployables in one repo**, built for GoDaddy cPanel hosting on
-two subdomains:
+It runs as **one Node.js app** on a DigitalOcean droplet: the public marketing
+homepage at `/` (hero, services, service area, reviews, quote form) and the
+login-gated portal: one login, three roles (`CLIENT`, `EMPLOYEE`, `ADMIN`),
+each with its own dashboard, plus in-app messaging, document/payment sharing,
+and a pluggable email layer.
 
-- **(A) Public marketing website** — `rowanhvac.rowancopy.com`. A statically
-  exported single page (hero, services, "why choose us", service area, real
-  customer reviews, a quote form, footer). Plain HTML/CSS/JS — runs on any
-  GoDaddy plan with **no server**. SEO-optimized with Open Graph and
-  `HVACBusiness` JSON-LD (founding date 1958). Its quote form POSTs to the
-  portal's API and the submission appears in the admin dashboard. Lives in
-  `public-site/`.
-- **(B) Role-based portal** — `rowanhvacportal.rowancopy.com`. The login-gated
-  Node.js app: one login, three roles (`CLIENT`, `EMPLOYEE`, `ADMIN`), each with
-  its own dashboard, plus in-app messaging, document/payment sharing, and a
-  pluggable email layer. This is the repo root.
+**Hosting:** DigitalOcean (Ubuntu 24.04) with Caddy for automatic HTTPS,
+MariaDB, and automatic deploys from GitHub. See
+[Deploying to DigitalOcean](#deploying-to-digitalocean) below. The cPanel,
+Windows and Vercel sections further down are older options kept for reference.
 
 ## Tech stack
 
@@ -127,7 +123,11 @@ The app **runs fully without an email key** — every email is recorded in the
 
 ## Demo accounts
 
-After seeding, log in at `/login`. **Password for all accounts:** `Password123!`
+> **Never run the seed on the live server.** `prisma/seed.ts` deletes every
+> record and creates demo logins with a shared password. On the server, the
+> first admin is created by `prisma/create-admin.ts` instead (see below).
+
+After seeding (local development only), log in at `/login`. **Password for all accounts:** `Password123!`
 
 | Role     | Email                 |
 | -------- | --------------------- |
@@ -221,7 +221,53 @@ MySQL service, installs dependencies, generates the Prisma client, applies
 migrations, runs the Vitest suite, builds the portal, **and** builds the static
 public site. This is the automated gate that proves a commit is deployable.
 
-## Deploying to GoDaddy cPanel (two subdomains)
+## Deploying to DigitalOcean
+
+This is how the app runs in production, the same way as rowancopy.com:
+
+- **Caddy** serves the domain with automatic HTTPS and passes requests to the app on port 3000.
+- **MariaDB** runs on the same droplet; the database and its password are created during setup.
+- **Secrets** live in `/etc/rowanhvac/env` on the server (outside the repository, readable only by root and the app).
+- **Automatic deploys:** every 3 minutes the server checks GitHub; when `main` has new commits it installs, migrates
+  the database, rebuilds and restarts. If a build fails it rolls back to the last commit that built, so the site stays up.
+- **Email** goes through ZeptoMail (Zoho) when `ZEPTOMAIL_TOKEN` is set in the env file, otherwise it's logged.
+
+### New droplet (no SSH needed)
+
+1. Create an Ubuntu 24.04 droplet (2 GB RAM or more).
+2. In **User data**, paste `infra/digitalocean/user-data.sh` with `APP_DOMAIN` (and `ADMIN_EMAIL`) filled in.
+3. Point the domain's **A record** at the droplet. HTTPS starts on its own once DNS points there.
+
+Or, on an existing droplet: `sudo APP_DOMAIN=rowanhvac.com ADMIN_EMAIL=you@example.com bash infra/digitalocean/setup.sh`
+
+Several apps can share one droplet: each adds its own site file in `/etc/caddy/sites/`.
+
+### First login
+
+Setup creates one admin (`ADMIN_EMAIL`) with a random password. Once email works, use **Forgot password** on
+the login page to set it.
+
+### Settings and secrets
+
+Edit `/etc/rowanhvac/env`, then `sudo systemctl restart rowanhvac`. To turn on email, set:
+
+```
+ZEPTOMAIL_TOKEN=<Send Mail token from ZeptoMail → Mail Agents → SMTP/API>
+EMAIL_FROM=Rowan Heating & Air Conditioning <info@rowanhvac.com>
+```
+
+The sender's domain must be verified in ZeptoMail.
+
+### Useful commands
+
+| What | Command |
+|---|---|
+| Deploy now | `sudo /usr/local/sbin/rowanhvac-deploy --force` |
+| Deploy log | `journalctl -u rowanhvac-deploy -n 100` |
+| App log | `journalctl -u rowanhvac -n 100` |
+| Restart | `sudo systemctl restart rowanhvac` |
+
+## Deploying to GoDaddy cPanel (two subdomains, older option)
 
 The project is split to match GoDaddy's hosting model:
 
@@ -299,7 +345,7 @@ Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
 `https://rowanhvacportal.rowancopy.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
-## Deploying on Windows Server (e.g. AWS EC2 Windows)
+## Deploying on Windows Server (older option)
 
 The app runs unchanged on Windows. IIS handles the public ports + SSL and
 reverse-proxies to the Node app (kept alive by PM2). Files in `deploy/windows/`
@@ -336,7 +382,7 @@ and `scripts/*.ps1` support this.
 6. **Updates later**: `./scripts/deploy.ps1` (pull → migrate → build → PM2
    reload).
 
-## Deploying to Vercel (alternative)
+## Deploying to Vercel (older option)
 
 The portal also deploys to Vercel (serverless) — set `DATABASE_URL` (a hosted
 MySQL URL such as PlanetScale), `AUTH_SECRET`, and run `npx prisma migrate
