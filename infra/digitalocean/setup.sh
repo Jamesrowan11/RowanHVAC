@@ -147,7 +147,7 @@ systemctl daemon-reload
 systemctl enable $APP
 
 say "First build and start (a few minutes)"
-BRANCH=$BRANCH /usr/local/sbin/$APP-deploy --force
+BRANCH=$BRANCH /usr/local/sbin/$APP-deploy --force || echo "WARNING: the first build did not finish (see above). Setup continues; fix the cause, then run: sudo /usr/local/sbin/$APP-deploy --force"
 
 if [ -n "${ADMIN_EMAIL:-}" ]; then
   say "First admin"
