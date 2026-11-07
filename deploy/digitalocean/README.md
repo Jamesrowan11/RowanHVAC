@@ -9,17 +9,18 @@ front, and managed services for anything that must be shared between them.
                 ┌─────────────▼──────────────┐
   customers,    │  DigitalOcean Load Balancer │  HTTPS (Let's Encrypt), HTTP→HTTPS,
   office, vans ─►  health check /api/health   │  sticky sessions
-                └──────┬───────────────┬──────┘
-                 HTTP :80         HTTP :80          (private network / VPC)
-              ┌────────▼───┐   ┌───────▼────┐
-              │ droplet 1  │   │ droplet 2  │  Ubuntu · nginx · Node 20 · PM2
-              │ app (x2)   │   │ app (x2)   │  same code, same .env
-              └──┬──────┬──┘   └──┬──────┬──┘
-                 │      └────┬────┘      │
-     ┌───────────▼───┐  ┌────▼─────────┐ │   ┌──────────────────────┐
-     │ Managed MySQL │  │   Spaces     │ └──►│ Zoho Mail (SMTP/IMAP)│
-     │  (database)   │  │ (files, PDFs)│     │ mailboxes + webmail  │
-     └───────────────┘  └──────────────┘     └──────────────────────┘
+                └──────┬─────────┬─────────┬──┘
+                 HTTP :80  HTTP :80  HTTP :80       (private network / VPC)
+          ┌────────▼──┐ ┌────▼──────┐ ┌▼──────────┐
+          │ droplet 1 │ │ droplet 2 │ │ droplet 3 │  Ubuntu · nginx · Node 20 · PM2
+          │ app (x2)  │ │ app (x2)  │ │ app (x2)  │  same code, same .env
+          └─────┬─────┘ └─────┬─────┘ └─────┬─────┘
+                └─────────────┼─────────────┘
+          ┌──────────────┬────┴─────────┬───────────────────────┐
+  ┌───────▼───────┐ ┌────▼─────────┐ ┌──▼───────────────────┐
+  │ Managed MySQL │ │   Spaces     │ │ Zoho Mail (SMTP/IMAP)│
+  │  (database)   │ │ (files, PDFs)│ │ mailboxes + webmail  │
+  └───────────────┘ └──────────────┘ └──────────────────────┘
 ```
 
 Why each piece: every droplet must see the same data, so the **database**
@@ -134,8 +135,21 @@ Webmail is at mail.zoho.com (and the Zoho Mail phone app).
 
 ## 5. Droplets
 
-*Droplets → Create*, twice: **Ubuntu 24.04**, same region + VPC, **2 GB RAM**
-or more (Basic $12 plan), your SSH key, tag **`rowanhvac-app`**. On each:
+*Droplets → Create* **three** identical droplets in one go:
+
+- **Region:** the same as the database and Spaces (e.g. NYC3), default VPC
+- **Image:** Ubuntu 24.04 (LTS) x64
+- **Size:** Basic, Regular, **2 GB RAM / 1 CPU** or more (the build needs
+  ~2 GB; the setup script adds swap as a safety net)
+- **Authentication:** your **SSH key** (more secure than a password)
+- **Quantity: 3**, hostnames `rowanhvac-app-1`, `rowanhvac-app-2`,
+  `rowanhvac-app-3`
+- **Tags:** `rowanhvac-app` (the database, load balancer and firewall all
+  find the droplets by this tag)
+- Enable **Monitoring** (free) and, optionally, **Backups**
+
+Note each droplet's **public IP** (for SSH). Then on **each of the three**
+(Windows: PowerShell has `ssh`/`scp` built in):
 
 ```bash
 ssh root@DROPLET_IP
@@ -199,10 +213,13 @@ pm2 start ecosystem.config.js && pm2 save
 curl -s http://127.0.0.1:3000/api/health      # {"ok":true}
 ```
 
-On **droplet 2** (no migrate, no seed):
+On **droplets 2 and 3** (no migrate, no create-admin; the database is shared):
 ```bash
+ssh root@DROPLET2_IP
 su - rowan -c "cd /var/www/rowanhvac-app && npm ci && npm run build && pm2 start ecosystem.config.js && pm2 save"
+curl -s http://127.0.0.1:3000/api/health      # {"ok":true}
 ```
+(then the same on `DROPLET3_IP`)
 
 `create-admin` prints a **temporary password**. Once the site is up (step 8),
 sign in at `/login` with it and change it under **My Profile**. Then add
@@ -214,16 +231,20 @@ any time to add another admin or reset a forgotten admin password.
 
 ## 8. Load balancer
 
-*Networking → Load Balancers → Create*: same region + VPC.
+*Networking → Load Balancers → Create*: **Regional**, same region + VPC,
+1 node is plenty to start (add nodes later if traffic grows).
 
-- **Droplets:** by tag `rowanhvac-app`.
+- **Droplets:** by tag `rowanhvac-app` (all three join automatically).
 - **Forwarding rules:**
   - HTTPS 443 → HTTP 80, certificate: **Let's Encrypt** for
     `rowanheatingandair.com` and `www.rowanheatingandair.com`
   - HTTP 80 → HTTP 80
 - **Advanced settings:**
   - **Redirect HTTP to HTTPS:** on
-  - **Health check:** HTTP, port 80, path `/api/health`
+  - **Health check:** HTTP, port 80, path `/api/health`; check every 10 s,
+    unhealthy after 3 failures, healthy after 3 successes. A droplet that
+    can't reach the database is taken out of rotation automatically.
+  - **Algorithm:** round robin (default)
   - **Sticky sessions:** Cookies (keeps each visitor on one droplet
     during a rolling update)
 
@@ -273,12 +294,15 @@ connect the Email tab once with their **Zoho** login.
 
 From your computer (one droplet at a time; migrations on the first):
 ```bash
-bash deploy/digitalocean/deploy-all.sh DROPLET1_IP DROPLET2_IP
+bash deploy/digitalocean/deploy-all.sh DROPLET1_IP DROPLET2_IP DROPLET3_IP
 ```
 
-Adding a droplet later: create it with the tag, run `setup-droplet.sh`, copy
-the CA certificate and `.env`, then do step 7's droplet-2 commands. The load
-balancer picks it up by tag.
+The other two keep serving the site while each one updates.
+
+Adding a 4th droplet later: create it with the tag, run `setup-droplet.sh`,
+copy the CA certificate and `.env`, then do step 7's droplet-2 commands. The
+load balancer picks it up by tag. Removing one: just destroy it; the load
+balancer stops sending it traffic.
 
 ## Troubleshooting
 
