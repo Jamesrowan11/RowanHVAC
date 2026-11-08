@@ -15,18 +15,38 @@ STATE=$DATA_DIR/last-good-commit
 exec 9>/run/$APP-deploy.lock
 flock -n 9 || { echo "A deploy is already running."; exit 0; }
 
+# Read KEY=value lines literally (values may contain spaces, & or <>), never as shell code.
+load_env() {
+  local line key
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    key=${line%%=*}
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && export "$key=${line#*=}"
+  done < "$1"
+}
+
 as_app() { runuser -u $APP -- env HOME=$DATA_DIR "$@"; }
 log() { echo "$(date -u +%FT%TZ) deploy: $*"; }
 
 cd $APP_DIR || exit 1
 as_app git fetch -q origin "$BRANCH" || { log "git fetch failed"; exit 1; }
+# Use the newest deploy script from GitHub before doing anything else, so a fix
+# to this script always reaches the server (even if the last build failed).
+new=$(mktemp)
+if as_app git show "origin/$BRANCH:infra/digitalocean/deploy.sh" > "$new" 2>/dev/null && [ -s "$new" ] \
+   && ! cmp -s "$new" /usr/local/sbin/$APP-deploy; then
+  install -m 755 "$new" /usr/local/sbin/$APP-deploy && rm -f "$new"
+  log "deploy script updated from GitHub; running the new version"
+  exec /usr/local/sbin/$APP-deploy "$@"
+fi
+rm -f "$new"
 target=$(as_app git rev-parse "origin/$BRANCH")
 current=$(cat $STATE 2>/dev/null || true)
 if [ "${1:-}" != "--force" ] && [ "$target" = "$current" ]; then exit 0; fi
 
 build() {
   as_app git reset -q --hard "$1" &&
-  set -a && . /etc/$APP/env && set +a &&
+  load_env /etc/$APP/env &&
   as_app npm ci --no-audit --no-fund &&
   as_app npx prisma migrate deploy &&
   as_app npm run build

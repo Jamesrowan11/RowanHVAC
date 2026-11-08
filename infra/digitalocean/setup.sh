@@ -152,7 +152,7 @@ BRANCH=$BRANCH /usr/local/sbin/$APP-deploy --force || echo "WARNING: the first b
 
 if [ -n "${ADMIN_EMAIL:-}" ]; then
   say "First admin"
-  (cd $APP_DIR && set -a && . $ENV_FILE && set +a && runuser -u $APP -- env HOME=$DATA_DIR ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_NAME="${ADMIN_NAME:-Administrator}" npx tsx prisma/create-admin.ts)
+  (cd $APP_DIR && while IFS= read -r l; do case "$l" in ""|"#"*) continue;; esac; export "${l%%=*}=${l#*=}"; done < $ENV_FILE && runuser -u $APP -- env HOME=$DATA_DIR ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_NAME="${ADMIN_NAME:-Administrator}" npx tsx prisma/create-admin.ts)
 fi
 systemctl enable --now $APP-deploy.timer
 
