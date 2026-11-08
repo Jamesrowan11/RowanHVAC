@@ -47,7 +47,7 @@ if [ "${1:-}" != "--force" ] && [ "$target" = "$current" ]; then exit 0; fi
 build() {
   as_app git reset -q --hard "$1" &&
   load_env /etc/$APP/env &&
-  as_app npm ci --no-audit --no-fund &&
+  as_app npm ci --include=dev --no-audit --no-fund &&
   as_app npx prisma migrate deploy &&
   as_app npm run build
 }
