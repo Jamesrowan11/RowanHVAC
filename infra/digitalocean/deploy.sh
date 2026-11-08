@@ -37,7 +37,14 @@ if build "$target"; then
   echo "$target" > $STATE
   systemctl restart $APP
   install -m 755 $APP_DIR/infra/digitalocean/deploy.sh /usr/local/sbin/$APP-deploy
+  install -m 755 $APP_DIR/infra/digitalocean/set-secret.sh /usr/local/sbin/$APP-secret
   log "live on ${target:0:7}"
+  # First admin from site.conf (does nothing once an admin exists).
+  admin_email=$(grep -E '^ADMIN_EMAIL=' infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-)
+  admin_name=$(grep -E '^ADMIN_NAME=' infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-)
+  if [ -n "$admin_email" ]; then
+    as_app env ADMIN_EMAIL="$admin_email" ADMIN_NAME="${admin_name:-Administrator}" npx tsx prisma/create-admin.ts || log "first-admin step failed"
+  fi
 else
   log "BUILD FAILED for ${target:0:7}"
   if [ -n "$current" ]; then

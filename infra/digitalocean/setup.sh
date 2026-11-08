@@ -126,6 +126,7 @@ ReadWritePaths=$DATA_DIR $APP_DIR
 WantedBy=multi-user.target
 UNIT
 install -m 755 $APP_DIR/infra/digitalocean/deploy.sh /usr/local/sbin/$APP-deploy
+install -m 755 $APP_DIR/infra/digitalocean/set-secret.sh /usr/local/sbin/$APP-secret
 cat > /etc/systemd/system/$APP-deploy.service <<UNIT
 [Unit]
 Description=Deploy Rowan HVAC from GitHub when $BRANCH changes
