@@ -38,6 +38,8 @@ npm-debug.log*
 # misc
 .DS_Store
 *.pem
+# ...except the public root certificates the van app ships for Windows XP
+!van-app/certs/ca-bundle.pem
 .vercel
 .idea
 .vscode
