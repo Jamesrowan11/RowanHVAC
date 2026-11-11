@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { COMPANY, SEO_KEYWORDS } from "@/lib/company";
 
-const SITE_URL = process.env.AUTH_URL || "https://rowanhvac.com";
+const SITE_URL = process.env.AUTH_URL || "https://rowanheatingandair.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

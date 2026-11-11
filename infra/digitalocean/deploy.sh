@@ -59,6 +59,16 @@ if build "$target"; then
   install -m 755 $APP_DIR/infra/digitalocean/deploy.sh /usr/local/sbin/$APP-deploy
   install -m 755 $APP_DIR/infra/digitalocean/set-secret.sh /usr/local/sbin/$APP-secret
   log "live on ${target:0:7}"
+  # Equipment manuals can be up to 50 MB: raise Caddy's old 12 MB upload cap once.
+  site=/etc/caddy/sites/$APP.caddy
+  if [ -f "$site" ] && grep -q 'max_size 12MB' "$site"; then
+    cp "$site" "$site.bak" && sed -i 's/max_size 12MB/max_size 60MB/' "$site"
+    if caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+      systemctl reload caddy && log "upload limit raised to 60 MB"
+    else
+      mv "$site.bak" "$site" && log "kept the 12 MB upload limit (Caddy config check failed)"
+    fi
+  fi
   # First admin from site.conf (does nothing once an admin exists).
   admin_email=$(grep -E '^ADMIN_EMAIL=' infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-)
   admin_name=$(grep -E '^ADMIN_NAME=' infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-)

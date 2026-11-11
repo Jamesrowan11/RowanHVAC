@@ -11,6 +11,9 @@ const { parse } = require("url");
 const next = require("next");
 
 const port = parseInt(process.env.PORT || "3000", 10);
+// Behind a reverse proxy (nginx / Plesk) set HOST=127.0.0.1 so the app isn't
+// reachable directly on its port from the internet. Unset = all interfaces.
+const host = process.env.HOST || undefined;
 
 const app = next({ dev: false, dir: __dirname });
 const handle = app.getRequestHandler();
@@ -26,8 +29,8 @@ app
         res.statusCode = 500;
         res.end("Internal Server Error");
       }
-    }).listen(port, () => {
-      console.log(`> Rowan HVAC ready on port ${port}`);
+    }).listen(port, host, () => {
+      console.log(`> Rowan HVAC ready on ${host || "*"}:${port}`);
     });
   })
   .catch((err) => {

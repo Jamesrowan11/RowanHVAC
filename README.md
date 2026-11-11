@@ -4,27 +4,38 @@ A full-stack web application for **Rowan Heating & Air Conditioning** — a
 family-owned HVAC company serving Highland, Fulton, and Howard County, Maryland
 since 1958.
 
-It runs as **one Node.js app** on a DigitalOcean droplet: the public marketing
-homepage at `/` (hero, services, service area, reviews, quote form) and the
-login-gated portal: one login, three roles (`CLIENT`, `EMPLOYEE`, `ADMIN`),
-each with its own dashboard, plus in-app messaging, document/payment sharing,
-and a pluggable email layer.
+Everything runs as **one app on one domain, `rowanheatingandair.com`**:
 
-**Hosting:** DigitalOcean (Ubuntu 24.04) with Caddy for automatic HTTPS,
-MariaDB, and automatic deploys from GitHub. See
-[Deploying to DigitalOcean](#deploying-to-digitalocean) below. The cPanel,
-Windows and Vercel sections further down are older options kept for reference.
+| Address | What it is |
+| --- | --- |
+| `rowanheatingandair.com/` | The **public website**: services, why choose us, service area, real customer reviews, a quote form. SEO-ready (Open Graph, `HVACBusiness` JSON-LD). Quote requests land straight in the admin dashboard. |
+| `rowanheatingandair.com/login` | **Sign-in** for customers, technicians and the office (one login, three roles: `CLIENT`, `EMPLOYEE`, `ADMIN`). |
+| `rowanheatingandair.com/portal` | The **portal**: each role's dashboard, jobs, messaging, documents and payments, manuals, vehicles, email. |
+| `rowanheatingandair.com/api/van/v1/*` | The **van app's sync API** (the Toughbook desktop app in `van-app/`). |
+
+Company email (mailboxes and webmail) is **Zoho Mail** for
+`@rowanheatingandair.com`. The website's automatic emails are sent through
+ZeptoMail (Zoho's sending service), and the van app's Email tab sends as each tech
+through their own Zoho mailbox.
+
+**Hosting:** one DigitalOcean droplet (Ubuntu 24.04) with Caddy for automatic
+HTTPS, MariaDB, and automatic deploys from GitHub's `main` branch. See
+[Deploying to DigitalOcean](#deploying-to-digitalocean) below. The
+load-balanced setup in `deploy/digitalocean/` and the cPanel, Windows and
+Vercel sections further down are other options kept for reference.
 
 ## Tech stack
 
 - **Next.js (App Router)** + React + TypeScript
 - **Tailwind CSS** (navy `#1a2b4a` primary, warm-orange `#f57c1f` accent)
-- **Prisma ORM** + **MySQL / MariaDB** (what GoDaddy cPanel provides; drop in any
-  hosted connection string)
+- **Prisma ORM** + **MySQL** (DigitalOcean Managed MySQL)
 - **Auth.js / NextAuth v5** — email + password, bcrypt-hashed, JWT sessions
-- **Resend** for transactional email (optional — falls back to console logging)
-- The portal runs as a long-lived Node process behind **Phusion Passenger**
-  (cPanel "Setup Node.js App"); the public site is a **static export**.
+- **Email:** sent over SMTP from a company Zoho mailbox (nodemailer); Resend
+  is an optional alternative; with neither, emails are logged to the console
+- **Files:** DigitalOcean Spaces (S3 API) behind a load balancer, or local disk
+- `server.js` under **PM2** (cluster mode) behind **nginx** on each droplet
+  serves the website, portal and van API
+- **Van app:** Python 3.4+ / Tkinter desktop app (`van-app/`), runs on Windows XP
 
 ## Security model
 
@@ -59,7 +70,7 @@ Windows and Vercel sections further down are older options kept for reference.
 - A MySQL / MariaDB database (GoDaddy cPanel provides this; locally you can run
   MariaDB/MySQL)
 
-## Local setup (portal)
+## Local setup
 
 ```bash
 # 1. Install dependencies (also runs `prisma generate`)
@@ -79,55 +90,49 @@ npm run db:seed
 
 # 5. Run it
 npm run dev
-#    open http://localhost:3000   (redirects to /login)
+#    open http://localhost:3000   (home page; portal at /login)
 ```
-
-## Local setup (public site)
-
-```bash
-cd public-site
-npm install
-cp .env.example .env.local        # point NEXT_PUBLIC_PORTAL_URL at your portal
-npm run dev                        # http://localhost:3100
-# or build the static export:
-npm run build                      # outputs public-site/out/
-```
-
-For local testing, set the portal's `PUBLIC_SITE_ORIGIN=http://localhost:3100`
-so the quote form's cross-origin POST is allowed.
 
 ### Environment variables
 
-**Portal** (`.env` in the repo root):
+`.env` in the repo root (see `.env.example`):
 
 | Variable               | Required | Purpose                                                               |
 | ---------------------- | :------: | --------------------------------------------------------------------- |
 | `DATABASE_URL`         |   yes    | MySQL connection string (`mysql://user:pass@host:3306/db`).           |
 | `AUTH_SECRET`          |   yes    | Secret used to sign session JWTs.                                     |
-| `AUTH_URL`             |   rec.   | The portal's URL (callback URLs behind a subdomain).                  |
-| `PUBLIC_SITE_ORIGIN`   |   rec.   | Origin allowed to POST the public quote form (the marketing site).   |
+| `AUTH_URL`             |   rec.   | The site's address, `https://rowanheatingandair.com` (sign-in, links in emails). |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | LB | Same value on every droplet so any droplet can handle any form. |
+| `SPACES_BUCKET` / `SPACES_REGION` / `SPACES_KEY` / `SPACES_SECRET` | LB | DigitalOcean Spaces for documents + manuals. Unset = local disk (`UPLOAD_DIR`). |
+| `ZEPTOMAIL_TOKEN` / `ZEPTOMAIL_API_HOST` | rec. | ZeptoMail (Zoho) Send Mail token for the website's emails; used first when set. |
+| `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | rec. | Company Zoho mailbox the website's emails are sent from (e.g. info@). |
 | `EMAIL_FROM`           |    no    | From-address for outgoing email. Defaults to the company address.    |
-| `RESEND_API_KEY`       |    no    | If set, email sends via Resend. If unset, email is logged to console.|
-| `UPLOAD_DIR`           |    no    | Where uploaded documents are stored (use a persistent path on cPanel).|
+| `RESEND_API_KEY`       |    no    | Alternative to `EMAIL_SMTP_*`: send via Resend. With neither, email is logged to console. |
+| `UPLOAD_DIR`           |    no    | Local-disk storage folder, only when Spaces isn't configured.         |
 | `INBOUND_EMAIL_SECRET` |    no    | Shared secret required by the inbound-email webhook.                  |
-
-**Public site** (`public-site/.env.local`, inlined at build time):
-
-| Variable                 | Purpose                                          |
-| ------------------------ | ------------------------------------------------ |
-| `NEXT_PUBLIC_PORTAL_URL` | Portal URL for the login link and quote POST.    |
-| `NEXT_PUBLIC_SITE_URL`   | This site's own URL (canonical / OpenGraph).     |
+| `MAIL_SMTP_HOST` / `MAIL_IMAP_HOST` | no | Mail servers (default Zoho: `smtppro.zoho.com` / `imappro.zoho.com`; `.eu` for EU). `MAIL_HOST` sets both. |
+| `MAIL_SMTP_PORT` / `MAIL_IMAP_PORT` | no | Mail ports (defaults 465 TLS / 993).                    |
+| `MAIL_ALLOWED_DOMAIN`  |    no    | Only mailboxes at this domain can be connected (default `rowanheatingandair.com`). |
+| `MAIL_SENT_FOLDER`     |    no    | Force the Sent folder name (normally auto-detected).                  |
+| `MAIL_TLS_ALLOW_SELF_SIGNED` | no | `1` only for a self-hosted mail server with a self-signed certificate. |
+| `MAILBOX_SECRET`       |    no    | Encrypts stored mailbox passwords (defaults to a key derived from `AUTH_SECRET`). |
+| `APP_TIMEZONE`         |    no    | Company time zone for the Vehicles page (default `America/New_York`). |
+| `SPEED_ALERT_MPH`      |    no    | Email admins when a van exceeds this speed (default 80; `0` = off).   |
+| `SPEED_RETENTION_DAYS` |    no    | How long van speed readings are kept (default 365).                   |
+| `ANTHROPIC_API_KEY`    |   rec.   | Claude API key for the **AI check** on van service tickets. Unset = the vans' own checks still work; "Check with AI" says it isn't set up. |
 
 The app **runs fully without an email key** — every email is recorded in the
 `EmailLog` table and printed to the server console instead of being sent.
 
-## Demo accounts
+## Accounts
 
 > **Never run the seed on the live server.** `prisma/seed.ts` deletes every
 > record and creates demo logins with a shared password. On the server, the
 > first admin is created by `prisma/create-admin.ts` instead (see below).
 
-After seeding (local development only), log in at `/login`. **Password for all accounts:** `Password123!`
+**Demo data (local development only):** `npm run db:seed` wipes the database and
+loads the accounts below. It refuses to run on a database that already has
+accounts unless `SEED_RESET=1`. **Password for all demo accounts:** `Password123!`
 
 | Role     | Email                 |
 | -------- | --------------------- |
@@ -166,6 +171,57 @@ Admins and employees can start threads with anyone (recipient picker); clients
 can only message "the company" and never see a staff directory. Membership is
 enforced server-side.
 
+## Van terminals (Toughbook desktop app)
+
+`van-app/` is an offline-first **desktop app** for the technicians' Panasonic
+Toughbook CF-29 laptops (Python 3.4+/Tkinter, so it runs on Windows XP). Each
+van keeps a local copy of its tech's jobs and messages, works without signal,
+and syncs through this portal, so every van and the office see the same jobs,
+statuses, notes, and **messages** (the same conversations as the portal's
+Messages page). Techs can also **send email from their own Zoho mailbox**.
+Install steps and details:
+[`van-app/README.md`](van-app/README.md).
+
+- API (part of the portal, nothing extra to deploy): `POST /api/van/v1/login`,
+  `/api/van/v1/sync`, `/api/van/v1/mailbox`, `/api/van/v1/logout`. Vans
+  authenticate with a per-device bearer token (only its hash is stored, in
+  `VanDevice`).
+- Email from the van goes out **through the portal**, which signs in to the
+  company mail server as that tech (SMTP to send, IMAP to save a copy in their
+  Sent folder). Mailbox passwords are stored encrypted (`Mailbox` table,
+  AES-256-GCM) and never stored on the laptops. Every van email is also
+  recorded in `EmailLog`. See the `MAIL_*` settings above.
+- **Equipment manuals** (`Manual` table, files in Spaces): admins upload
+  them under **Manuals** (brand tabs → model tabs, up to 50 MB each, via the
+  `/portal/manuals/upload` route since server actions cap bodies at 10 MB).
+  Staff can open them; vans download them on demand
+  (`GET /api/van/v1/manuals/:id`) and keep them for offline use. nginx on the
+  droplets allows 60 MB request bodies for this.
+- **Vehicles (OBD-II)**: with an ELM327 adapter on the van's OBD-II port, the
+  van app logs speed every few seconds and reads trouble codes. Readings ride
+  along with each sync (`VehicleSpeed`, `VehicleCodeReport`). Admins see them
+  under **Admin → Vehicles** (fleet status, a day's speed chart, speed at a
+  given time, stretches over a limit, code history with descriptions) and get
+  emailed on speeding (`SPEED_ALERT_MPH`) and on new trouble codes.
+- **Service tickets** (`ServiceTicket`): the tech fills in the company's paper
+  ticket on the van and sees it fill in live; the van's own checks run as they
+  type, and **Check with AI** sends it to `POST /api/van/v1/ticket-check`,
+  where Claude (`src/lib/ticketAi.ts`, needs `ANTHROPIC_API_KEY`) lists
+  mistakes tied to boxes on the sheet. Tickets ride along with each sync
+  (`ticket.save` op; totals are recalculated here). The customer PDF
+  (`src/lib/ticketPdf.ts`) is drawn from the same layout file the van shows,
+  `van-app/rowanvan/ticket_layout.json` (regenerate with
+  `python3 van-app/tools/build_ticket_layout.py`). The office sees tickets, the
+  AI's notes and the PDFs under **Admin → Service Tickets** and on each job.
+  A ticket sent with no signal (so not AI-checked) is checked once it arrives.
+- Same access rules as the employee dashboard: a van only sees and changes jobs
+  assigned to its tech, and can't move a cancelled job.
+- Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle
+  for 30 days stop working.
+- The site must be served over **HTTPS** (the load balancer's Let's Encrypt
+  certificate). The van app ships the Let's Encrypt root certificates because
+  Windows XP doesn't have them.
+
 ## Inbound email webhook
 
 `POST /api/email/inbound` accepts a JSON body
@@ -177,10 +233,13 @@ with the company; every inbound message is recorded in `EmailLog`.
 
 ## File uploads
 
-Uploaded documents are stored on the local filesystem (`UPLOAD_DIR`, outside
-`/public`) and served only through an access-controlled route
-(`/portal/documents/[id]`). The storage interface (`src/lib/uploads.ts`) is a
-thin store/read/delete-by-key layer, so moving to S3/GCS is a localized change.
+Customer documents and equipment manuals are stored in **DigitalOcean
+Spaces** (private bucket, `SPACES_*`) so every droplet behind the load
+balancer sees every file, or on the local disk (`UPLOAD_DIR`) when Spaces
+isn't configured. Either way they're served only through access-controlled
+routes (`/portal/documents/[id]`, `/portal/manuals/[id]`,
+`/api/van/v1/manuals/:id`). `src/lib/uploads.ts` holds both backends;
+`npm run storage:migrate` copies an existing `UPLOAD_DIR` into Spaces.
 
 ## Project structure
 
@@ -189,27 +248,27 @@ prisma/
   schema.prisma         # data model + enums (MySQL)
   migrations/           # SQL migrations
   seed.ts               # demo data
-src/                    # the PORTAL app (Node)
+src/                    # the app: website + portal + van API (Next.js)
   app/
-    page.tsx            # redirects to /login (portal is login-first)
-    login/              # auth pages + action
-    portal/             # role dashboards, messaging, profile, document route
+    page.tsx            # the public home page (quote form posts to a server action)
+    login/              # sign-in, forgot/reset password
+    portal/             # role dashboards, messaging, manuals, vehicles, profile
     api/
       auth/             # NextAuth route handler
       email/inbound/    # inbound email webhook
-      public/quote/     # CORS endpoint for the static site's quote form
-    actions/            # shared server actions (compose email)
+      van/v1/           # van app: login, sync, mailbox, manuals, logout
+    actions/            # shared server actions (quote form, compose email)
   components/           # portal UI
   lib/                  # prisma, auth helpers, email, uploads, messaging, rate limit
   auth.ts / auth.config.ts   # NextAuth v5 (Node + edge-safe split)
   middleware.ts         # first-gate route protection
-public-site/            # the PUBLIC marketing site (static export)
-  src/app/page.tsx      # the single marketing page
-  src/components/        # Logo, Stars, ServiceIcon, fetch-based QuoteForm
-server.js               # Passenger entry point for the portal on cPanel
-.cpanel.yml             # cPanel Git deployment tasks (portal + optional public)
-scripts/cpanel-deploy.sh# portal: install → migrate → build → restart
-scripts/build-public.sh # public: build static export → copy to docroot
+server.js               # Node entry point (PM2 cluster; also cPanel Passenger)
+ecosystem.config.js     # PM2 config (2 processes, 127.0.0.1:3000)
+deploy/digitalocean/    # load-balanced DigitalOcean guide, DNS script, droplet setup, nginx, rolling deploy
+deploy/deploy.sh        # update one droplet: pull → install → migrate → build → reload
+.cpanel.yml             # cPanel Git deployment tasks
+scripts/cpanel-deploy.sh# cPanel: install → migrate → build → restart
+van-app/                # desktop app for the van Toughbooks (Python/Tkinter)
 tests/                  # Vitest unit tests
 .github/workflows/      # CI + optional cPanel auto-deploy
 ```
@@ -218,8 +277,9 @@ tests/                  # Vitest unit tests
 
 `.github/workflows/ci.yml` runs on every push and pull request: it spins up a
 MySQL service, installs dependencies, generates the Prisma client, applies
-migrations, runs the Vitest suite, builds the portal, **and** builds the static
-public site. This is the automated gate that proves a commit is deployable.
+migrations, runs the Vitest suite, builds the app, and runs the van app's tests
+plus a Python 3.4 compatibility check. This is the automated gate that proves a
+commit is deployable.
 
 ## Deploying to DigitalOcean
 
@@ -249,14 +309,19 @@ the login page to set it.
 
 ### Settings and secrets
 
-Edit `/etc/rowanhvac/env`, then `sudo systemctl restart rowanhvac`. To turn on email, set:
+Easiest: open the droplet's console (DigitalOcean → the droplet → **Access** →
+**Launch Droplet Console**) and run `sudo rowanhvac-secret NAME`, e.g.
+`sudo rowanhvac-secret ANTHROPIC_API_KEY`. It asks for the value (hidden),
+saves it and restarts the site. Or edit `/etc/rowanhvac/env`, then
+`sudo systemctl restart rowanhvac`. To turn on email, set:
 
 ```
 ZEPTOMAIL_TOKEN=<Send Mail token from ZeptoMail → Mail Agents → SMTP/API>
 EMAIL_FROM=Rowan Heating & Air Conditioning <info@rowanhvac.com>
 ```
 
-The sender's domain must be verified in ZeptoMail.
+The sender's domain must be verified in ZeptoMail. For the AI check on van
+service tickets, set `ANTHROPIC_API_KEY`.
 
 ### Useful commands
 
@@ -267,82 +332,48 @@ The sender's domain must be verified in ZeptoMail.
 | App log | `journalctl -u rowanhvac -n 100` |
 | Restart | `sudo systemctl restart rowanhvac` |
 
-## Deploying to GoDaddy cPanel (two subdomains, older option)
+## Deploying on DigitalOcean (load-balanced, older option)
 
-The project is split to match GoDaddy's hosting model:
+Step-by-step: [`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
+In short: DigitalOcean DNS (`deploy/digitalocean/dns.sh` creates the
+records), Managed MySQL + Spaces + Zoho Mail; two or more Ubuntu droplets
+prepared with `deploy/digitalocean/setup-droplet.sh` and sharing one `.env`;
+a Load Balancer with a Let's Encrypt certificate and `/api/health` checks.
+Updates roll out one droplet at a time with
+`bash deploy/digitalocean/deploy-all.sh <droplet IPs>`.
 
-| Subdomain                       | What runs there            | How                         |
-| ------------------------------- | -------------------------- | --------------------------- |
-| `rowanhvac.rowancopy.com`       | Public marketing site      | Static files (no server)    |
-| `rowanhvacportal.rowancopy.com` | Portal (login-gated)       | Node.js app (Passenger)     |
+## Other hosting (not used for rowanheatingandair.com)
 
-### 1. Database (MySQL)
+### cPanel
 
-cPanel → *MySQL® Databases*: create a database and a user, add the user to the
-database with **All Privileges**. cPanel prefixes names, e.g.
-`cpuser_rowanhvac` / `cpuser_dbuser`.
+The same single app runs under cPanel's *Setup Node.js App*:
 
-### 2. Portal — `rowanhvacportal.rowancopy.com`
+1. **Database:** cPanel → *MySQL® Databases*: create a database and a user
+   with **All Privileges** (cPanel prefixes names, e.g. `cpuser_rowanhvac`).
+2. **Code:** *Git™ Version Control* → clone this repo (e.g. `~/rowanhvac`).
+3. **`.env`** in that folder (see `.env.example`): at least `DATABASE_URL`,
+   `AUTH_SECRET`, `AUTH_URL="https://rowanheatingandair.com"`, and a
+   persistent `UPLOAD_DIR` outside the repo.
+4. **Node app:** *Setup Node.js App* → *Create*: Node 20, Application root =
+   the clone, Application URL = `rowanheatingandair.com`, startup file
+   `server.js`. Then *Run NPM Install*.
+5. **First deploy** (cPanel *Terminal*): `bash scripts/cpanel-deploy.sh`,
+   then `npm run create-admin -- --email you@… --name "…"` once.
 
-1. **Subdomain:** cPanel → *Domains* → create `rowanhvacportal.rowancopy.com`.
-2. **Clone the repo:** cPanel → *Git™ Version Control* → clone this repo to e.g.
-   `/home/cpuser/rowanhvacportal` (this checkout is the app's Application Root).
-3. **`.env`:** create `.env` in that folder (git-ignored):
-   ```
-   DATABASE_URL="mysql://cpuser_dbuser:PASSWORD@localhost:3306/cpuser_rowanhvac"
-   AUTH_SECRET="<openssl rand -base64 32>"
-   AUTH_URL="https://rowanhvacportal.rowancopy.com"
-   PUBLIC_SITE_ORIGIN="https://rowanhvac.rowancopy.com"
-   EMAIL_FROM="Rowan Heating & Air Conditioning <info@rowanhvac.com>"
-   RESEND_API_KEY=""                              # optional
-   UPLOAD_DIR="/home/cpuser/rowanhvac-uploads"    # persistent, outside the repo
-   INBOUND_EMAIL_SECRET="<random>"
-   ```
-4. **Node app:** cPanel → *Setup Node.js App* → *Create*:
-   - Node.js version 20 (or 18+)
-   - Application root: the clone path
-   - Application URL: `rowanhvacportal.rowancopy.com`
-   - **Application startup file:** `server.js`
-   Create it, then *Run NPM Install*.
-5. **First deploy** (cPanel → *Terminal* or SSH):
-   ```bash
-   cd ~/rowanhvacportal
-   bash scripts/cpanel-deploy.sh   # install, migrate, build, restart Passenger
-   npm run db:seed                 # optional: load demo data the first time
-   ```
-   The portal is now live; visiting it redirects to `/login`.
-
-### 3. Public site — `rowanhvac.rowancopy.com`
-
-1. **Subdomain:** create `rowanhvac.rowancopy.com` and note its document root
-   (e.g. `/home/cpuser/rowanhvac.rowancopy.com`).
-2. **Build & publish the static files:**
-   ```bash
-   cd ~/rowanhvacportal
-   PUBLIC_DEPLOY_PATH="/home/cpuser/rowanhvac.rowancopy.com" \
-     NEXT_PUBLIC_PORTAL_URL="https://rowanhvacportal.rowancopy.com" \
-     NEXT_PUBLIC_SITE_URL="https://rowanhvac.rowancopy.com" \
-     bash scripts/build-public.sh
-   ```
-   This builds `public-site/out/` and copies it into the subdomain's docroot.
-   (Or upload the contents of `public-site/out/` via *File Manager*.)
-
-### Automated redeploys
+#### Automated cPanel redeploys
 
 - **From cPanel:** *Git™ Version Control* → *Manage* → *Deploy HEAD Commit*.
   cPanel runs `.cpanel.yml` → `scripts/cpanel-deploy.sh` (install →
-  `prisma migrate deploy` → build → restart Passenger). To also rebuild and
-  publish the public site in the same step, copy `deploy.config.example` to
-  `deploy.config` and set `PUBLIC_DEPLOY_PATH`.
+  `prisma migrate deploy` → build → restart Passenger).
 - **From GitHub (push-to-deploy):** add the secrets documented in
   `.github/workflows/deploy-cpanel.yml` (`CPANEL_HOST`, `CPANEL_USER`,
   `CPANEL_API_TOKEN`, `CPANEL_REPO_ROOT`). Every push to `main` then triggers a
   cPanel deploy. Without the secrets the workflow is a harmless no-op.
 
-### Inbound email on cPanel
+### Inbound email webhook URL
 
 Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
-`https://rowanhvacportal.rowancopy.com/api/email/inbound` with the
+`https://rowanheatingandair.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
 ## Deploying on Windows Server (older option)
@@ -368,7 +399,7 @@ and `scripts/*.ps1` support this.
    # AUTH_SECRET, AUTH_URL=https://yourdomain, etc.
    npm ci
    npx prisma migrate deploy
-   npm run db:seed        # first time only
+   npm run create-admin -- --email you@rowanheatingandair.com --name "Your Name"
    npm run build
    npm install -g pm2
    pm2 start server.js --name rowanhvac
@@ -384,11 +415,10 @@ and `scripts/*.ps1` support this.
 
 ## Deploying to Vercel (older option)
 
-The portal also deploys to Vercel (serverless) — set `DATABASE_URL` (a hosted
-MySQL URL such as PlanetScale), `AUTH_SECRET`, and run `npx prisma migrate
-deploy`. Note Vercel's filesystem is ephemeral, so move document uploads to
-object storage (the `src/lib/uploads.ts` interface is built for that swap). The
-public site can deploy to Vercel/Netlify or any static host.
+The app also deploys to Vercel (serverless): set `DATABASE_URL` (a hosted
+MySQL URL), `AUTH_SECRET`, and run `npx prisma migrate deploy`. Vercel's
+filesystem is ephemeral, so move uploads and manuals to object storage first
+(the `src/lib/uploads.ts` interface is built for that swap).
 
 ---
 

@@ -8,7 +8,7 @@
 /out/
 next-env.d.ts
 
-# nested apps (public-site)
+# nested node projects
 **/node_modules/
 **/.next/
 **/out/
@@ -52,3 +52,10 @@ npm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# python (van-app)
+__pycache__/
+*.pyc
+
+# packaged van app zips (build output)
+/dist/

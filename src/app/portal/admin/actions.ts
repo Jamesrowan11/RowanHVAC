@@ -396,3 +396,28 @@ export async function deleteDocument(formData: FormData) {
   }
   revalidatePath("/portal/admin/payments");
 }
+
+// ---------- Van terminals ----------
+
+export async function revokeVanDevice(formData: FormData) {
+  await assertRole("ADMIN");
+  const id = String(formData.get("id"));
+  await prisma.vanDevice.updateMany({
+    where: { id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  revalidatePath("/portal/admin/devices");
+}
+
+// ---------- Equipment manuals ----------
+
+export async function deleteManual(formData: FormData) {
+  await assertRole("ADMIN");
+  const id = String(formData.get("id"));
+  const manual = await prisma.manual.findUnique({ where: { id } });
+  if (manual) {
+    await prisma.manual.delete({ where: { id } });
+    await deleteFile(manual.storedName);
+  }
+  revalidatePath("/portal/manuals");
+}

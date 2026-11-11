@@ -60,7 +60,7 @@ export default function OgImage() {
         </div>
 
         <div style={{ marginTop: 40, fontSize: 26, color: "#f7b071" }}>
-          410-531-0008 · rowanhvac.com
+          410-531-0008 · rowanheatingandair.com
         </div>
       </div>
     ),
