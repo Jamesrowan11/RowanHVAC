@@ -23,7 +23,9 @@ import {
   type OpResult,
   type VanOp,
 } from "@/lib/vanSync";
-import type { Role } from "@prisma/client";
+import { withTotals, type TicketIssue } from "@/lib/ticket";
+import { checkTicketWithAi, ticketAiConfigured } from "@/lib/ticketAi";
+import { Prisma, type Role } from "@prisma/client";
 
 /**
  * Database side of the van sync API. Access rules mirror the portal exactly:
@@ -111,8 +113,72 @@ async function applyOp(caller: VanCaller, op: VanOp): Promise<OpResult> {
     case "speed.batch":
     case "obd.codes":
       return applyVehicleOp(caller, op);
+    case "ticket.save":
+      return applyTicketOp(caller, op);
   }
 }
+
+type TicketOp = Extract<VanOp, { type: "ticket.save" }>;
+
+async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult> {
+  const reject = (error: string): OpResult => ({ opId: op.opId, ok: false, error });
+  const job = await prisma.job.findUnique({
+    where: { id: op.jobId },
+    select: { id: true, technicianId: true, status: true, serviceNeeded: true },
+  });
+  if (!job || job.technicianId !== caller.user.id) {
+    return reject("This job is no longer assigned to you, so its service ticket was not saved.");
+  }
+  if (job.status === "CANCELLED") {
+    return reject("This job was cancelled, so its service ticket was not saved.");
+  }
+  const existing = await prisma.serviceTicket.findUnique({
+    where: { id: op.id },
+    select: { jobId: true, status: true, updatedAt: true, submittedAt: true },
+  });
+  if (existing && existing.jobId !== job.id) return reject("Invalid service ticket.");
+
+  const data = withTotals(op.data);
+  const status = op.status === "final" || existing?.status === "FINAL" ? "FINAL" : "DRAFT";
+  const fields = {
+    invoiceNumber: op.invoiceNumber || String(data.invoice_no ?? "").slice(0, 64) || op.id.slice(4, 16),
+    status,
+    data: data as Prisma.InputJsonValue,
+    technicianId: caller.user.id,
+    // The van only sends a check that matches this exact version of the sheet.
+    aiCheck: op.aiCheck ? (op.aiCheck as Prisma.InputJsonValue) : Prisma.DbNull,
+    ...(status === "FINAL" && !existing?.submittedAt ? { submittedAt: new Date() } : {}),
+  } as const;
+  await prisma.serviceTicket.upsert({
+    where: { id: op.id },
+    create: { id: op.id, jobId: job.id, ...fields },
+    update: fields,
+  });
+
+  // Sent without an AI check (no signal at the time): check it now so the
+  // office still sees the AI's notes. Not awaited: the van is waiting.
+  if (status === "FINAL" && !op.aiCheck && ticketAiConfigured()) {
+    void checkTicketWithAi(data, { serviceNeeded: job.serviceNeeded })
+      .then((result) =>
+        prisma.serviceTicket.updateMany({
+          where: { id: op.id, aiCheck: { equals: Prisma.AnyNull } },
+          data: { aiCheck: { ...result, afterSubmit: true } as Prisma.InputJsonValue },
+        }),
+      )
+      .catch((e) => console.error("[ticket ai] background check failed", e));
+  }
+  return { opId: op.opId, ok: true };
+}
+
+/** Saves an AI check result on a ticket that is already on the server. */
+export async function storeAiCheck(ticketId: string, technicianId: string, result: unknown) {
+  await prisma.serviceTicket.updateMany({
+    where: { id: ticketId, technicianId },
+    data: { aiCheck: result as Prisma.InputJsonValue },
+  });
+}
+
+export type { TicketIssue };
 
 type JobOp = Extract<VanOp, { type: "job.status" | "note.add" }>;
 type MessageOp = Extract<VanOp, { type: "msg.send" | "msg.start" | "msg.read" }>;
@@ -421,6 +487,14 @@ export async function buildSnapshot(caller: VanCaller) {
     },
   });
 
+  const tickets = await prisma.serviceTicket.findMany({
+    where: { jobId: { in: jobs.map((j) => j.id) } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true, jobId: true, invoiceNumber: true, status: true, data: true, aiCheck: true, updatedAt: true,
+    },
+  });
+
   const mailbox = await prisma.mailbox.findUnique({
     where: { userId: caller.user.id },
     select: { address: true },
@@ -431,6 +505,15 @@ export async function buildSnapshot(caller: VanCaller) {
     mailbox: mailbox ? { address: mailbox.address } : null,
     manuals,
     directory,
+    tickets: tickets.map((t) => ({
+      id: t.id,
+      jobId: t.jobId,
+      invoiceNumber: t.invoiceNumber,
+      status: t.status === "FINAL" ? "final" : "draft",
+      data: t.data,
+      aiCheck: t.aiCheck,
+      updatedAt: t.updatedAt.toISOString(),
+    })),
     conversations: conversations.map((c) => {
       const mine = c.participants.find((p) => p.userId === caller.user.id);
       return {

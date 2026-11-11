@@ -49,18 +49,18 @@ enum EmailStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String?
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  phone         String?
   // Optional private email for EMPLOYEE/ADMIN. Password-reset emails go here when
   // set (so staff get them at a personal inbox); CLIENT resets always use `email`.
   personalEmail String?
-  passwordHash String
-  role         Role     @default(CLIENT)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  passwordHash  String
+  role          Role     @default(CLIENT)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // As a client
   requests          Request[]          @relation("ClientRequests")
@@ -70,7 +70,8 @@ model User {
   documents         Document[]         @relation("ClientDocuments")
 
   // As a technician (employee or admin)
-  assignedJobs Job[] @relation("TechnicianJobs")
+  assignedJobs   Job[]           @relation("TechnicianJobs")
+  serviceTickets ServiceTicket[] @relation("TechnicianTickets")
 
   // Authored content
   jobNotes        JobNote[]
@@ -209,13 +210,42 @@ model Job {
   technicianId String?
   technician   User?   @relation("TechnicianJobs", fields: [technicianId], references: [id], onDelete: SetNull)
 
-  notes JobNote[]
+  notes   JobNote[]
+  tickets ServiceTicket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([technicianId])
+}
+
+enum TicketStatus {
+  DRAFT
+  FINAL
+}
+
+// Service ticket written on a van terminal (van-app/rowanvan/ticket_window.py).
+// `data` holds every box on the sheet keyed by the field ids in
+// van-app/rowanvan/ticket_layout.json; the PDF is drawn from the same layout.
+model ServiceTicket {
+  id            String       @id // device-generated "van_..." id (idempotent resend)
+  jobId         String
+  job           Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  technicianId  String?
+  technician    User?        @relation("TechnicianTickets", fields: [technicianId], references: [id], onDelete: SetNull)
+  invoiceNumber String       @db.VarChar(64)
+  status        TicketStatus @default(DRAFT)
+  data          Json
+  // { issues: [{ field, severity, message }], summary, model?, checkedAt } from the AI check
+  aiCheck       Json?
+  submittedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([jobId])
+  @@index([technicianId])
+  @@index([invoiceNumber])
 }
 
 // Internal, timestamped technician notes. NEVER visible to clients.

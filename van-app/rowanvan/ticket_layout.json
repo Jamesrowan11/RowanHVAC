@@ -1,0 +1,4044 @@
+{
+ "elements": [
+  {
+   "fill": null,
+   "h": 74,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 266,
+   "x": 18,
+   "y": 18
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "ROWAN",
+   "size": 10,
+   "t": "text",
+   "x": 151.0,
+   "y": 21
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "HEATING & AIR CONDITIONING, INC",
+   "size": 10,
+   "t": "text",
+   "x": 151.0,
+   "y": 33
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "P.O. BOX 109",
+   "size": 9,
+   "t": "text",
+   "x": 151.0,
+   "y": 45
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "FULTON, MD 20759",
+   "size": 9,
+   "t": "text",
+   "x": 151.0,
+   "y": 56
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "WWW.ROWANHVAC.COM",
+   "size": 9,
+   "t": "text",
+   "x": 151.0,
+   "y": 67
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "410-531-0008",
+   "size": 9,
+   "t": "text",
+   "x": 22,
+   "y": 79
+  },
+  {
+   "align": "right",
+   "bold": true,
+   "s": "1-800-225-ROWAN",
+   "size": 9,
+   "t": "text",
+   "x": 280,
+   "y": 79
+  },
+  {
+   "fill": null,
+   "h": 74,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 238,
+   "x": 284,
+   "y": 18
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_name",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 230,
+   "x": 288,
+   "y": 22
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_street",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 230,
+   "x": 288,
+   "y": 36
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_city",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 230,
+   "x": 288,
+   "y": 50
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "EMAIL:",
+   "size": 6.5,
+   "t": "text",
+   "x": 288,
+   "y": 65
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_email",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 200,
+   "x": 318,
+   "y": 64
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "PHONE:",
+   "size": 6.5,
+   "t": "text",
+   "x": 288,
+   "y": 79
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_phone",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 200,
+   "x": 318,
+   "y": 78
+  },
+  {
+   "fill": null,
+   "h": 74,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 18
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "HVACR #2569",
+   "size": 8,
+   "t": "text",
+   "x": 526,
+   "y": 21
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "INVOICE #",
+   "size": 8,
+   "t": "text",
+   "x": 644.0,
+   "y": 21
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "invoice_no",
+   "kind": "text",
+   "size": 8,
+   "t": "field",
+   "w": 82.0,
+   "x": 688.0,
+   "y": 20
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 33,
+   "y2": 33
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "DATE:",
+   "size": 6.5,
+   "t": "text",
+   "x": 526,
+   "y": 37
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "date",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 122.0,
+   "x": 648.0,
+   "y": 36
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 50,
+   "y2": 50
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 648.0,
+   "x2": 648.0,
+   "y1": 50,
+   "y2": 78
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TIME IN:",
+   "size": 6.5,
+   "t": "text",
+   "x": 526,
+   "y": 53
+  },
+  {
+   "align": "center",
+   "h": 11,
+   "id": "time_in",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 118.0,
+   "x": 526,
+   "y": 63
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TIME OUT:",
+   "size": 6.5,
+   "t": "text",
+   "x": 652.0,
+   "y": 53
+  },
+  {
+   "align": "center",
+   "h": 11,
+   "id": "time_out",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 118.0,
+   "x": 652.0,
+   "y": 63
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 78,
+   "y2": 78
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "JOB FINISHED",
+   "size": 6.5,
+   "t": "text",
+   "x": 526,
+   "y": 81
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 682,
+   "y": 81
+  },
+  {
+   "h": 7,
+   "id": "job_finished",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 682,
+   "y": 81
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "YES",
+   "size": 6.5,
+   "t": "text",
+   "x": 692,
+   "y": 81
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 728,
+   "y": 81
+  },
+  {
+   "h": 7,
+   "id": "job_not_finished",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 728,
+   "y": 81
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "NO",
+   "size": 6.5,
+   "t": "text",
+   "x": 738,
+   "y": 81
+  },
+  {
+   "fill": null,
+   "h": 264.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 266,
+   "x": 18,
+   "y": 96
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 266,
+   "x": 18,
+   "y": 96
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "CHECK LIST",
+   "size": 7.5,
+   "t": "text",
+   "x": 151.0,
+   "y": 98
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "AIR FILTER",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 110.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 120.9,
+   "y2": 120.9
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SIZE:",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 122.4
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "filter_size",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 121.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 133.3,
+   "y2": 133.3
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "EAC:",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 134.8
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "eac",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 133.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 145.70000000000002,
+   "y2": 145.70000000000002
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "COMPRESSOR",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 147.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 158.1,
+   "y2": 158.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 159.6
+  },
+  {
+   "h": 7,
+   "id": "superheat_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 159.6
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SUPERHEAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 159.6
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "superheat",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 158.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 170.5,
+   "y2": 170.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 172.0
+  },
+  {
+   "h": 7,
+   "id": "subcool_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 172.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SUBCOOL",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 172.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "subcool",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 171.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 182.9,
+   "y2": 182.9
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 184.4
+  },
+  {
+   "h": 7,
+   "id": "comp_electrical_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 184.4
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ELECTRICAL",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 184.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 195.3,
+   "y2": 195.3
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 196.8
+  },
+  {
+   "h": 7,
+   "id": "comp_volts_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 196.8
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "VOLTS",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 196.8
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "comp_volts",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 195.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 207.70000000000002,
+   "y2": 207.70000000000002
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 209.2
+  },
+  {
+   "h": 7,
+   "id": "comp_amps_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 209.2
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "AMPS",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 209.2
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "comp_amps",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 208.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 220.1,
+   "y2": 220.1
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "EVAPORATOR",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 221.60000000000002
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 232.50000000000003,
+   "y2": 232.50000000000003
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 234.0
+  },
+  {
+   "h": 7,
+   "id": "evap_ent_lvg_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 234.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ENT/LVG",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 234.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "evap_ent_lvg",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 233.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 244.9,
+   "y2": 244.9
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 246.4
+  },
+  {
+   "h": 7,
+   "id": "evap_clean_coil",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 246.4
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CLEAN COIL",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 246.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 257.3,
+   "y2": 257.3
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "BLOWER MOTOR",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 258.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 269.7,
+   "y2": 269.7
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 271.20000000000005
+  },
+  {
+   "h": 7,
+   "id": "blower_volts_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 271.20000000000005
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "VOLTS",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 271.20000000000005
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "blower_volts",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 270.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 282.1,
+   "y2": 282.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 283.6
+  },
+  {
+   "h": 7,
+   "id": "blower_amps_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 283.6
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "AMPS",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 283.6
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "blower_amps",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 58,
+   "x": 90,
+   "y": 282.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 294.5,
+   "y2": 294.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 296.0
+  },
+  {
+   "h": 7,
+   "id": "thermostat_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 296.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "THERMOSTAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 296.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 306.9,
+   "y2": 306.9
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "ELECTRICAL",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 308.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 319.29999999999995,
+   "y2": 319.29999999999995
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 320.8
+  },
+  {
+   "h": 7,
+   "id": "relay_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 320.8
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "RELAY",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 320.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 331.7,
+   "y2": 331.7
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 333.20000000000005
+  },
+  {
+   "h": 7,
+   "id": "contacts_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 333.20000000000005
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CONTACTS",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 333.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 344.1,
+   "y2": 344.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 21,
+   "y": 345.6
+  },
+  {
+   "h": 7,
+   "id": "overload_ok",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 21,
+   "y": 345.6
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "OVERLOAD",
+   "size": 6.5,
+   "t": "text",
+   "x": 31,
+   "y": 345.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 148,
+   "y1": 356.5,
+   "y2": 356.5
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "CONDENSATION",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 110.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 120.9,
+   "y2": 120.9
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 122.4
+  },
+  {
+   "h": 7,
+   "id": "inspect_drains",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 122.4
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "INSPECT DRAINS",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 122.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 133.3,
+   "y2": 133.3
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 134.8
+  },
+  {
+   "h": 7,
+   "id": "cleaned_drains",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 134.8
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CLEANED DRAINS",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 134.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 145.70000000000002,
+   "y2": 145.70000000000002
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "CONDENSER",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 147.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 158.1,
+   "y2": 158.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 159.6
+  },
+  {
+   "h": 7,
+   "id": "cond_clean_coil",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 159.6
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CLEAN COIL",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 159.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 170.5,
+   "y2": 170.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "VOLTS:",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 172.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "cond_volts",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 171.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 182.9,
+   "y2": 182.9
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "AMPS:",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 184.4
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "cond_amps",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 183.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 195.3,
+   "y2": 195.3
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ENT DB:",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 196.8
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "cond_ent_db",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 195.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 207.70000000000002,
+   "y2": 207.70000000000002
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "HEATING ASSEMBLY",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 209.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 220.1,
+   "y2": 220.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 221.60000000000002
+  },
+  {
+   "h": 7,
+   "id": "burner_he",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 221.60000000000002
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "BURNER & H/E",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 221.60000000000002
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 232.50000000000003,
+   "y2": 232.50000000000003
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 234.0
+  },
+  {
+   "h": 7,
+   "id": "fuel_supply",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 234.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FUEL SUPPLY/PSI",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 234.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "fuel_psi",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 233.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 244.9,
+   "y2": 244.9
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 246.4
+  },
+  {
+   "h": 7,
+   "id": "pilot_assembly",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 246.4
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "PILOT ASSEMBLY",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 246.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 257.3,
+   "y2": 257.3
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 258.8
+  },
+  {
+   "h": 7,
+   "id": "flame_adjustment",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 258.8
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FLAME ADJUSTMENT",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 258.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 269.7,
+   "y2": 269.7
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 271.20000000000005
+  },
+  {
+   "h": 7,
+   "id": "flue_piping",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 271.20000000000005
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FLUE PIPING",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 271.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 282.1,
+   "y2": 282.1
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 283.6
+  },
+  {
+   "h": 7,
+   "id": "fan_limit_switch",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 283.6
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FAN/LIMIT SWITCH",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 283.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 294.5,
+   "y2": 294.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 296.0
+  },
+  {
+   "h": 7,
+   "id": "rv_valve",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 296.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "R/V VALVE",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 296.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 306.9,
+   "y2": 306.9
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 308.4
+  },
+  {
+   "h": 7,
+   "id": "strip_heat",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 308.4
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "STRIP HEAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 308.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 319.29999999999995,
+   "y2": 319.29999999999995
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 152,
+   "y": 320.8
+  },
+  {
+   "h": 7,
+   "id": "defrost_cycle",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 152,
+   "y": 320.8
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "DEFROST CYCLE",
+   "size": 6.5,
+   "t": "text",
+   "x": 162,
+   "y": 320.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 331.7,
+   "y2": 331.7
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CO PPM:",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 333.20000000000005
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "co_ppm",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 332.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 344.1,
+   "y2": 344.1
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "REFRIGERANT",
+   "size": 6.5,
+   "t": "text",
+   "x": 152,
+   "y": 345.6
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "refrigerant_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 237,
+   "y": 344.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 148,
+   "x2": 284,
+   "y1": 356.5,
+   "y2": 356.5
+  },
+  {
+   "lw": 0.6,
+   "t": "line",
+   "x1": 148,
+   "x2": 148,
+   "y1": 107,
+   "y2": 356.5
+  },
+  {
+   "fill": null,
+   "h": 264.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 238,
+   "x": 284,
+   "y": 96
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 238,
+   "x": 284,
+   "y": 96
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "METHOD OF PAYMENT",
+   "size": 7.5,
+   "t": "text",
+   "x": 403.0,
+   "y": 98
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 290,
+   "y": 112
+  },
+  {
+   "h": 7,
+   "id": "pay_cod",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 290,
+   "y": 112
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "COD",
+   "size": 6.5,
+   "t": "text",
+   "x": 300,
+   "y": 112
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 366,
+   "y": 112
+  },
+  {
+   "h": 7,
+   "id": "pay_billing",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 366,
+   "y": 112
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "BILLING",
+   "size": 6.5,
+   "t": "text",
+   "x": 376,
+   "y": 112
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 442,
+   "y": 112
+  },
+  {
+   "h": 7,
+   "id": "pay_no_charge",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 442,
+   "y": 112
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "NO CHARGE",
+   "size": 6.5,
+   "t": "text",
+   "x": 452,
+   "y": 112
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 290,
+   "y": 125
+  },
+  {
+   "h": 7,
+   "id": "pay_call_office",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 290,
+   "y": 125
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "CALL OFFICE",
+   "size": 6.5,
+   "t": "text",
+   "x": 300,
+   "y": 125
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 366,
+   "y": 125
+  },
+  {
+   "h": 7,
+   "id": "pay_warranty",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 366,
+   "y": 125
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "WARRANTY",
+   "size": 6.5,
+   "t": "text",
+   "x": 376,
+   "y": 125
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 442,
+   "y": 125
+  },
+  {
+   "h": 7,
+   "id": "pay_pmp",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 442,
+   "y": 125
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "PMP",
+   "size": 6.5,
+   "t": "text",
+   "x": 452,
+   "y": 125
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 238,
+   "x": 284,
+   "y": 140
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "SERVICE REQUESTED",
+   "size": 7.5,
+   "t": "text",
+   "x": 403.0,
+   "y": 142
+  },
+  {
+   "align": "center",
+   "h": 24,
+   "id": "service_requested",
+   "kind": "multi",
+   "lh": 10,
+   "size": 7.5,
+   "t": "field",
+   "w": 230,
+   "x": 288,
+   "y": 154
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 284,
+   "x2": 522,
+   "y1": 180,
+   "y2": 180
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "PARTS WARRANTY",
+   "size": 7,
+   "t": "text",
+   "x": 288,
+   "y": 186
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ALL PARTS AS RECORDED ARE WARRANTED AS PER MANUFACTURER SPECIFICATIONS.",
+   "size": 6.5,
+   "t": "text",
+   "w": 230,
+   "x": 288,
+   "y": 196
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "LABOR GUARANTEE",
+   "size": 7,
+   "t": "text",
+   "x": 288,
+   "y": 220
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "THE LABOR CHARGE AS RECORDED HERE RELATIVE TO THE EQUIPMENT SERVICED AS NOTED IS GUARANTEED FOR A PERIOD OF 30 DAYS. WE DO NOT, OF COURSE, GUARANTEE OTHER PARTS THAN THOSE WE PROVIDE. IF REPAIRS LATER BECOME NECESSARY DUE TO OTHER DEFECTIVE PARTS, THEY WILL BE CHARGED SEPARATELY.",
+   "size": 6.5,
+   "t": "text",
+   "w": 230,
+   "x": 288,
+   "y": 230
+  },
+  {
+   "fill": null,
+   "h": 222,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 96
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 96
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "DESCRIPTION OF WORK PERFORMED",
+   "size": 7.5,
+   "t": "text",
+   "x": 648.0,
+   "y": 98
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 121.0,
+   "y2": 121.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 133.4,
+   "y2": 133.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 145.8,
+   "y2": 145.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 158.2,
+   "y2": 158.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 170.6,
+   "y2": 170.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 183.0,
+   "y2": 183.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 195.4,
+   "y2": 195.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 207.8,
+   "y2": 207.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 220.2,
+   "y2": 220.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 232.60000000000002,
+   "y2": 232.60000000000002
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 245.0,
+   "y2": 245.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 257.4,
+   "y2": 257.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 269.8,
+   "y2": 269.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 282.20000000000005,
+   "y2": 282.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 294.6,
+   "y2": 294.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 307.0,
+   "y2": 307.0
+  },
+  {
+   "align": "left",
+   "h": 205,
+   "id": "work_description",
+   "kind": "multi",
+   "lh": 12.4,
+   "size": 7.5,
+   "t": "field",
+   "w": 246,
+   "x": 525,
+   "y": 110
+  },
+  {
+   "fill": null,
+   "h": 13,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 318
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TECHNICIAN:",
+   "size": 6.5,
+   "t": "text",
+   "x": 526,
+   "y": 321
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "technician",
+   "kind": "text",
+   "size": 8,
+   "t": "field",
+   "w": 188,
+   "x": 582,
+   "y": 320
+  },
+  {
+   "fill": null,
+   "h": 150,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 331
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 134,
+   "x": 522,
+   "y": 331
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "TERMS DUE UPON COMPLETION",
+   "size": 6,
+   "t": "text",
+   "x": 589.0,
+   "y": 333
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "I HAVE THE AUTHORITY TO ORDER THE ABOVE WORK AND DO SO ORDER AS OUTLINED ABOVE. IT IS AGREED THAT THE SELLER WILL RETAIN TITLE TO ANY EQUIPMENT OR MATERIAL FURNISHED UNTIL FINAL & COMPLETE PAYMENT IS MADE, AND IF SETTLEMENT IS NOT MADE AS AGREED, THE SELLER SHALL HAVE RIGHT TO REMOVE SAME AND THE SELLER WILL BE HELD HARMLESS FOR ANY DAMAGES RESULTING FROM THE REMOVAL THEREOF. A 2% FINANCE CHARGE WILL BE ADDED MONTHLY TO ALL UNPAID BALANCES. PURCHASER AGREES TO PAY $35.00 FEE RETURNED CHECKS, ANY ATTORNEY FEES AND/OR COLLECTION FEES THAT ROWAN MAY INCUR.",
+   "size": 4.6,
+   "t": "text",
+   "w": 128,
+   "x": 525,
+   "y": 344
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 656,
+   "x2": 656,
+   "y1": 331,
+   "y2": 481
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "REG LABOR",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 336.0
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "reg_labor",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 334.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 347.3,
+   "y2": 347.3
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "OVERTIME LABOR",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 350.8
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "overtime_labor",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 348.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 362.1,
+   "y2": 362.1
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "TOTAL PARTS",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 365.6
+  },
+  {
+   "align": "right",
+   "computed": true,
+   "h": 11,
+   "id": "total_parts",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 363.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 376.90000000000003,
+   "y2": 376.90000000000003
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "TRIP CHARGES",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 380.4
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "trip_charges",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 378.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 391.7,
+   "y2": 391.7
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "REFRIGERANT",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 395.2
+  },
+  {
+   "align": "right",
+   "computed": true,
+   "h": 11,
+   "id": "refrigerant_charge",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 393.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 406.5,
+   "y2": 406.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SUBTOTAL",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 410.0
+  },
+  {
+   "align": "right",
+   "computed": true,
+   "h": 11,
+   "id": "subtotal",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 408.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 421.3,
+   "y2": 421.3
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "PREVIOUS",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 424.8
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "previous",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 422.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 436.1,
+   "y2": 436.1
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "COUPON",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 439.6
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "coupon",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 437.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 450.90000000000003,
+   "y2": 450.90000000000003
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FUEL CHARGE",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 454.4
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "fuel_charge",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 452.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 465.7,
+   "y2": 465.7
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TOTAL DUE",
+   "size": 5.6,
+   "t": "text",
+   "x": 659,
+   "y": 469.20000000000005
+  },
+  {
+   "align": "right",
+   "computed": true,
+   "h": 11,
+   "id": "total_due",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 53,
+   "x": 718,
+   "y": 467.20000000000005
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 656,
+   "x2": 774,
+   "y1": 480.50000000000006,
+   "y2": 480.50000000000006
+  },
+  {
+   "fill": null,
+   "h": 113,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 252,
+   "x": 522,
+   "y": 481
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "PRINTED NAME / AUTHORIZED SIGNATURE",
+   "size": 6,
+   "t": "text",
+   "x": 526,
+   "y": 484
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "printed_name",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 244,
+   "x": 526,
+   "y": 493
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 522,
+   "x2": 774,
+   "y1": 506,
+   "y2": 506
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ABOVE WORK HAS BEEN COMPLETED AND I ACKNOWLEDGE RECEIPT OF MY COPY",
+   "size": 5.4,
+   "t": "text",
+   "x": 526,
+   "y": 509
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "X",
+   "size": 11,
+   "t": "text",
+   "x": 526,
+   "y": 521
+  },
+  {
+   "lw": 0.6,
+   "t": "line",
+   "x1": 538,
+   "x2": 768,
+   "y1": 533,
+   "y2": 533
+  },
+  {
+   "fill": null,
+   "h": 62,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 504,
+   "x": 18,
+   "y": 364.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "LOCATION",
+   "size": 7,
+   "t": "text",
+   "x": 21,
+   "y": 366.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "MAKE",
+   "size": 7,
+   "t": "text",
+   "x": 121.80000000000001,
+   "y": 366.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "MODEL",
+   "size": 7,
+   "t": "text",
+   "x": 207.48000000000002,
+   "y": 366.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "SERIAL",
+   "size": 7,
+   "t": "text",
+   "x": 328.44,
+   "y": 366.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TYPE",
+   "size": 7,
+   "t": "text",
+   "x": 434.28,
+   "y": 366.0
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 18,
+   "x2": 522,
+   "y1": 376.0,
+   "y2": 376.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_location",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 94.80000000000001,
+   "x": 21,
+   "y": 379.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_make",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 79.68,
+   "x": 121.80000000000001,
+   "y": 379.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_model",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114.96,
+   "x": 207.48000000000002,
+   "y": 379.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_serial",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 99.83999999999999,
+   "x": 328.44,
+   "y": 379.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 84.72,
+   "x": 434.28,
+   "y": 379.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 522,
+   "y1": 393.0,
+   "y2": 393.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_location",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 94.80000000000001,
+   "x": 21,
+   "y": 395.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_make",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 79.68,
+   "x": 121.80000000000001,
+   "y": 395.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_model",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114.96,
+   "x": 207.48000000000002,
+   "y": 395.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_serial",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 99.83999999999999,
+   "x": 328.44,
+   "y": 395.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 84.72,
+   "x": 434.28,
+   "y": 395.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 522,
+   "y1": 409.0,
+   "y2": 409.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq3_location",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 94.80000000000001,
+   "x": 21,
+   "y": 411.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq3_make",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 79.68,
+   "x": 121.80000000000001,
+   "y": 411.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq3_model",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114.96,
+   "x": 207.48000000000002,
+   "y": 411.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq3_serial",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 99.83999999999999,
+   "x": 328.44,
+   "y": 411.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq3_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 84.72,
+   "x": 434.28,
+   "y": 411.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 522,
+   "y1": 425.0,
+   "y2": 425.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 118.80000000000001,
+   "x2": 118.80000000000001,
+   "y1": 364.0,
+   "y2": 426.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 204.48000000000002,
+   "x2": 204.48000000000002,
+   "y1": 364.0,
+   "y2": 426.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 325.44,
+   "x2": 325.44,
+   "y1": 364.0,
+   "y2": 426.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 431.28,
+   "x2": 431.28,
+   "y1": 364.0,
+   "y2": 426.0
+  },
+  {
+   "fill": null,
+   "h": 168.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 120,
+   "x": 18,
+   "y": 426.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "EQUIPMENT",
+   "size": 7,
+   "t": "text",
+   "x": 21,
+   "y": 429.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 442.0
+  },
+  {
+   "h": 7,
+   "id": "eqt_gas_heat",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 442.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "GAS HEAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 442.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 454.5
+  },
+  {
+   "h": 7,
+   "id": "eqt_oil_heat",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 454.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "OIL HEAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 454.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 467.0
+  },
+  {
+   "h": 7,
+   "id": "eqt_electric_heat",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 467.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "ELECTRIC HEAT",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 467.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 479.5
+  },
+  {
+   "h": 7,
+   "id": "eqt_ac",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 479.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "AIR CONDITIONER",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 479.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 492.0
+  },
+  {
+   "h": 7,
+   "id": "eqt_heat_pump",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 492.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "HEAT PUMP",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 492.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 22,
+   "y": 504.5
+  },
+  {
+   "h": 7,
+   "id": "eqt_geothermal",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 22,
+   "y": 504.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "GEOTHERMAL",
+   "size": 6.5,
+   "t": "text",
+   "x": 32,
+   "y": 504.5
+  },
+  {
+   "fill": null,
+   "h": 168.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 384,
+   "x": 138,
+   "y": 426.0
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "QTY",
+   "size": 7,
+   "t": "text",
+   "x": 163.0,
+   "y": 429.0
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "PARTS DESCRIPTION",
+   "size": 7,
+   "t": "text",
+   "x": 320.0,
+   "y": 429.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 188,
+   "x2": 188,
+   "y1": 426.0,
+   "y2": 594
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "AMOUNT",
+   "size": 7,
+   "t": "text",
+   "x": 487.0,
+   "y": 429.0
+  },
+  {
+   "lw": 0.4,
+   "t": "line",
+   "x1": 452,
+   "x2": 452,
+   "y1": 426.0,
+   "y2": 594
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 438.0,
+   "y2": 438.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part1_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 440.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part1_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 440.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part1_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 440.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 451.5,
+   "y2": 451.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part2_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 452.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part2_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 452.5
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part2_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 452.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 464.0,
+   "y2": 464.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part3_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 465.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part3_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 465.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part3_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 465.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 476.5,
+   "y2": 476.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part4_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 477.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part4_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 477.5
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part4_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 477.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 489.0,
+   "y2": 489.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part5_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 490.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part5_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 490.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part5_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 490.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 501.5,
+   "y2": 501.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part6_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 502.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part6_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 502.5
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part6_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 502.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 514.0,
+   "y2": 514.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part7_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 515.0
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part7_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 515.0
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part7_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 515.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 526.5,
+   "y2": 526.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part8_qty",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 44,
+   "x": 141,
+   "y": 527.5
+  },
+  {
+   "align": "left",
+   "h": 10,
+   "id": "part8_desc",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 258,
+   "x": 191,
+   "y": 527.5
+  },
+  {
+   "align": "right",
+   "h": 10,
+   "id": "part8_amount",
+   "kind": "money",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 455,
+   "y": 527.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 138,
+   "x2": 522,
+   "y1": 539.0,
+   "y2": 539.0
+  }
+ ],
+ "page": {
+  "h": 612,
+  "w": 792
+ },
+ "sections": [
+  {
+   "fields": [
+    {
+     "id": "cust_name",
+     "kind": "text",
+     "label": "Customer name"
+    },
+    {
+     "id": "cust_street",
+     "kind": "text",
+     "label": "Street address"
+    },
+    {
+     "id": "cust_city",
+     "kind": "text",
+     "label": "City, state, ZIP"
+    },
+    {
+     "id": "cust_email",
+     "kind": "text",
+     "label": "Email"
+    },
+    {
+     "id": "cust_phone",
+     "kind": "text",
+     "label": "Phone"
+    }
+   ],
+   "title": "Customer"
+  },
+  {
+   "fields": [
+    {
+     "hint": "Filled in for you: technician initials and date",
+     "id": "invoice_no",
+     "kind": "text",
+     "label": "Invoice #"
+    },
+    {
+     "id": "date",
+     "kind": "text",
+     "label": "Date"
+    },
+    {
+     "hint": "e.g. 10:00 AM",
+     "id": "time_in",
+     "kind": "text",
+     "label": "Time in"
+    },
+    {
+     "hint": "e.g. 2:15 PM",
+     "id": "time_out",
+     "kind": "text",
+     "label": "Time out"
+    },
+    {
+     "id": "job_finished",
+     "kind": "check",
+     "label": "Job finished: yes"
+    },
+    {
+     "id": "job_not_finished",
+     "kind": "check",
+     "label": "Job finished: no"
+    }
+   ],
+   "title": "Ticket"
+  },
+  {
+   "fields": [
+    {
+     "hint": "e.g. 16x25x4",
+     "id": "filter_size",
+     "kind": "text",
+     "label": "Air filter size"
+    },
+    {
+     "id": "eac",
+     "kind": "text",
+     "label": "EAC"
+    },
+    {
+     "id": "superheat_ok",
+     "kind": "check",
+     "label": "Superheat checked"
+    },
+    {
+     "hint": "\u00b0F",
+     "id": "superheat",
+     "kind": "text",
+     "label": "Superheat (\u00b0F)"
+    },
+    {
+     "id": "subcool_ok",
+     "kind": "check",
+     "label": "Subcool checked"
+    },
+    {
+     "hint": "\u00b0F",
+     "id": "subcool",
+     "kind": "text",
+     "label": "Subcool (\u00b0F)"
+    },
+    {
+     "id": "comp_electrical_ok",
+     "kind": "check",
+     "label": "Compressor electrical checked"
+    },
+    {
+     "id": "comp_volts_ok",
+     "kind": "check",
+     "label": "Compressor volts checked"
+    },
+    {
+     "id": "comp_volts",
+     "kind": "text",
+     "label": "Compressor volts"
+    },
+    {
+     "id": "comp_amps_ok",
+     "kind": "check",
+     "label": "Compressor amps checked"
+    },
+    {
+     "id": "comp_amps",
+     "kind": "text",
+     "label": "Compressor amps"
+    },
+    {
+     "id": "evap_ent_lvg_ok",
+     "kind": "check",
+     "label": "Evaporator ENT/LVG checked"
+    },
+    {
+     "hint": "e.g. 63/41",
+     "id": "evap_ent_lvg",
+     "kind": "text",
+     "label": "Evaporator entering / leaving (\u00b0F)"
+    },
+    {
+     "id": "evap_clean_coil",
+     "kind": "check",
+     "label": "Evaporator coil cleaned"
+    },
+    {
+     "id": "blower_volts_ok",
+     "kind": "check",
+     "label": "Blower volts checked"
+    },
+    {
+     "id": "blower_volts",
+     "kind": "text",
+     "label": "Blower volts"
+    },
+    {
+     "id": "blower_amps_ok",
+     "kind": "check",
+     "label": "Blower amps checked"
+    },
+    {
+     "id": "blower_amps",
+     "kind": "text",
+     "label": "Blower amps"
+    },
+    {
+     "id": "thermostat_ok",
+     "kind": "check",
+     "label": "Thermostat checked"
+    },
+    {
+     "id": "relay_ok",
+     "kind": "check",
+     "label": "Relay checked"
+    },
+    {
+     "id": "contacts_ok",
+     "kind": "check",
+     "label": "Contacts checked"
+    },
+    {
+     "id": "overload_ok",
+     "kind": "check",
+     "label": "Overload checked"
+    },
+    {
+     "id": "inspect_drains",
+     "kind": "check",
+     "label": "Inspect drains"
+    },
+    {
+     "id": "cleaned_drains",
+     "kind": "check",
+     "label": "Cleaned drains"
+    },
+    {
+     "id": "cond_clean_coil",
+     "kind": "check",
+     "label": "Clean coil"
+    },
+    {
+     "id": "cond_volts",
+     "kind": "text",
+     "label": "Condenser volts"
+    },
+    {
+     "id": "cond_amps",
+     "kind": "text",
+     "label": "Condenser amps"
+    },
+    {
+     "id": "cond_ent_db",
+     "kind": "text",
+     "label": "Condenser entering dry bulb (\u00b0F)"
+    },
+    {
+     "id": "burner_he",
+     "kind": "check",
+     "label": "Burner & h/e"
+    },
+    {
+     "id": "fuel_supply",
+     "kind": "check",
+     "label": "Fuel supply/psi"
+    },
+    {
+     "id": "fuel_psi",
+     "kind": "text",
+     "label": "Fuel supply pressure"
+    },
+    {
+     "id": "pilot_assembly",
+     "kind": "check",
+     "label": "Pilot assembly"
+    },
+    {
+     "id": "flame_adjustment",
+     "kind": "check",
+     "label": "Flame adjustment"
+    },
+    {
+     "id": "flue_piping",
+     "kind": "check",
+     "label": "Flue piping"
+    },
+    {
+     "id": "fan_limit_switch",
+     "kind": "check",
+     "label": "Fan/limit switch"
+    },
+    {
+     "id": "rv_valve",
+     "kind": "check",
+     "label": "R/v valve"
+    },
+    {
+     "id": "strip_heat",
+     "kind": "check",
+     "label": "Strip heat"
+    },
+    {
+     "id": "defrost_cycle",
+     "kind": "check",
+     "label": "Defrost cycle"
+    },
+    {
+     "id": "co_ppm",
+     "kind": "text",
+     "label": "CO (ppm)"
+    },
+    {
+     "hint": "e.g. R-410A",
+     "id": "refrigerant_type",
+     "kind": "text",
+     "label": "Refrigerant type"
+    }
+   ],
+   "title": "Check list"
+  },
+  {
+   "fields": [
+    {
+     "id": "pay_cod",
+     "kind": "check",
+     "label": "Payment: Cod"
+    },
+    {
+     "id": "pay_billing",
+     "kind": "check",
+     "label": "Payment: Billing"
+    },
+    {
+     "id": "pay_no_charge",
+     "kind": "check",
+     "label": "Payment: No Charge"
+    },
+    {
+     "id": "pay_call_office",
+     "kind": "check",
+     "label": "Payment: Call Office"
+    },
+    {
+     "id": "pay_warranty",
+     "kind": "check",
+     "label": "Payment: Warranty"
+    },
+    {
+     "id": "pay_pmp",
+     "kind": "check",
+     "label": "Payment: Pmp"
+    },
+    {
+     "id": "service_requested",
+     "kind": "multi",
+     "label": "Service requested"
+    }
+   ],
+   "title": "Payment and service"
+  },
+  {
+   "fields": [
+    {
+     "hint": "What you found, what you did, readings, and the system's condition when you left",
+     "id": "work_description",
+     "kind": "multi",
+     "label": "Description of work performed"
+    },
+    {
+     "id": "technician",
+     "kind": "text",
+     "label": "Technician"
+    }
+   ],
+   "title": "Work performed"
+  },
+  {
+   "fields": [
+    {
+     "id": "reg_labor",
+     "kind": "money",
+     "label": "Regular labor ($)"
+    },
+    {
+     "id": "overtime_labor",
+     "kind": "money",
+     "label": "Overtime labor ($)"
+    },
+    {
+     "computed": true,
+     "hint": "Calculated from the parts list",
+     "id": "total_parts",
+     "kind": "money",
+     "label": "Total parts ($)"
+    },
+    {
+     "id": "trip_charges",
+     "kind": "money",
+     "label": "Trip charge ($)"
+    },
+    {
+     "computed": true,
+     "hint": "Calculated from the parts list",
+     "id": "refrigerant_charge",
+     "kind": "money",
+     "label": "Refrigerant ($)"
+    },
+    {
+     "computed": true,
+     "hint": "Calculated",
+     "id": "subtotal",
+     "kind": "money",
+     "label": "Subtotal ($)"
+    },
+    {
+     "id": "previous",
+     "kind": "money",
+     "label": "Previous balance ($)"
+    },
+    {
+     "id": "coupon",
+     "kind": "money",
+     "label": "Coupon ($, subtracted)"
+    },
+    {
+     "id": "fuel_charge",
+     "kind": "money",
+     "label": "Fuel charge ($)"
+    },
+    {
+     "computed": true,
+     "hint": "Calculated",
+     "id": "total_due",
+     "kind": "money",
+     "label": "Total due ($)"
+    }
+   ],
+   "title": "Charges"
+  },
+  {
+   "fields": [
+    {
+     "id": "printed_name",
+     "kind": "text",
+     "label": "Customer printed name"
+    }
+   ],
+   "title": "Customer signature"
+  },
+  {
+   "fields": [
+    {
+     "id": "eq1_location",
+     "kind": "text",
+     "label": "Unit 1 location"
+    },
+    {
+     "id": "eq1_make",
+     "kind": "text",
+     "label": "Unit 1 make"
+    },
+    {
+     "id": "eq1_model",
+     "kind": "text",
+     "label": "Unit 1 model"
+    },
+    {
+     "id": "eq1_serial",
+     "kind": "text",
+     "label": "Unit 1 serial"
+    },
+    {
+     "id": "eq1_type",
+     "kind": "text",
+     "label": "Unit 1 type"
+    },
+    {
+     "id": "eq2_location",
+     "kind": "text",
+     "label": "Unit 2 location"
+    },
+    {
+     "id": "eq2_make",
+     "kind": "text",
+     "label": "Unit 2 make"
+    },
+    {
+     "id": "eq2_model",
+     "kind": "text",
+     "label": "Unit 2 model"
+    },
+    {
+     "id": "eq2_serial",
+     "kind": "text",
+     "label": "Unit 2 serial"
+    },
+    {
+     "id": "eq2_type",
+     "kind": "text",
+     "label": "Unit 2 type"
+    },
+    {
+     "id": "eq3_location",
+     "kind": "text",
+     "label": "Unit 3 location"
+    },
+    {
+     "id": "eq3_make",
+     "kind": "text",
+     "label": "Unit 3 make"
+    },
+    {
+     "id": "eq3_model",
+     "kind": "text",
+     "label": "Unit 3 model"
+    },
+    {
+     "id": "eq3_serial",
+     "kind": "text",
+     "label": "Unit 3 serial"
+    },
+    {
+     "id": "eq3_type",
+     "kind": "text",
+     "label": "Unit 3 type"
+    }
+   ],
+   "title": "Equipment"
+  },
+  {
+   "fields": [
+    {
+     "id": "eqt_gas_heat",
+     "kind": "check",
+     "label": "Gas Heat"
+    },
+    {
+     "id": "eqt_oil_heat",
+     "kind": "check",
+     "label": "Oil Heat"
+    },
+    {
+     "id": "eqt_electric_heat",
+     "kind": "check",
+     "label": "Electric Heat"
+    },
+    {
+     "id": "eqt_ac",
+     "kind": "check",
+     "label": "Air Conditioner"
+    },
+    {
+     "id": "eqt_heat_pump",
+     "kind": "check",
+     "label": "Heat Pump"
+    },
+    {
+     "id": "eqt_geothermal",
+     "kind": "check",
+     "label": "Geothermal"
+    }
+   ],
+   "title": "Equipment type"
+  },
+  {
+   "fields": [
+    {
+     "id": "part1_qty",
+     "kind": "text",
+     "label": "Part 1 quantity"
+    },
+    {
+     "id": "part1_desc",
+     "kind": "text",
+     "label": "Part 1 description"
+    },
+    {
+     "id": "part1_amount",
+     "kind": "money",
+     "label": "Part 1 amount ($)"
+    },
+    {
+     "id": "part2_qty",
+     "kind": "text",
+     "label": "Part 2 quantity"
+    },
+    {
+     "id": "part2_desc",
+     "kind": "text",
+     "label": "Part 2 description"
+    },
+    {
+     "id": "part2_amount",
+     "kind": "money",
+     "label": "Part 2 amount ($)"
+    },
+    {
+     "id": "part3_qty",
+     "kind": "text",
+     "label": "Part 3 quantity"
+    },
+    {
+     "id": "part3_desc",
+     "kind": "text",
+     "label": "Part 3 description"
+    },
+    {
+     "id": "part3_amount",
+     "kind": "money",
+     "label": "Part 3 amount ($)"
+    },
+    {
+     "id": "part4_qty",
+     "kind": "text",
+     "label": "Part 4 quantity"
+    },
+    {
+     "id": "part4_desc",
+     "kind": "text",
+     "label": "Part 4 description"
+    },
+    {
+     "id": "part4_amount",
+     "kind": "money",
+     "label": "Part 4 amount ($)"
+    },
+    {
+     "id": "part5_qty",
+     "kind": "text",
+     "label": "Part 5 quantity"
+    },
+    {
+     "id": "part5_desc",
+     "kind": "text",
+     "label": "Part 5 description"
+    },
+    {
+     "id": "part5_amount",
+     "kind": "money",
+     "label": "Part 5 amount ($)"
+    },
+    {
+     "id": "part6_qty",
+     "kind": "text",
+     "label": "Part 6 quantity"
+    },
+    {
+     "id": "part6_desc",
+     "kind": "text",
+     "label": "Part 6 description"
+    },
+    {
+     "id": "part6_amount",
+     "kind": "money",
+     "label": "Part 6 amount ($)"
+    },
+    {
+     "id": "part7_qty",
+     "kind": "text",
+     "label": "Part 7 quantity"
+    },
+    {
+     "id": "part7_desc",
+     "kind": "text",
+     "label": "Part 7 description"
+    },
+    {
+     "id": "part7_amount",
+     "kind": "money",
+     "label": "Part 7 amount ($)"
+    },
+    {
+     "id": "part8_qty",
+     "kind": "text",
+     "label": "Part 8 quantity"
+    },
+    {
+     "id": "part8_desc",
+     "kind": "text",
+     "label": "Part 8 description"
+    },
+    {
+     "id": "part8_amount",
+     "kind": "money",
+     "label": "Part 8 amount ($)"
+    }
+   ],
+   "title": "Parts"
+  }
+ ],
+ "version": 1
+}

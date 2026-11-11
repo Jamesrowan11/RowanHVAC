@@ -55,6 +55,11 @@ CREATE TABLE IF NOT EXISTS manuals (
     id TEXT PRIMARY KEY, brand TEXT, model TEXT, equipment_type TEXT, title TEXT,
     original_name TEXT, size INTEGER, sha256 TEXT, position INTEGER
 );
+CREATE TABLE IF NOT EXISTS tickets (
+    id TEXT PRIMARY KEY, job_id TEXT, invoice_no TEXT, data TEXT, status TEXT,
+    ai_check TEXT, updated_at TEXT, pending INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS tickets_job ON tickets (job_id);
 CREATE TABLE IF NOT EXISTS speed_log (t TEXT PRIMARY KEY, mph INTEGER);
 CREATE TABLE IF NOT EXISTS problems (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, message TEXT, created_at TEXT,
@@ -121,7 +126,8 @@ class Store(object):
         and van name so the next sign-in is quick)."""
         with self.conn:
             for table in ("jobs", "notes", "announcements", "outbox", "problems",
-                          "conversations", "messages", "directory", "emails", "manuals", "speed_log"):
+                          "conversations", "messages", "directory", "emails", "manuals", "speed_log",
+                          "tickets"):
                 self.conn.execute("DELETE FROM " + table)
             for key in ("token", "user_id", "user_name", "user_email", "snapshot_hash", "last_sync",
                         "mailbox_address", "obd_codes", "obd_codes_sent"):
@@ -228,6 +234,54 @@ class Store(object):
                          "subject": subject, "body": body})
             return email_id
 
+    def save_ticket(self, ticket_id, job_id, data, status="draft", ai_check=None):
+        """Saves the service ticket locally and queues it for the website.
+        Only the newest save of a ticket is kept in the outbox (the sheet is
+        sent whole each time). status: 'draft' or 'final'. Returns the id."""
+        with self.conn:
+            ticket_id = ticket_id or "van_" + new_id()
+            now = utc_now_iso()
+            self.conn.execute(
+                "INSERT OR REPLACE INTO tickets (id, job_id, invoice_no, data, status, ai_check, updated_at,"
+                " pending) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                (ticket_id, job_id, data.get("invoice_no"), json.dumps(data), status,
+                 json.dumps(ai_check) if ai_check is not None else None, now),
+            )
+            for row in self.conn.execute(
+                "SELECT op_id, payload FROM outbox WHERE payload LIKE '%\"ticket.save\"%'"
+            ).fetchall():
+                if json.loads(row["payload"]).get("id") == ticket_id:
+                    self.conn.execute("DELETE FROM outbox WHERE op_id = ?", (row["op_id"],))
+            op = {"type": "ticket.save", "id": ticket_id, "jobId": job_id,
+                  "invoiceNumber": data.get("invoice_no") or "", "status": status,
+                  "data": data, "savedAt": now}
+            if ai_check is not None:
+                op["aiCheck"] = ai_check
+            self._queue(op)
+            return ticket_id
+
+    def ticket_for_job(self, job_id):
+        row = self.conn.execute(
+            "SELECT * FROM tickets WHERE job_id = ? ORDER BY updated_at DESC LIMIT 1", (job_id,)
+        ).fetchone()
+        return self._ticket_row(row)
+
+    def ticket(self, ticket_id):
+        row = self.conn.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
+        return self._ticket_row(row)
+
+    def invoice_numbers(self):
+        return set(r[0] for r in self.conn.execute("SELECT invoice_no FROM tickets").fetchall() if r[0])
+
+    @staticmethod
+    def _ticket_row(row):
+        if row is None:
+            return None
+        t = dict(row)
+        t["data"] = json.loads(t["data"] or "{}")
+        t["ai_check"] = json.loads(t["ai_check"]) if t.get("ai_check") else None
+        return t
+
     def _apply_status(self, op):
         if op.get("status") == "COMPLETED" and op.get("summary"):
             self.conn.execute(
@@ -291,6 +345,13 @@ class Store(object):
                         else:
                             self.conn.execute("DELETE FROM conversations WHERE id = ?",
                                               (op["conversationId"],))
+                elif kind == "ticket.save":
+                    if ok:
+                        # Still pending if a newer save of the same ticket is queued.
+                        self.conn.execute(
+                            "UPDATE tickets SET pending = 0 WHERE id = ? AND updated_at <= ?",
+                            (op["id"], op.get("savedAt") or ""),
+                        )
                 elif kind == "email.send":
                     self.conn.execute(
                         "UPDATE emails SET state = ?, error = ? WHERE id = ?",
@@ -349,6 +410,18 @@ class Store(object):
                     " sha256, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (m["id"], m.get("brand"), m.get("model"), m.get("equipmentType"), m.get("title"),
                      m.get("originalName"), m.get("size"), m.get("sha256"), pos),
+                )
+            # Tickets: the website's copy wins unless this laptop has unsent edits.
+            for t in snapshot.get("tickets", []):
+                local = self.conn.execute("SELECT pending FROM tickets WHERE id = ?", (t["id"],)).fetchone()
+                if local is not None and local["pending"]:
+                    continue
+                self.conn.execute(
+                    "INSERT OR REPLACE INTO tickets (id, job_id, invoice_no, data, status, ai_check,"
+                    " updated_at, pending) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+                    (t["id"], t.get("jobId"), t.get("invoiceNumber"), json.dumps(t.get("data") or {}),
+                     t.get("status"), json.dumps(t["aiCheck"]) if t.get("aiCheck") else None,
+                     t.get("updatedAt")),
                 )
             self.conn.execute("DELETE FROM directory")
             for pos, d in enumerate(snapshot.get("directory", [])):

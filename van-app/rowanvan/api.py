@@ -102,7 +102,8 @@ def post(server, path, payload, token=None, timeout=30):
     return data
 
 
-def get_stream(server, path, token, timeout=60, chunk_size=65536):
+def get_stream(server, path, token, timeout=60, chunk_size=65536,
+               not_found="That manual is no longer available."):
     """GETs a (large) file, yielding (chunk, bytes_so_far)."""
     headers = {"User-Agent": "RowanVan/" + VERSION, "Authorization": "Bearer " + token}
     req = Request(server + path, headers=headers)
@@ -115,7 +116,7 @@ def get_stream(server, path, token, timeout=60, chunk_size=65536):
         if e.code == 401:
             raise SignedOut("Signed out.", 401)
         if e.code == 404:
-            raise ApiError("That manual is no longer available.", 404)
+            raise ApiError(not_found, 404)
         raise Offline("Server error " + str(e.code))
     except (ssl.SSLError, ssl.CertificateError) as e:
         raise ApiError("Secure connection failed (" + str(e) + "). Check the van's date and time.")
@@ -173,3 +174,10 @@ def connect_mailbox(server, token, address, password):
 
 def disconnect_mailbox(server, token):
     return post(server, "/api/van/v1/mailbox", {"disconnect": True}, token=token)
+
+
+def ticket_check(server, token, ticket_id, job_id, data, local_issues):
+    """Asks the website's AI to double-check a service ticket. Returns
+    {"issues": [{field, severity, message}], "summary": str}."""
+    payload = {"ticketId": ticket_id, "jobId": job_id, "data": data, "localIssues": local_issues}
+    return post(server, "/api/van/v1/ticket-check", payload, token, timeout=120)

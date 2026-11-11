@@ -116,6 +116,7 @@ npm run dev
 | `APP_TIMEZONE`         |    no    | Company time zone for the Vehicles page (default `America/New_York`). |
 | `SPEED_ALERT_MPH`      |    no    | Email admins when a van exceeds this speed (default 80; `0` = off).   |
 | `SPEED_RETENTION_DAYS` |    no    | How long van speed readings are kept (default 365).                   |
+| `ANTHROPIC_API_KEY`    |   rec.   | Claude API key for the **AI check** on van service tickets. Unset = the vans' own checks still work; "Check with AI" says it isn't set up. |
 
 The app **runs fully without an email key** — every email is recorded in the
 `EmailLog` table and printed to the server console instead of being sent.
@@ -199,6 +200,17 @@ Install steps and details:
   under **Admin → Vehicles** (fleet status, a day's speed chart, speed at a
   given time, stretches over a limit, code history with descriptions) and get
   emailed on speeding (`SPEED_ALERT_MPH`) and on new trouble codes.
+- **Service tickets** (`ServiceTicket`): the tech fills in the company's paper
+  ticket on the van and sees it fill in live; the van's own checks run as they
+  type, and **Check with AI** sends it to `POST /api/van/v1/ticket-check`,
+  where Claude (`src/lib/ticketAi.ts`, needs `ANTHROPIC_API_KEY`) lists
+  mistakes tied to boxes on the sheet. Tickets ride along with each sync
+  (`ticket.save` op; totals are recalculated here). The customer PDF
+  (`src/lib/ticketPdf.ts`) is drawn from the same layout file the van shows,
+  `van-app/rowanvan/ticket_layout.json` (regenerate with
+  `python3 van-app/tools/build_ticket_layout.py`). The office sees tickets, the
+  AI's notes and the PDFs under **Admin → Service Tickets** and on each job.
+  A ticket sent with no signal (so not AI-checked) is checked once it arrives.
 - Same access rules as the employee dashboard: a van only sees and changes jobs
   assigned to its tech, and can't move a cancelled job.
 - Admins see and **revoke** laptops under **Admin → Van Terminals**. Tokens idle

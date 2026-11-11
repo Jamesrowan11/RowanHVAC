@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { JobStatusBadge, fmtDate, fmtDateTime } from "@/components/portal/ui";
+import { TicketList } from "@/components/portal/TicketList";
 import { updateJobStatus, addJobNote } from "../../actions";
 
 export default async function JobDetail({
@@ -21,6 +22,10 @@ export default async function JobDetail({
         include: { author: { select: { name: true } } },
       },
       client: { select: { name: true } },
+      tickets: {
+        orderBy: { createdAt: "desc" },
+        include: { technician: { select: { name: true } } },
+      },
     },
   });
 
@@ -90,6 +95,19 @@ export default async function JobDetail({
           </form>
         </div>
       )}
+
+      {/* Service tickets (written on the van terminal) */}
+      <div className="card mt-6 p-6">
+        <h2 className="mb-1 text-lg font-semibold text-navy-900">Service Tickets</h2>
+        <p className="mb-4 text-xs text-navy-400">
+          Filled in on the van terminal and checked by AI. The PDF is the customer&apos;s copy.
+        </p>
+        {job.tickets.length === 0 ? (
+          <p className="text-sm text-navy-500">No service ticket yet.</p>
+        ) : (
+          <TicketList tickets={job.tickets} />
+        )}
+      </div>
 
       {/* Notes */}
       <div className="card mt-6 p-6">

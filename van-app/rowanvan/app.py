@@ -19,6 +19,7 @@ from .email_tab import EmailTab
 from .manuals_tab import ManualsTab
 from .obd import SpeedLogger
 from .vehicle_dialog import VehicleDialog
+from .ticket_window import TicketWindow
 from .ui_common import (NAVY, NAVY_LIGHT, ORANGE, WHITE, GREEN, RED, GREY, STATUS_LABELS,
                         STATUS_COLORS, VIEWS, FONT, FONT_BOLD, FONT_BIG, FONT_SMALL,
                         today_str, fmt_day, fmt_utc, big_button)
@@ -425,6 +426,11 @@ class MainScreen(tk.Frame):
             big_button(actions, "Start Job", lambda: self.set_status(job, "IN_PROGRESS"), bg=ORANGE).pack(side="left", padx=(0, 8))
         if status in ("SCHEDULED", "IN_PROGRESS"):
             big_button(actions, "Complete Job...", lambda: self.complete(job), bg=GREEN).pack(side="left", padx=(0, 8))
+        if status != "CANCELLED":
+            ticket = self.store.ticket_for_job(job["id"])
+            label = "Service Ticket" if not ticket else (
+                "Service Ticket (sent)" if ticket["status"] == "final" else "Service Ticket (draft)")
+            big_button(actions, label, lambda: self.open_ticket(job), bg=NAVY).pack(side="left", padx=(0, 8))
         if status in ("IN_PROGRESS", "COMPLETED"):
             big_button(actions, "Back to Scheduled", lambda: self.set_status(job, "SCHEDULED"),
                        bg=NAVY_LIGHT, fg=NAVY).pack(side="left")
@@ -481,6 +487,15 @@ class MainScreen(tk.Frame):
 
     def complete(self, job):
         CompleteDialog(self, job)
+
+    def open_ticket(self, job):
+        win = getattr(self, "ticket_window", None)
+        if win is not None and win.winfo_exists():
+            if win.job["id"] == job["id"]:
+                win.lift()
+                return
+            win.close()
+        self.ticket_window = TicketWindow(self, job)
 
     def add_note(self, job):
         body = self.note_entry.get("1.0", "end").strip()

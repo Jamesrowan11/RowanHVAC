@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { z } from "zod";
+import { ticketDataSchema } from "@/lib/ticket";
 
 /**
  * Van terminal sync protocol (shared, pure helpers — no Prisma here so it is
@@ -163,6 +164,31 @@ const codesOp = z.object({
   pending: z.array(dtcCode).max(50),
 });
 
+// The whole service ticket, sent again on every save (the van keeps only the
+// newest save in its outbox). Totals are recomputed on the server.
+export const ticketIssueSchema = z.object({
+  field: z.string().max(40),
+  severity: z.enum(["error", "warning", "suggestion"]),
+  message: z.string().max(500),
+});
+export const aiCheckSchema = z.object({
+  issues: z.array(ticketIssueSchema).max(60),
+  summary: z.string().max(2000).default(""),
+  model: z.string().max(80).optional(),
+  checkedAt: z.string().max(40).optional(),
+});
+const ticketOp = z.object({
+  opId: z.string().min(1).max(64),
+  type: z.literal("ticket.save"),
+  id: vanId,
+  jobId: z.string().min(1).max(64),
+  invoiceNumber: z.string().trim().max(64),
+  status: z.enum(["draft", "final"]),
+  data: ticketDataSchema,
+  aiCheck: aiCheckSchema.optional(),
+  savedAt: isoDate,
+});
+
 export const opSchema = z.discriminatedUnion("type", [
   statusOp,
   noteOp,
@@ -172,6 +198,7 @@ export const opSchema = z.discriminatedUnion("type", [
   emailOp,
   speedOp,
   codesOp,
+  ticketOp,
 ]);
 export type VanOp = z.infer<typeof opSchema>;
 

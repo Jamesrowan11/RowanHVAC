@@ -191,6 +191,9 @@ MAIL_ALLOWED_DOMAIN="rowanheatingandair.com"
 
 APP_TIMEZONE="America/New_York"
 SPEED_ALERT_MPH="80"
+
+# AI check on van service tickets (Claude API key from platform.claude.com)
+ANTHROPIC_API_KEY="<claude api key>"
 ```
 
 ```bash
