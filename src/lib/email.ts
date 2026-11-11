@@ -25,6 +25,12 @@ type SendArgs = {
   appendSignature?: boolean;
 };
 
+/** Parse "Name <addr@x>" or "addr@x" into ZeptoMail's sender shape. */
+function parseFrom(from: string): { address: string; name?: string } {
+  const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1] || undefined, address: m[2] } : { address: from.trim() };
+}
+
 /**
  * The company mailbox the website sends its automatic emails from (password
  * resets, quote and message notifications, vehicle alerts), e.g.
@@ -56,10 +62,49 @@ export function smtpFromHeaders(user: string, emailFrom = EMAIL_FROM) {
 }
 
 /**
+ * Send through ZeptoMail (Zoho's transactional email API). The token comes from
+ * ZEPTOMAIL_TOKEN in the server's environment file (never in code or Git).
+ * ZEPTOMAIL_API_HOST is api.zeptomail.com, or .eu / .in / .com.au for other regions.
+ */
+export async function sendViaZeptoMail(
+  token: string,
+  recipients: string[],
+  subject: string,
+  text: string,
+): Promise<boolean> {
+  const host = process.env.ZEPTOMAIL_API_HOST || "api.zeptomail.com";
+  if (!/^api\.zeptomail\.[a-z.]+$/.test(host)) {
+    console.error("[email] ZEPTOMAIL_API_HOST must look like api.zeptomail.com");
+    return false;
+  }
+  const res = await fetch(`https://${host}/v1.1/email`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Zoho-enczapikey ${token.replace(/^Zoho-enczapikey\s+/i, "")}`,
+    },
+    body: JSON.stringify({
+      from: parseFrom(EMAIL_FROM),
+      to: recipients.map((address) => ({ email_address: { address } })),
+      subject,
+      textbody: text,
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    console.error(`[email] ZeptoMail HTTP ${res.status}:`, (await res.text()).slice(0, 500));
+    return false;
+  }
+  return true;
+}
+
+/**
  * Pluggable email sender, in order of preference:
- * 1. the company mailbox over SMTP (EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD),
- * 2. Resend (RESEND_API_KEY),
- * 3. otherwise the full email is logged to the server console.
+ * 1. ZeptoMail (ZEPTOMAIL_TOKEN),
+ * 2. the company mailbox over SMTP (EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD),
+ * 3. Resend (RESEND_API_KEY),
+ * 4. otherwise the full email is logged to the server console.
  * Every attempt is recorded in EmailLog with the sending user's id.
  */
 export async function sendEmail({
@@ -79,9 +124,17 @@ export async function sendEmail({
 
   let status: EmailStatus = "LOGGED";
 
+  const zeptoToken = process.env.ZEPTOMAIL_TOKEN;
   const smtp = smtpSender();
   const apiKey = process.env.RESEND_API_KEY;
-  if (smtp && recipients.length > 0) {
+  if (zeptoToken && recipients.length > 0) {
+    try {
+      status = (await sendViaZeptoMail(zeptoToken, recipients, subject, finalBody)) ? "SENT" : "FAILED";
+    } catch (err) {
+      status = "FAILED";
+      console.error("[email] ZeptoMail threw:", err);
+    }
+  } else if (smtp && recipients.length > 0) {
     const transport = smtpTransport({ address: smtp.user, password: smtp.password });
     try {
       await transport.sendMail({

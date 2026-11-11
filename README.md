@@ -14,13 +14,15 @@ Everything runs as **one app on one domain, `rowanheatingandair.com`**:
 | `rowanheatingandair.com/api/van/v1/*` | The **van app's sync API** (the Toughbook desktop app in `van-app/`). |
 
 Company email (mailboxes and webmail) is **Zoho Mail** for
-`@rowanheatingandair.com`. The website's automatic emails are sent through a
-Zoho mailbox (e.g. info@), and the van app's Email tab sends as each tech
+`@rowanheatingandair.com`. The website's automatic emails are sent through
+ZeptoMail (Zoho's sending service), and the van app's Email tab sends as each tech
 through their own Zoho mailbox.
 
-It runs on **DigitalOcean**: Ubuntu droplets behind a **Load Balancer**, with
-**Managed MySQL** and **Spaces** (file storage) shared by all droplets. See
-[`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
+**Hosting:** one DigitalOcean droplet (Ubuntu 24.04) with Caddy for automatic
+HTTPS, MariaDB, and automatic deploys from GitHub's `main` branch. See
+[Deploying to DigitalOcean](#deploying-to-digitalocean) below. The
+load-balanced setup in `deploy/digitalocean/` and the cPanel, Windows and
+Vercel sections further down are other options kept for reference.
 
 ## Tech stack
 
@@ -102,6 +104,7 @@ npm run dev
 | `AUTH_URL`             |   rec.   | The site's address, `https://rowanheatingandair.com` (sign-in, links in emails). |
 | `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | LB | Same value on every droplet so any droplet can handle any form. |
 | `SPACES_BUCKET` / `SPACES_REGION` / `SPACES_KEY` / `SPACES_SECRET` | LB | DigitalOcean Spaces for documents + manuals. Unset = local disk (`UPLOAD_DIR`). |
+| `ZEPTOMAIL_TOKEN` / `ZEPTOMAIL_API_HOST` | rec. | ZeptoMail (Zoho) Send Mail token for the website's emails; used first when set. |
 | `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | rec. | Company Zoho mailbox the website's emails are sent from (e.g. info@). |
 | `EMAIL_FROM`           |    no    | From-address for outgoing email. Defaults to the company address.    |
 | `RESEND_API_KEY`       |    no    | Alternative to `EMAIL_SMTP_*`: send via Resend. With neither, email is logged to console. |
@@ -123,11 +126,11 @@ The app **runs fully without an email key** — every email is recorded in the
 
 ## Accounts
 
-**Live site:** create the first admin with
-`npm run create-admin -- --email you@rowanheatingandair.com --name "Your Name"`
-(prints a temporary password), then add everyone else under **Admin → Users**.
+> **Never run the seed on the live server.** `prisma/seed.ts` deletes every
+> record and creates demo logins with a shared password. On the server, the
+> first admin is created by `prisma/create-admin.ts` instead (see below).
 
-**Demo data (development only):** `npm run db:seed` wipes the database and
+**Demo data (local development only):** `npm run db:seed` wipes the database and
 loads the accounts below. It refuses to run on a database that already has
 accounts unless `SEED_RESET=1`. **Password for all demo accounts:** `Password123!`
 
@@ -278,7 +281,58 @@ migrations, runs the Vitest suite, builds the app, and runs the van app's tests
 plus a Python 3.4 compatibility check. This is the automated gate that proves a
 commit is deployable.
 
-## Deploying on DigitalOcean (load-balanced)
+## Deploying to DigitalOcean
+
+This is how the app runs in production, the same way as rowancopy.com:
+
+- **Caddy** serves the domain with automatic HTTPS and passes requests to the app on port 3000.
+- **MariaDB** runs on the same droplet; the database and its password are created during setup.
+- **Secrets** live in `/etc/rowanhvac/env` on the server (outside the repository, readable only by root and the app).
+- **Automatic deploys:** every 3 minutes the server checks GitHub; when `main` has new commits it installs, migrates
+  the database, rebuilds and restarts. If a build fails it rolls back to the last commit that built, so the site stays up.
+- **Email** goes through ZeptoMail (Zoho) when `ZEPTOMAIL_TOKEN` is set in the env file, otherwise it's logged.
+
+### New droplet (no SSH needed)
+
+1. Create an Ubuntu 24.04 droplet (2 GB RAM or more).
+2. In **User data**, paste `infra/digitalocean/user-data.sh` with `APP_DOMAIN` (and `ADMIN_EMAIL`) filled in.
+3. Point the domain's **A record** at the droplet. HTTPS starts on its own once DNS points there.
+
+Or, on an existing droplet: `sudo APP_DOMAIN=rowanhvac.com ADMIN_EMAIL=you@example.com bash infra/digitalocean/setup.sh`
+
+Several apps can share one droplet: each adds its own site file in `/etc/caddy/sites/`.
+
+### First login
+
+Setup creates one admin (`ADMIN_EMAIL`) with a random password. Once email works, use **Forgot password** on
+the login page to set it.
+
+### Settings and secrets
+
+Easiest: open the droplet's console (DigitalOcean → the droplet → **Access** →
+**Launch Droplet Console**) and run `sudo rowanhvac-secret NAME`, e.g.
+`sudo rowanhvac-secret ANTHROPIC_API_KEY`. It asks for the value (hidden),
+saves it and restarts the site. Or edit `/etc/rowanhvac/env`, then
+`sudo systemctl restart rowanhvac`. To turn on email, set:
+
+```
+ZEPTOMAIL_TOKEN=<Send Mail token from ZeptoMail → Mail Agents → SMTP/API>
+EMAIL_FROM=Rowan Heating & Air Conditioning <info@rowanhvac.com>
+```
+
+The sender's domain must be verified in ZeptoMail. For the AI check on van
+service tickets, set `ANTHROPIC_API_KEY`.
+
+### Useful commands
+
+| What | Command |
+|---|---|
+| Deploy now | `sudo /usr/local/sbin/rowanhvac-deploy --force` |
+| Deploy log | `journalctl -u rowanhvac-deploy -n 100` |
+| App log | `journalctl -u rowanhvac -n 100` |
+| Restart | `sudo systemctl restart rowanhvac` |
+
+## Deploying on DigitalOcean (load-balanced, older option)
 
 Step-by-step: [`deploy/digitalocean/README.md`](deploy/digitalocean/README.md).
 In short: DigitalOcean DNS (`deploy/digitalocean/dns.sh` creates the
@@ -322,7 +376,7 @@ Point your email provider's inbound webhook (or a cPanel pipe-to-script) at
 `https://rowanheatingandair.com/api/email/inbound` with the
 `INBOUND_EMAIL_SECRET`.
 
-### Windows Server (e.g. AWS EC2 Windows)
+## Deploying on Windows Server (older option)
 
 The app runs unchanged on Windows. IIS handles the public ports + SSL and
 reverse-proxies to the Node app (kept alive by PM2). Files in `deploy/windows/`
@@ -359,7 +413,7 @@ and `scripts/*.ps1` support this.
 6. **Updates later**: `./scripts/deploy.ps1` (pull → migrate → build → PM2
    reload).
 
-### Vercel
+## Deploying to Vercel (older option)
 
 The app also deploys to Vercel (serverless): set `DATABASE_URL` (a hosted
 MySQL URL), `AUTH_SECRET`, and run `npx prisma migrate deploy`. Vercel's
