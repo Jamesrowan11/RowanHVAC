@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertRole } from "@/lib/session";
@@ -102,6 +103,65 @@ export async function createJob(formData: FormData) {
 
   revalidatePath("/portal/admin/schedule");
   revalidatePath("/portal/admin");
+}
+
+const editJobSchema = jobSchema.extend({
+  id: z.string().min(1),
+  // Imported jobs may have no address on file.
+  address: z.string().max(400),
+  status: z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  summary: z.string().max(5000).optional(),
+  cancelReason: z.string().max(2000).optional(),
+});
+
+/** Change anything about a job (the office's edit screen). */
+export async function updateJob(formData: FormData) {
+  await assertRole("ADMIN");
+  const p = editJobSchema.parse({
+    id: formData.get("id"),
+    clientId: formData.get("clientId") || undefined,
+    customerName: formData.get("customerName"),
+    address: formData.get("address"),
+    serviceNeeded: formData.get("serviceNeeded"),
+    scheduledDate: formData.get("scheduledDate"),
+    scheduledTime: formData.get("scheduledTime"),
+    technicianId: formData.get("technicianId") || undefined,
+    status: formData.get("status"),
+    summary: String(formData.get("summary") ?? ""),
+    cancelReason: String(formData.get("cancelReason") ?? ""),
+  });
+  const day = new Date(`${p.scheduledDate}T00:00:00.000Z`);
+  if (Number.isNaN(day.getTime())) throw new Error("Invalid date");
+
+  const technicianId = p.technicianId
+    ? (await prisma.user.findFirst({
+        where: { id: p.technicianId, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
+        select: { id: true },
+      }))?.id ?? null
+    : null;
+  const clientId = p.clientId
+    ? (await prisma.user.findFirst({ where: { id: p.clientId, role: "CLIENT" }, select: { id: true } }))?.id ?? null
+    : null;
+
+  await prisma.job.update({
+    where: { id: p.id },
+    data: {
+      customerName: p.customerName.trim(),
+      address: p.address.trim(),
+      serviceNeeded: p.serviceNeeded.trim(),
+      scheduledDate: day,
+      scheduledTime: p.scheduledTime.trim(),
+      technicianId,
+      clientId,
+      status: p.status,
+      summary: p.summary?.trim() || null,
+      cancelReason: p.status === "CANCELLED" ? p.cancelReason?.trim() || "Cancelled by the office" : null,
+    },
+  });
+  revalidatePath("/portal/admin/schedule");
+  revalidatePath("/portal/admin");
+  revalidatePath(`/portal/employee/jobs/${p.id}`);
+  redirect("/portal/admin/schedule?saved=1");
 }
 
 export async function cancelJob(formData: FormData) {
