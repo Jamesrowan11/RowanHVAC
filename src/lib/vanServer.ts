@@ -124,9 +124,9 @@ async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult>
   const reject = (error: string): OpResult => ({ opId: op.opId, ok: false, error });
   const job = await prisma.job.findUnique({
     where: { id: op.jobId },
-    select: { id: true, technicianId: true, status: true, serviceNeeded: true },
+    select: { id: true, status: true, serviceNeeded: true, technicians: { select: { userId: true } } },
   });
-  if (!job || job.technicianId !== caller.user.id) {
+  if (!job || !job.technicians.some((t) => t.userId === caller.user.id)) {
     return reject("This job is no longer assigned to you, so its service ticket was not saved.");
   }
   if (job.status === "CANCELLED") {
@@ -144,14 +144,14 @@ async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult>
     invoiceNumber: op.invoiceNumber || String(data.invoice_no ?? "").slice(0, 64) || op.id.slice(4, 16),
     status,
     data: data as Prisma.InputJsonValue,
-    technicianId: caller.user.id,
     // The van only sends a check that matches this exact version of the sheet.
     aiCheck: op.aiCheck ? (op.aiCheck as Prisma.InputJsonValue) : Prisma.DbNull,
     ...(status === "FINAL" && !existing?.submittedAt ? { submittedAt: new Date() } : {}),
   } as const;
   await prisma.serviceTicket.upsert({
     where: { id: op.id },
-    create: { id: op.id, jobId: job.id, ...fields },
+    // The crew shares one ticket per job; it stays credited to whoever started it.
+    create: { id: op.id, jobId: job.id, technicianId: caller.user.id, ...fields },
     update: fields,
   });
 
@@ -170,10 +170,10 @@ async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult>
   return { opId: op.opId, ok: true };
 }
 
-/** Saves an AI check result on a ticket that is already on the server. */
-export async function storeAiCheck(ticketId: string, technicianId: string, result: unknown) {
+/** Saves an AI check result on a ticket that is already on the server (any of the job's crew). */
+export async function storeAiCheck(ticketId: string, userId: string, result: unknown) {
   await prisma.serviceTicket.updateMany({
-    where: { id: ticketId, technicianId },
+    where: { id: ticketId, job: { technicians: { some: { userId } } } },
     data: { aiCheck: result as Prisma.InputJsonValue },
   });
 }
@@ -189,10 +189,10 @@ async function applyJobOp(caller: VanCaller, op: JobOp): Promise<OpResult> {
 
   const job = await prisma.job.findUnique({
     where: { id: op.jobId },
-    select: { id: true, technicianId: true, status: true, customerName: true },
+    select: { id: true, status: true, customerName: true, technicians: { select: { userId: true } } },
   });
-  // Same rule as the portal: jobs not assigned to you are invisible.
-  if (!job || job.technicianId !== caller.user.id) {
+  // Same rule as the portal: jobs you're not on are invisible.
+  if (!job || !job.technicians.some((t) => t.userId === caller.user.id)) {
     return reject("This job is no longer assigned to you.");
   }
 
@@ -428,7 +428,7 @@ async function applyVehicleOp(caller: VanCaller, op: VehicleOp): Promise<OpResul
 export async function buildSnapshot(caller: VanCaller) {
   const jobs = await prisma.job.findMany({
     where: {
-      technicianId: caller.user.id,
+      technicians: { some: { userId: caller.user.id } },
       OR: [
         { status: { in: ["SCHEDULED", "IN_PROGRESS"] } },
         { scheduledDate: { gte: snapshotWindowStart() } },
@@ -438,6 +438,7 @@ export async function buildSnapshot(caller: VanCaller) {
     take: SNAPSHOT_MAX_JOBS,
     include: {
       client: { select: { name: true, phone: true, email: true } },
+      technicians: { orderBy: { position: "asc" }, include: { user: { select: { name: true } } } },
       notes: {
         orderBy: { createdAt: "asc" },
         include: { author: { select: { name: true } } },
@@ -548,6 +549,8 @@ export async function buildSnapshot(caller: VanCaller) {
       clientName: j.client?.name ?? null,
       clientPhone: j.client?.phone ?? null,
       clientEmail: j.client?.email ?? null,
+      // Everyone on the job, in the office's order (this tech included).
+      crew: j.technicians.map((t) => t.user.name),
       notes: j.notes.map((n) => ({
         id: n.id,
         body: n.body,

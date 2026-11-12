@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { assertRole } from "@/lib/session";
 import { hashPassword } from "@/lib/password";
+import { setCrew, validTechnicianIds } from "@/lib/jobCrew";
 import { sendEmail } from "@/lib/email";
 import { storeFile, deleteFile, ALLOWED_MIME, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
@@ -41,8 +42,12 @@ const jobSchema = z.object({
   serviceNeeded: z.string().min(2).max(200),
   scheduledDate: z.string().min(1),
   scheduledTime: z.string().min(1).max(40),
-  technicianId: z.string().optional(),
 });
+
+/** The technicians ticked on the job form (any number), in the order shown. */
+async function crewFromForm(formData: FormData): Promise<string[]> {
+  return validTechnicianIds(formData.getAll("technicianIds").map(String));
+}
 
 export async function createJob(formData: FormData) {
   await assertRole("ADMIN");
@@ -53,22 +58,10 @@ export async function createJob(formData: FormData) {
     serviceNeeded: formData.get("serviceNeeded"),
     scheduledDate: formData.get("scheduledDate"),
     scheduledTime: formData.get("scheduledTime"),
-    technicianId: formData.get("technicianId") || undefined,
   });
 
-  // Only allow assigning to active employees/admins.
-  let technicianId: string | null = null;
-  if (parsed.technicianId) {
-    const tech = await prisma.user.findFirst({
-      where: {
-        id: parsed.technicianId,
-        active: true,
-        role: { in: ["EMPLOYEE", "ADMIN"] },
-      },
-      select: { id: true },
-    });
-    technicianId = tech?.id ?? null;
-  }
+  // Only active employees/admins can be on a crew.
+  const crew = await crewFromForm(formData);
 
   let clientId: string | null = null;
   if (parsed.clientId) {
@@ -86,9 +79,9 @@ export async function createJob(formData: FormData) {
       serviceNeeded: parsed.serviceNeeded.trim(),
       scheduledDate: new Date(parsed.scheduledDate),
       scheduledTime: parsed.scheduledTime.trim(),
-      technicianId,
       clientId,
       status: "SCHEDULED",
+      technicians: { create: crew.map((userId, position) => ({ userId, position })) },
     },
   });
 
@@ -125,7 +118,6 @@ export async function updateJob(formData: FormData) {
     serviceNeeded: formData.get("serviceNeeded"),
     scheduledDate: formData.get("scheduledDate"),
     scheduledTime: formData.get("scheduledTime"),
-    technicianId: formData.get("technicianId") || undefined,
     status: formData.get("status"),
     summary: String(formData.get("summary") ?? ""),
     cancelReason: String(formData.get("cancelReason") ?? ""),
@@ -133,30 +125,31 @@ export async function updateJob(formData: FormData) {
   const day = new Date(`${p.scheduledDate}T00:00:00.000Z`);
   if (Number.isNaN(day.getTime())) throw new Error("Invalid date");
 
-  const technicianId = p.technicianId
-    ? (await prisma.user.findFirst({
-        where: { id: p.technicianId, active: true, role: { in: ["EMPLOYEE", "ADMIN"] } },
-        select: { id: true },
-      }))?.id ?? null
-    : null;
+  // The crew as ticked; someone deactivated since stays on the job if still ticked.
+  const ticked = formData.getAll("technicianIds").map(String);
+  const current = await prisma.jobTechnician.findMany({ where: { jobId: p.id }, select: { userId: true } });
+  const allowed = new Set([...(await validTechnicianIds(ticked)), ...current.map((c) => c.userId)]);
+  const crew = [...new Set(ticked)].filter((id) => allowed.has(id));
   const clientId = p.clientId
     ? (await prisma.user.findFirst({ where: { id: p.clientId, role: "CLIENT" }, select: { id: true } }))?.id ?? null
     : null;
 
-  await prisma.job.update({
-    where: { id: p.id },
-    data: {
-      customerName: p.customerName.trim(),
-      address: p.address.trim(),
-      serviceNeeded: p.serviceNeeded.trim(),
-      scheduledDate: day,
-      scheduledTime: p.scheduledTime.trim(),
-      technicianId,
-      clientId,
-      status: p.status,
-      summary: p.summary?.trim() || null,
-      cancelReason: p.status === "CANCELLED" ? p.cancelReason?.trim() || "Cancelled by the office" : null,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.job.update({
+      where: { id: p.id },
+      data: {
+        customerName: p.customerName.trim(),
+        address: p.address.trim(),
+        serviceNeeded: p.serviceNeeded.trim(),
+        scheduledDate: day,
+        scheduledTime: p.scheduledTime.trim(),
+        clientId,
+        status: p.status,
+        summary: p.summary?.trim() || null,
+        cancelReason: p.status === "CANCELLED" ? p.cancelReason?.trim() || "Cancelled by the office" : null,
+      },
+    });
+    await setCrew(p.id, crew, tx);
   });
   revalidatePath("/portal/admin/schedule");
   revalidatePath("/portal/admin");

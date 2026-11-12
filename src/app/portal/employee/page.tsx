@@ -14,7 +14,7 @@ export default async function EmployeeSchedule() {
   // Only jobs assigned to this technician; cancelled jobs leave the active schedule.
   const jobs = await prisma.job.findMany({
     where: {
-      technicianId: user.id,
+      technicians: { some: { userId: user.id } },
       status: { in: ["SCHEDULED", "IN_PROGRESS", "COMPLETED"] },
     },
     orderBy: [{ scheduledDate: "asc" }],

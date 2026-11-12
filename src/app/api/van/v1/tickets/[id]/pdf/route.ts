@@ -15,9 +15,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   const ticket = await prisma.serviceTicket.findUnique({
     where: { id },
-    include: { job: { select: { technicianId: true } } },
+    include: { job: { select: { technicians: { select: { userId: true } } } } },
   });
-  if (!ticket || ticket.job.technicianId !== caller.user.id) {
+  if (!ticket || !ticket.job.technicians.some((t) => t.userId === caller.user.id)) {
     return NextResponse.json({ ok: false, error: "Ticket not found." }, { status: 404 });
   }
   return ticketPdfResponse(ticket, false);

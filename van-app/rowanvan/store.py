@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     scheduled_day TEXT, scheduled_time TEXT, status TEXT,
     cancel_reason TEXT, summary TEXT,
     client_name TEXT, client_phone TEXT, client_email TEXT,
-    position INTEGER
+    position INTEGER, crew TEXT
 );
 CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY, job_id TEXT, body TEXT, author_name TEXT,
@@ -102,6 +102,10 @@ class Store(object):
         self.conn.row_factory = sqlite3.Row
         with self.conn:
             self.conn.executescript(SCHEMA)
+            # Laptops set up before jobs had crews: add the column.
+            cols = [r[1] for r in self.conn.execute("PRAGMA table_info(jobs)").fetchall()]
+            if "crew" not in cols:
+                self.conn.execute("ALTER TABLE jobs ADD COLUMN crew TEXT")
 
     def close(self):
         self.conn.close()
@@ -368,10 +372,12 @@ class Store(object):
             self.conn.execute("DELETE FROM jobs")
             self.conn.execute("DELETE FROM notes WHERE pending = 0")
             self.conn.execute("DELETE FROM announcements")
-            cols = ", ".join(c for c, _ in JOB_FIELDS) + ", position"
-            marks = ", ".join("?" for _ in JOB_FIELDS) + ", ?"
+            cols = ", ".join(c for c, _ in JOB_FIELDS) + ", position, crew"
+            marks = ", ".join("?" for _ in JOB_FIELDS) + ", ?, ?"
             for pos, job in enumerate(snapshot.get("jobs", [])):
-                values = [job.get(k) for _, k in JOB_FIELDS] + [pos]
+                # Everyone on the job, e.g. "Jake Miller, Dean Carter".
+                crew = ", ".join(job.get("crew") or [])
+                values = [job.get(k) for _, k in JOB_FIELDS] + [pos, crew]
                 self.conn.execute("INSERT INTO jobs (" + cols + ") VALUES (" + marks + ")", values)
                 for n in job.get("notes", []):
                     self.conn.execute(

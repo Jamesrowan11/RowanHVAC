@@ -48,9 +48,9 @@ export async function POST(req: Request) {
   const { ticketId, jobId, data, localIssues } = parsed.data;
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    select: { technicianId: true, serviceNeeded: true },
+    select: { serviceNeeded: true, technicians: { select: { userId: true } } },
   });
-  if (!job || job.technicianId !== caller.user.id) {
+  if (!job || !job.technicians.some((t) => t.userId === caller.user.id)) {
     return NextResponse.json(
       { ok: false, error: "This job is no longer assigned to you." },
       { status: 403 },
