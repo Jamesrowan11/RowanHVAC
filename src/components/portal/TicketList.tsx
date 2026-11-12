@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { fmtDateTime } from "@/components/portal/ui";
-import { fieldLabel, type TicketIssue } from "@/lib/ticket";
+import { fieldLabel, SHEET_NAMES, sheetKind, type TicketIssue } from "@/lib/ticket";
 
 export type TicketRow = {
   id: string;
   invoiceNumber: string;
+  kind: string;
   status: "DRAFT" | "FINAL";
   data: unknown;
   aiCheck: unknown;
@@ -30,12 +31,13 @@ export function TicketList({ tickets, showJob = false }: { tickets: TicketRow[];
         const ai = (t.aiCheck ?? null) as AiCheck | null;
         const data = (t.data ?? {}) as Record<string, unknown>;
         const issues = ai?.issues ?? [];
+        const kind = sheetKind(t.kind);
         return (
           <li key={t.id} className="rounded-lg border border-navy-100 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold text-navy-900">
-                  Ticket {t.invoiceNumber}
+                  {SHEET_NAMES[kind]} {t.invoiceNumber}
                   {showJob && t.job ? (
                     <>
                       {" · "}
@@ -80,7 +82,7 @@ export function TicketList({ tickets, showJob = false }: { tickets: TicketRow[];
                     <ul className="mt-1 list-disc space-y-0.5 pl-5">
                       {issues.map((i, n) => (
                         <li key={n} className={SEVERITY_STYLE[i.severity] ?? ""}>
-                          <span className="font-medium">{fieldLabel(i.field)}:</span> {i.message}
+                          <span className="font-medium">{fieldLabel(i.field, kind)}:</span> {i.message}
                         </li>
                       ))}
                     </ul>

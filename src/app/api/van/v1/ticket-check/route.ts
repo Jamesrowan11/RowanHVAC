@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
-import { ticketDataSchema } from "@/lib/ticket";
+import { cleanTicketData, rawTicketDataSchema, SHEET_KINDS } from "@/lib/ticket";
 import { checkTicketWithAi, TicketAiUnavailable } from "@/lib/ticketAi";
 import { authenticateDevice, storeAiCheck } from "@/lib/vanServer";
 import { ticketIssueSchema, VAN_ID } from "@/lib/vanSync";
@@ -13,7 +13,8 @@ export const maxDuration = 120;
 const bodySchema = z.object({
   ticketId: z.string().regex(VAN_ID).nullable().optional(),
   jobId: z.string().min(1).max(64),
-  data: ticketDataSchema,
+  data: rawTicketDataSchema,
+  kind: z.enum(SHEET_KINDS).default("service"),
   localIssues: z.array(ticketIssueSchema).max(60).default([]),
 });
 
@@ -45,7 +46,8 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Invalid ticket." }, { status: 422 });
   }
-  const { ticketId, jobId, data, localIssues } = parsed.data;
+  const { ticketId, jobId, kind, localIssues } = parsed.data;
+  const data = cleanTicketData(kind, parsed.data.data);
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     select: { serviceNeeded: true, technicians: { select: { userId: true } } },
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
     const result = await checkTicketWithAi(data, {
       serviceNeeded: job.serviceNeeded,
       alreadyFound: localIssues,
+      kind,
     });
     if (ticketId) await storeAiCheck(ticketId, caller.user.id, result);
     return NextResponse.json({ ok: true, ...result });

@@ -427,14 +427,19 @@ class MainScreen(tk.Frame):
             big_button(actions, "Start Job", lambda: self.set_status(job, "IN_PROGRESS"), bg=ORANGE).pack(side="left", padx=(0, 8))
         if status in ("SCHEDULED", "IN_PROGRESS"):
             big_button(actions, "Complete Job...", lambda: self.complete(job), bg=GREEN).pack(side="left", padx=(0, 8))
-        if status != "CANCELLED":
-            ticket = self.store.ticket_for_job(job["id"])
-            label = "Service Ticket" if not ticket else (
-                "Service Ticket (sent)" if ticket["status"] == "final" else "Service Ticket (draft)")
-            big_button(actions, label, lambda: self.open_ticket(job), bg=NAVY).pack(side="left", padx=(0, 8))
         if status in ("IN_PROGRESS", "COMPLETED"):
             big_button(actions, "Back to Scheduled", lambda: self.set_status(job, "SCHEDULED"),
                        bg=NAVY_LIGHT, fg=NAVY).pack(side="left")
+
+        if status != "CANCELLED":
+            # The paperwork: service ticket and (on maintenance-agreement visits) the inspection report.
+            docs = tk.Frame(self.detail, bg=WHITE)
+            docs.pack(fill="x", pady=(0, 8))
+            for kind, name in (("service", "Service Ticket"), ("maintenance", "Maintenance Report")):
+                ticket = self.store.ticket_for_job(job["id"], kind)
+                label = name if not ticket else (name + (" (sent)" if ticket["status"] == "final" else " (draft)"))
+                big_button(docs, label, lambda k=kind: self.open_ticket(job, k),
+                           bg=NAVY if kind == "service" else "#2c6e49").pack(side="left", padx=(0, 8))
 
         tk.Label(self.detail, text="Job notes (office and techs only, never shown to the customer)",
                  font=FONT_SMALL, fg=GREY, bg=WHITE, anchor="w").pack(fill="x", pady=(6, 0))
@@ -489,14 +494,14 @@ class MainScreen(tk.Frame):
     def complete(self, job):
         CompleteDialog(self, job)
 
-    def open_ticket(self, job):
+    def open_ticket(self, job, kind="service"):
         win = getattr(self, "ticket_window", None)
         if win is not None and win.winfo_exists():
-            if win.job["id"] == job["id"]:
+            if win.job["id"] == job["id"] and win.kind == kind:
                 win.lift()
                 return
             win.close()
-        self.ticket_window = TicketWindow(self, job)
+        self.ticket_window = TicketWindow(self, job, kind)
 
     def add_note(self, job):
         body = self.note_entry.get("1.0", "end").strip()

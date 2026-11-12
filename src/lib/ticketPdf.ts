@@ -1,5 +1,13 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { ticketLayout, withTotals, parseMoney, type LayoutElement, type TicketData } from "@/lib/ticket";
+import {
+  layoutFor,
+  parseMoney,
+  SHEET_NAMES,
+  withTotals,
+  type LayoutElement,
+  type SheetKind,
+  type TicketData,
+} from "@/lib/ticket";
 
 /**
  * The customer's copy of a service ticket, drawn from the same layout the van
@@ -59,10 +67,15 @@ function money(v: string): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export async function renderTicketPdf(raw: TicketData, opts: { title?: string } = {}): Promise<Uint8Array> {
-  const data = withTotals(raw);
+export async function renderTicketPdf(
+  raw: TicketData,
+  opts: { title?: string; kind?: SheetKind } = {},
+): Promise<Uint8Array> {
+  const kind = opts.kind ?? "service";
+  const ticketLayout = layoutFor(kind);
+  const data = kind === "service" ? withTotals(raw) : raw;
   const doc = await PDFDocument.create();
-  doc.setTitle(opts.title ?? `Service Ticket ${String(data.invoice_no ?? "")}`.trim());
+  doc.setTitle(opts.title ?? `${SHEET_NAMES[kind]} ${String(data.invoice_no ?? "")}`.trim());
   doc.setAuthor("Rowan Heating & Air Conditioning, Inc.");
   doc.setCreator("Rowan HVAC van terminal");
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -104,6 +117,15 @@ export async function renderTicketPdf(raw: TicketData, opts: { title?: string } 
       }
     } else if (e.t === "field") {
       const value = data[e.id];
+      if (e.kind === "status") {
+        // A tick in the box of the chosen answer (OK / ADJ / REP, Good / Fair / ...).
+        const bx = typeof value === "string" ? e.boxes?.[value] : undefined;
+        if (bx !== undefined) {
+          page.drawLine({ start: { x: bx + 1, y: Y(e.y + 3.5) }, end: { x: bx + 3, y: Y(e.y + 6) }, thickness: 1.2, color: INK });
+          page.drawLine({ start: { x: bx + 3, y: Y(e.y + 6) }, end: { x: bx + 7.5, y: Y(e.y - 0.5) }, thickness: 1.2, color: INK });
+        }
+        continue;
+      }
       if (e.kind === "check") {
         if (value === true) {
           page.drawLine({ start: { x: e.x + 1, y: Y(e.y + 3.5) }, end: { x: e.x + 3, y: Y(e.y + 6) }, thickness: 1.2, color: INK });
@@ -139,7 +161,7 @@ export async function renderTicketPdf(raw: TicketData, opts: { title?: string } 
   if (overflow.length) {
     const p2 = doc.addPage([W, H]);
     let top = 40;
-    drawString(p2, `Service Ticket ${winAnsi(String(data.invoice_no ?? ""))} - continued`, 40, top, 12, bold);
+    drawString(p2, `${SHEET_NAMES[kind]} ${winAnsi(String(data.invoice_no ?? ""))} - continued`, 40, top, 12, bold);
     top += 24;
     const labels: Record<string, string> = Object.fromEntries(
       ticketLayout.sections.flatMap((s) => s.fields.map((f) => [f.id, f.label])),

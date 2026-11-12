@@ -176,8 +176,9 @@ def disconnect_mailbox(server, token):
     return post(server, "/api/van/v1/mailbox", {"disconnect": True}, token=token)
 
 
-def ticket_check(server, token, ticket_id, job_id, data, local_issues):
-    """Asks the website's AI to double-check a service ticket. Returns
-    {"issues": [{field, severity, message}], "summary": str}."""
-    payload = {"ticketId": ticket_id, "jobId": job_id, "data": data, "localIssues": local_issues}
+def ticket_check(server, token, ticket_id, job_id, data, local_issues, kind="service"):
+    """Asks the website's AI to double-check a service ticket or maintenance
+    report. Returns {"issues": [{field, severity, message}], "summary": str}."""
+    payload = {"ticketId": ticket_id, "jobId": job_id, "data": data, "localIssues": local_issues,
+               "kind": kind}
     return post(server, "/api/van/v1/ticket-check", payload, token, timeout=120)

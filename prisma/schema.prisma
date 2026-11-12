@@ -248,6 +248,8 @@ model ServiceTicket {
   job           Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   technicianId  String?
   technician    User?        @relation("TechnicianTickets", fields: [technicianId], references: [id], onDelete: SetNull)
+  // "service" (service ticket) or "maintenance" (maintenance inspection report)
+  kind          String       @default("service") @db.VarChar(20)
   invoiceNumber String       @db.VarChar(64)
   status        TicketStatus @default(DRAFT)
   data          Json

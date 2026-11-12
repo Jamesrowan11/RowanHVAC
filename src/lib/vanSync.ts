@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { z } from "zod";
-import { ticketDataSchema } from "@/lib/ticket";
+import { rawTicketDataSchema, SHEET_KINDS } from "@/lib/ticket";
 
 /**
  * Van terminal sync protocol (shared, pure helpers — no Prisma here so it is
@@ -182,9 +182,12 @@ const ticketOp = z.object({
   type: z.literal("ticket.save"),
   id: vanId,
   jobId: z.string().min(1).max(64),
+  // Older van apps only had service tickets.
+  kind: z.enum(SHEET_KINDS).default("service"),
   invoiceNumber: z.string().trim().max(64),
   status: z.enum(["draft", "final"]),
-  data: ticketDataSchema,
+  // Cleaned per sheet when applied (cleanTicketData).
+  data: rawTicketDataSchema,
   aiCheck: aiCheckSchema.optional(),
   savedAt: isoDate,
 });

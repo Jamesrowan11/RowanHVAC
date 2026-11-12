@@ -26,12 +26,14 @@ _GROUP_RE = re.compile(r"^(part|eq)(\d+)_")
 
 
 class TicketWindow(tk.Toplevel):
-    def __init__(self, screen, job):
+    def __init__(self, screen, job, kind="service"):
         tk.Toplevel.__init__(self, screen)
         self.screen = screen
         self.store = screen.store
         self.job = job
-        existing = self.store.ticket_for_job(job["id"])
+        self.kind = kind
+        self.kind_name = T.KIND_NAMES[kind]
+        existing = self.store.ticket_for_job(job["id"], kind)
         if existing:
             self.ticket_id = existing["id"]
             self.data = existing["data"]
@@ -39,10 +41,10 @@ class TicketWindow(tk.Toplevel):
             self.ai_check = existing["ai_check"]
         else:
             self.ticket_id = None
-            self.data = T.new_ticket(job, self.store.get("user_name", ""), self.store.invoice_numbers())
+            self.data = T.new_ticket(job, self.store.get("user_name", ""), self.store.invoice_numbers(), kind=kind)
             self.status = "draft"
             self.ai_check = None
-        self.fields = T.fields()
+        self.fields = T.fields(kind)
         self.widgets = {}      # field id -> entry/text/checkbutton
         self.vars = {}         # field id -> StringVar/IntVar
         self.local_issues = []
@@ -51,7 +53,7 @@ class TicketWindow(tk.Toplevel):
         self._save_job = None
         self._dirty = False
 
-        self.title("Service Ticket - " + (job["customer_name"] or ""))
+        self.title(self.kind_name + " - " + (job["customer_name"] or ""))
         self.configure(bg=NAVY_LIGHT)
         self.geometry("1024x740+0+0")
         if sys.platform.startswith("win"):
@@ -86,7 +88,7 @@ class TicketWindow(tk.Toplevel):
     def _build_header(self):
         bar = tk.Frame(self, bg=NAVY)
         bar.pack(fill="x", pady=(0, 6))
-        tk.Label(bar, text="Service Ticket", font=FONT_BIG, fg=WHITE, bg=NAVY).pack(side="left", padx=12, pady=6)
+        tk.Label(bar, text=self.kind_name, font=FONT_BIG, fg=WHITE, bg=NAVY).pack(side="left", padx=12, pady=6)
         self.title_label = tk.Label(bar, font=FONT_BOLD, fg=ORANGE, bg=NAVY)
         self.title_label.pack(side="left", padx=4)
         big_button(bar, "Close", self.close, bg="#2c4170").pack(side="right", padx=(4, 8), pady=6)
@@ -138,12 +140,21 @@ class TicketWindow(tk.Toplevel):
         self.form_canvas.bind_all("<MouseWheel>", self._on_wheel)
         self.form = form
 
-        for section in T.layout()["sections"]:
+        status_rows = {}
+        for section in T.layout(self.kind)["sections"]:
             tk.Label(form, text=section["title"].upper(), font=FONT_BOLD, fg=WHITE, bg=NAVY,
                      anchor="w", padx=8, pady=3).pack(fill="x", pady=(10, 4))
             group, group_frame = None, None
             checks_row = None
             for f in section["fields"]:
+                if f["kind"] == "status":
+                    status_rows[f["id"]] = self._add_status(form, f)
+                    checks_row = None
+                    continue
+                if f["id"].endswith("_val") and f["id"][:-4] in status_rows:
+                    # The reading goes on the same line as its checklist item.
+                    self._add_reading(status_rows[f["id"][:-4]], f)
+                    continue
                 m = _GROUP_RE.match(f["id"])
                 if m:
                     key = m.group(1) + m.group(2)
@@ -201,6 +212,63 @@ class TicketWindow(tk.Toplevel):
         w.bind("<FocusIn>", lambda e, i=fid: self._focused(i))
         self.widgets[fid] = w
 
+    def _add_status(self, parent, f):
+        """One checklist item: label, then OK / Adjusted / Needs repair buttons (tap again to clear)."""
+        fid = f["id"]
+        box = tk.Frame(parent, bg=WHITE)
+        box.pack(fill="x", pady=(3, 0))
+        label = f["label"] + ("   (" + f["hint"] + ")" if f.get("hint") else "")
+        tk.Label(box, text=label, font=FONT_SMALL, fg=NAVY, bg=WHITE, anchor="w").pack(fill="x")
+        row = tk.Frame(box, bg=WHITE)
+        row.pack(fill="x")
+        var = tk.StringVar(value=self.data.get(fid) or "")
+        colors = {"ok": GREEN, "adj": "#1d4ed8", "rep": RED, "good": GREEN, "fair": ORANGE, "poor": RED}
+        buttons = []
+        for key, label in f.get("choices") or []:
+            short = {"Adjusted / cleaned": "Adjusted", "Needs repair": "Repair", "Needs attention": "Attention"}.get(label, label)
+            b = tk.Radiobutton(row, text=short, value=key, variable=var, indicatoron=0, font=FONT_SMALL,
+                               width=8, pady=4, bg=NAVY_LIGHT, fg=NAVY, selectcolor=colors.get(key, NAVY),
+                               activebackground=NAVY_LIGHT, relief="flat", bd=1, cursor="hand2")
+            b.pack(side="left", padx=(0, 3))
+            # Tapping the chosen answer again clears it (item not applicable).
+            b.bind("<ButtonRelease-1>", lambda e, k=key: self.after(1, lambda: self._toggle_status(fid, k)))
+            b.bind("<FocusIn>", lambda e, i=fid: self._focused(i))
+            buttons.append(b)
+        var.trace("w", lambda *a, i=fid: self._refresh_status(i))
+        self.vars[fid] = var
+        self.widgets[fid] = buttons[0] if buttons else row
+        self._status_buttons = getattr(self, "_status_buttons", {})
+        self._status_buttons[fid] = (buttons, f.get("choices") or [])
+        self._status_last = getattr(self, "_status_last", {})
+        self._status_last[fid] = var.get()
+        self._refresh_status(fid, initial=True)
+        return row
+
+    def _toggle_status(self, fid, key):
+        var = self.vars[fid]
+        if self._status_last.get(fid) == key and var.get() == key:
+            var.set("")
+        self._status_last[fid] = var.get()
+        self._focused(fid)
+
+    def _refresh_status(self, fid, initial=False):
+        buttons, choices = self._status_buttons[fid]
+        value = self.vars[fid].get()
+        for b, (key, _) in zip(buttons, choices):
+            b.config(fg=WHITE if key == value else NAVY)
+        if not initial:
+            self._changed(fid)
+
+    def _add_reading(self, row, f):
+        fid = f["id"]
+        var = tk.StringVar(value=self.data.get(fid) or "")
+        w = tk.Entry(row, textvariable=var, font=FONT_SMALL, relief="solid", bd=1, width=12)
+        w.pack(side="left", fill="x", expand=True, padx=(4, 0), ipady=3)
+        var.trace("w", lambda *a, i=fid: self._changed(i))
+        w.bind("<FocusIn>", lambda e, i=fid: self._focused(i))
+        self.vars[fid] = var
+        self.widgets[fid] = w
+
     def _add_check(self, parent, f):
         fid = f["id"]
         var = tk.IntVar(value=1 if self.data.get(fid) else 0)
@@ -220,7 +288,7 @@ class TicketWindow(tk.Toplevel):
         for text, zoom in (("Big", 1.6), ("Bigger", 1.25), ("Whole page", 1.0)):
             tk.Button(tools, text=text, font=FONT_SMALL, relief="flat", bg=WHITE, fg=NAVY,
                       command=lambda z=zoom: self.sheet.set_zoom(z)).pack(side="right", padx=2, pady=2)
-        self.sheet = TicketSheet(parent, on_field_click=self.jump_to, bg=NAVY_LIGHT)
+        self.sheet = TicketSheet(parent, on_field_click=self.jump_to, kind=self.kind, bg=NAVY_LIGHT)
         self.sheet.pack(fill="both", expand=True)
         self.sheet.zoom = 1.25
 
@@ -247,7 +315,7 @@ class TicketWindow(tk.Toplevel):
             return
         self.data[fid] = value
         self.sheet.set_value(fid, value)
-        computed = T.compute(self.data)
+        computed = T.compute_for(self.kind, self.data)
         for k, v in computed.items():
             if self.data.get(k) != v:
                 self.data[k] = v
@@ -300,7 +368,7 @@ class TicketWindow(tk.Toplevel):
 
     def _run_local_check(self):
         self._check_job = None
-        self.local_issues = T.check(self.data)
+        self.local_issues = T.check_for(self.kind, self.data)
         self._show_issues()
 
     def _all_issues(self):
@@ -312,7 +380,7 @@ class TicketWindow(tk.Toplevel):
                     j = dict(i)
                     j["source"] = "ai"
                     issues.append(j)
-        return T.sort_issues(issues)
+        return T.sort_issues(issues, self.kind)
 
     def _show_issues(self):
         issues = self._all_issues()
@@ -323,7 +391,7 @@ class TicketWindow(tk.Toplevel):
         for n, i in enumerate(issues):
             who = "AI: " if i.get("source") == "ai" else ""
             lb.insert("end", "%s - %s%s: %s" % (SEVERITY_WORD.get(i["severity"], "Check"), who,
-                                                T.field_label(i["field"]), i["message"]))
+                                                T.field_label(i["field"], self.kind), i["message"]))
             lb.itemconfig(n, foreground=ISSUE_COLORS.get(i["severity"], NAVY))
         errors = sum(1 for i in issues if i["severity"] == "error")
         if not issues:
@@ -385,14 +453,14 @@ class TicketWindow(tk.Toplevel):
             elif self.ai_check.get("summary"):
                 messagebox.showinfo("AI check", self.ai_check["summary"], parent=self)
 
-        in_background(self, lambda: api.ticket_check(server, token, ticket_id, self.job["id"], data, local), done)
+        in_background(self, lambda: api.ticket_check(server, token, ticket_id, self.job["id"], data, local, self.kind), done)
 
     # ---------------------------------------------------------------- saving
 
     def _save(self, status):
         self.status = status
         ai = self.ai_check if (self.ai_check and not self.ai_stale) else None
-        self.ticket_id = self.store.save_ticket(self.ticket_id, self.job["id"], self.data, status, ai)
+        self.ticket_id = self.store.save_ticket(self.ticket_id, self.job["id"], self.data, status, ai, self.kind)
         self._dirty = False
         self._update_title()
 

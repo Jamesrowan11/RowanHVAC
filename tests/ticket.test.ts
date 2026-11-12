@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import {
+  cleanTicketData,
   cleanIssues,
   computeTotals,
   ticketAsText,
@@ -100,5 +101,42 @@ describe("ticket PDF", () => {
   it("survives characters the PDF fonts cannot draw", async () => {
     expect(winAnsi("“63°/41°” — ok ✓")).toBe('"63°/41°" - ok ');
     await renderTicketPdf({ ...SAMPLE, cust_name: "Zoë 李 ✓", work_description: "Tab\there" });
+  });
+});
+
+describe("maintenance reports", () => {
+  const PM: Record<string, string | boolean> = {
+    invoice_no: "JM11-12-2026-PM", date: "November 12, 2026", time_in: "6:00 PM", time_out: "7:30 PM",
+    cust_name: "Ann Lee", cust_street: "1 Oak St", cust_city: "Fulton, MD 20759", visit_fall: true,
+    agreement: "Comfort Club, renews 05/2027", eq1_location: "Basement", eq1_make: "Carrier",
+    eq1_model: "58STA045", eq1_serial: "2106A04508", eq1_type: "Gas furnace", eq1_filter: "16x25x4",
+    h_heat_exchanger: "ok", h_burners: "adj", h_flame_sensor: "adj", h_flame_sensor_val: "3.2",
+    h_co: "ok", h_co_val: "4 / 0", h_inducer: "rep", h_inducer_val: "1.9", c_filter: "adj",
+    condition: "fair", system_operating: true, next_visit: "04/2027", job_finished: true,
+    work_description: "Cleaned burners and flame sensor. Inducer motor is noisy; recommend replacing it before winter.",
+    technician: "Jake Miller, Dean Carter",
+  };
+  it("keeps only the report's fields and valid answers", () => {
+    const clean = cleanTicketData("maintenance", { ...PM, h_limits: "maybe", reg_labor: "99", bogus: "x" });
+    expect(clean.h_inducer).toBe("rep");
+    expect(clean).not.toHaveProperty("h_limits");
+    expect(clean).not.toHaveProperty("reg_labor"); // a service-ticket field
+    expect(clean).not.toHaveProperty("total_due"); // no money totals on a report
+  });
+  it("shows answers in words for the AI", () => {
+    expect(ticketAsText(PM, "maintenance")).toContain("[h_inducer] Inducer motor: Needs repair");
+  });
+  it("is a ticket.save op with kind maintenance; old vans default to service", () => {
+    const base = { opId: "o", type: "ticket.save", id: "van_" + "b".repeat(32), jobId: "j", invoiceNumber: "x",
+      status: "draft", data: PM, savedAt: "2026-11-12T23:00:00.000Z" };
+    const pm = parseOp({ ...base, kind: "maintenance" });
+    const old = parseOp(base);
+    expect("op" in pm && pm.op.type === "ticket.save" && pm.op.kind).toBe("maintenance");
+    expect("op" in old && old.op.type === "ticket.save" && old.op.kind).toBe("service");
+  });
+  it("renders a one-page portrait PDF", async () => {
+    const pdf = await PDFDocument.load(await renderTicketPdf(PM, { kind: "maintenance" }));
+    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
   });
 });

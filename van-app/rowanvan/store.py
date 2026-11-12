@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS manuals (
 );
 CREATE TABLE IF NOT EXISTS tickets (
     id TEXT PRIMARY KEY, job_id TEXT, invoice_no TEXT, data TEXT, status TEXT,
-    ai_check TEXT, updated_at TEXT, pending INTEGER DEFAULT 0
+    ai_check TEXT, updated_at TEXT, pending INTEGER DEFAULT 0, kind TEXT DEFAULT 'service'
 );
 CREATE INDEX IF NOT EXISTS tickets_job ON tickets (job_id);
 CREATE TABLE IF NOT EXISTS speed_log (t TEXT PRIMARY KEY, mph INTEGER);
@@ -106,6 +106,10 @@ class Store(object):
             cols = [r[1] for r in self.conn.execute("PRAGMA table_info(jobs)").fetchall()]
             if "crew" not in cols:
                 self.conn.execute("ALTER TABLE jobs ADD COLUMN crew TEXT")
+            # ...and before maintenance reports: tickets get a kind.
+            cols = [r[1] for r in self.conn.execute("PRAGMA table_info(tickets)").fetchall()]
+            if "kind" not in cols:
+                self.conn.execute("ALTER TABLE tickets ADD COLUMN kind TEXT DEFAULT 'service'")
 
     def close(self):
         self.conn.close()
@@ -238,7 +242,7 @@ class Store(object):
                          "subject": subject, "body": body})
             return email_id
 
-    def save_ticket(self, ticket_id, job_id, data, status="draft", ai_check=None):
+    def save_ticket(self, ticket_id, job_id, data, status="draft", ai_check=None, kind="service"):
         """Saves the service ticket locally and queues it for the website.
         Only the newest save of a ticket is kept in the outbox (the sheet is
         sent whole each time). status: 'draft' or 'final'. Returns the id."""
@@ -247,16 +251,16 @@ class Store(object):
             now = utc_now_iso()
             self.conn.execute(
                 "INSERT OR REPLACE INTO tickets (id, job_id, invoice_no, data, status, ai_check, updated_at,"
-                " pending) VALUES (?, ?, ?, ?, ?, ?, ?, 1)",
+                " pending, kind) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
                 (ticket_id, job_id, data.get("invoice_no"), json.dumps(data), status,
-                 json.dumps(ai_check) if ai_check is not None else None, now),
+                 json.dumps(ai_check) if ai_check is not None else None, now, kind),
             )
             for row in self.conn.execute(
                 "SELECT op_id, payload FROM outbox WHERE payload LIKE '%\"ticket.save\"%'"
             ).fetchall():
                 if json.loads(row["payload"]).get("id") == ticket_id:
                     self.conn.execute("DELETE FROM outbox WHERE op_id = ?", (row["op_id"],))
-            op = {"type": "ticket.save", "id": ticket_id, "jobId": job_id,
+            op = {"type": "ticket.save", "id": ticket_id, "jobId": job_id, "kind": kind,
                   "invoiceNumber": data.get("invoice_no") or "", "status": status,
                   "data": data, "savedAt": now}
             if ai_check is not None:
@@ -264,9 +268,10 @@ class Store(object):
             self._queue(op)
             return ticket_id
 
-    def ticket_for_job(self, job_id):
+    def ticket_for_job(self, job_id, kind="service"):
         row = self.conn.execute(
-            "SELECT * FROM tickets WHERE job_id = ? ORDER BY updated_at DESC LIMIT 1", (job_id,)
+            "SELECT * FROM tickets WHERE job_id = ? AND COALESCE(kind, 'service') = ?"
+            " ORDER BY updated_at DESC LIMIT 1", (job_id, kind)
         ).fetchone()
         return self._ticket_row(row)
 
@@ -424,10 +429,10 @@ class Store(object):
                     continue
                 self.conn.execute(
                     "INSERT OR REPLACE INTO tickets (id, job_id, invoice_no, data, status, ai_check,"
-                    " updated_at, pending) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
+                    " updated_at, pending, kind) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
                     (t["id"], t.get("jobId"), t.get("invoiceNumber"), json.dumps(t.get("data") or {}),
                      t.get("status"), json.dumps(t["aiCheck"]) if t.get("aiCheck") else None,
-                     t.get("updatedAt")),
+                     t.get("updatedAt"), t.get("kind") or "service"),
                 )
             self.conn.execute("DELETE FROM directory")
             for pos, d in enumerate(snapshot.get("directory", [])):
