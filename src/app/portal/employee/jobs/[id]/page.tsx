@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { JobStatusBadge, fmtDate, fmtDateTime } from "@/components/portal/ui";
 import { TicketList } from "@/components/portal/TicketList";
+import { crewInclude, crewLabel } from "@/lib/jobCrew";
 import { updateJobStatus, addJobNote } from "../../actions";
 
 export default async function JobDetail({
@@ -22,6 +23,7 @@ export default async function JobDetail({
         include: { author: { select: { name: true } } },
       },
       client: { select: { name: true } },
+      ...crewInclude,
       tickets: {
         orderBy: { createdAt: "desc" },
         include: { technician: { select: { name: true } } },
@@ -31,7 +33,7 @@ export default async function JobDetail({
 
   // Server-side ownership check — employees can only open their own jobs.
   if (!job) notFound();
-  if (user.role === "EMPLOYEE" && job.technicianId !== user.id) notFound();
+  if (user.role === "EMPLOYEE" && !job.technicians.some((t) => t.userId === user.id)) notFound();
 
   return (
     <>
@@ -54,6 +56,10 @@ export default async function JobDetail({
             <dd className="font-medium text-navy-900">
               {fmtDate(job.scheduledDate)} · {job.scheduledTime}
             </dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-navy-400">Crew</dt>
+            <dd className="font-medium text-navy-900">{crewLabel(job.technicians)}</dd>
           </div>
           <div className="sm:col-span-2">
             <dt className="text-navy-400">Address</dt>

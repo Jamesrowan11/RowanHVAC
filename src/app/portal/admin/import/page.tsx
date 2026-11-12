@@ -51,7 +51,7 @@ export default async function ImportPage() {
             <>
               Columns: <b>Customer</b> name, <b>Date</b>, Service / description, Time, Address, Technician, Status,
               Notes / work performed, Email. Without a status, past dates come in as <b>Completed</b> and future
-              ones as <b>Scheduled</b>. Technicians are matched by name or email under Users.
+              ones as <b>Scheduled</b>. Technicians are matched by name or email under Users; list several in one cell ("Jake Miller, Dean Carter") to put them all on the job.
             </>
           }
           extraOption={{

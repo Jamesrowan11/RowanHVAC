@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -280,6 +281,7 @@ export async function importJobs(_prev: ImportResult | null, formData: FormData)
 
   const unknownTechs = new Map<string, number>();
   const toCreate: Prisma.JobCreateManyInput[] = [];
+  const crewRows: Prisma.JobTechnicianCreateManyInput[] = [];
   let duplicates = 0;
   let linked = 0;
   const counts = { SCHEDULED: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0 };
@@ -294,15 +296,20 @@ export async function importJobs(_prev: ImportResult | null, formData: FormData)
     const clientId =
       user && user.role === "CLIENT" ? user.id : clientsByName.get(r.customerName.trim().toLowerCase()) ?? null;
     if (clientId) linked++;
-    let technicianId: string | null = null;
-    if (r.tech) {
-      const first = r.tech.split(/[,;&/]| and /i)[0].trim().toLowerCase();
-      technicianId = techByKey.get(first) ?? null;
-      if (!technicianId) unknownTechs.set(r.tech, (unknownTechs.get(r.tech) ?? 0) + 1);
+    // Every technician named ("Jake Miller, Dean Carter" / "Jake & Dean") is on the crew.
+    const id = "imp" + crypto.randomBytes(12).toString("hex");
+    const crew: string[] = [];
+    for (const part of r.tech.split(/[,;&/+|]| and /i).map((t) => t.trim()).filter(Boolean)) {
+      const techId = techByKey.get(part.toLowerCase());
+      if (techId) {
+        if (!crew.includes(techId)) crew.push(techId);
+      } else unknownTechs.set(part, (unknownTechs.get(part) ?? 0) + 1);
     }
+    crew.forEach((userId, position) => crewRows.push({ jobId: id, userId, position }));
     const status = parseStatus(r.status, r.day);
     counts[status]++;
     toCreate.push({
+      id,
       customerName: r.customerName,
       address: r.address || user?.address || "",
       serviceNeeded: r.service,
@@ -312,13 +319,15 @@ export async function importJobs(_prev: ImportResult | null, formData: FormData)
       summary: r.summary ? r.summary.slice(0, 5000) : null,
       cancelReason: status === "CANCELLED" ? r.status || "Cancelled (imported)" : null,
       clientId,
-      technicianId,
     });
   }
 
   if (!dryRun) {
     for (let i = 0; i < toCreate.length; i += 500) {
       await prisma.job.createMany({ data: toCreate.slice(i, i + 500) });
+    }
+    for (let i = 0; i < crewRows.length; i += 1000) {
+      await prisma.jobTechnician.createMany({ data: crewRows.slice(i, i + 1000), skipDuplicates: true });
     }
     revalidatePath("/portal/admin/schedule");
     revalidatePath("/portal/admin");
@@ -333,7 +342,7 @@ export async function importJobs(_prev: ImportResult | null, formData: FormData)
   if (createCustomers) lines.push(`${w("Would create", "Created")} ${newClients.size} new customer account${newClients.size === 1 ? "" : "s"} from the jobs' emails.`);
   if (duplicates) lines.push(`${duplicates} already in the portal, skipped.`);
   for (const [name, n] of unknownTechs) {
-    problems.push(`Technician "${name}" (${n} job${n === 1 ? "" : "s"}) doesn't match anyone under Users; imported as unassigned.`);
+    problems.push(`Technician "${name}" (${n} job${n === 1 ? "" : "s"}) doesn't match anyone under Users; left off the job.`);
   }
   return {
     kind: "jobs",

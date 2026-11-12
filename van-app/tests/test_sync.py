@@ -345,5 +345,33 @@ class ServerUrlTests(unittest.TestCase):
         self.assertIsNotNone(api.check_server("https://"))
 
 
+
+class CrewTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "van.db")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def test_crew_from_snapshot_and_old_laptops(self):
+        import sqlite3
+        # A laptop set up before crews existed: jobs table without the column.
+        conn = sqlite3.connect(self.path)
+        conn.execute("CREATE TABLE jobs (id TEXT PRIMARY KEY, customer_name TEXT, address TEXT, service_needed TEXT,"
+                     " scheduled_day TEXT, scheduled_time TEXT, status TEXT, cancel_reason TEXT, summary TEXT,"
+                     " client_name TEXT, client_phone TEXT, client_email TEXT, position INTEGER)")
+        conn.commit()
+        conn.close()
+        store = Store(self.path)
+        snap = snapshot()
+        snap["jobs"][0]["crew"] = ["Tech One", "Dean Carter"]
+        store.replace_snapshot(snap, "h1")
+        self.assertEqual(store.job("job1")["crew"], "Tech One, Dean Carter")
+        from rowanvan import ticket
+        self.assertEqual(ticket.new_ticket(store.job("job1"), "Tech One")["technician"], "Tech One, Dean Carter")
+        store.close()
+
+
 if __name__ == "__main__":
     unittest.main()

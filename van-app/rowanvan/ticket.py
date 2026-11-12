@@ -136,7 +136,8 @@ def new_ticket(job, tech_name, existing_numbers=(), now=None):
         "cust_email": job.get("client_email") or "",
         "cust_phone": job.get("client_phone") or "",
         "service_requested": job.get("service_needed") or "",
-        "technician": tech_name or "",
+        # The whole crew when several technicians are on the job.
+        "technician": job.get("crew") or tech_name or "",
         "refrigerant_type": "",
     }
     data.update(compute(data))

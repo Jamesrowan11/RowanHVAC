@@ -397,6 +397,7 @@ class MainScreen(tk.Frame):
         rows = [
             ("When", fmt_day(job["scheduled_day"]) + "  " + (job["scheduled_time"] or "")),
             ("Service", job["service_needed"]),
+            ("Crew", job.get("crew") or "Just you"),
             ("Address", job["address"]),
         ]
         if job["client_phone"]:

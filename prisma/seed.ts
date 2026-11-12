@@ -145,7 +145,7 @@ async function main() {
       scheduledDate: daysFromNow(1),
       scheduledTime: "9:00 AM",
       status: "SCHEDULED",
-      technicianId: employee.id,
+      technicians: { create: [{ userId: employee.id, position: 0 }, { userId: employee2.id, position: 1 }] },
       clientId: client.id,
     },
   });
@@ -159,7 +159,7 @@ async function main() {
       scheduledTime: "1:00 PM",
       status: "COMPLETED",
       summary: "Cleaned burners, replaced filter, verified safe operation.",
-      technicianId: employee.id,
+      technicians: { create: [{ userId: employee.id }] },
       clientId: client2.id,
     },
   });
@@ -172,7 +172,7 @@ async function main() {
       scheduledDate: daysFromNow(3),
       scheduledTime: "11:00 AM",
       status: "IN_PROGRESS",
-      technicianId: employee2.id,
+      technicians: { create: [{ userId: employee2.id }] },
       clientId: client.id,
     },
   });
@@ -187,7 +187,7 @@ async function main() {
       scheduledTime: "3:00 PM",
       status: "CANCELLED",
       cancelReason: "Customer rescheduled for next month.",
-      technicianId: employee.id,
+      technicians: { create: [{ userId: employee.id }] },
       clientId: client2.id,
     },
   });

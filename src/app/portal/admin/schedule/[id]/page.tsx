@@ -4,12 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import { PageHeader } from "@/components/portal/ui";
 import { updateJob } from "../../actions";
+import { CrewPicker } from "@/components/portal/CrewPicker";
 
 export default async function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requireRole("ADMIN");
   const { id } = await params;
   const [job, techs, clients] = await Promise.all([
-    prisma.job.findUnique({ where: { id } }),
+    prisma.job.findUnique({
+      where: { id },
+      include: { technicians: { orderBy: { position: "asc" }, select: { userId: true } } },
+    }),
     prisma.user.findMany({
       where: { role: { in: ["EMPLOYEE", "ADMIN"] }, active: true },
       orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -22,11 +26,13 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
     }),
   ]);
   if (!job) notFound();
-  // A job can still point at someone who has since been deactivated: keep them selectable.
-  const missingTech = job.technicianId && !techs.some((t) => t.id === job.technicianId)
-    ? await prisma.user.findUnique({ where: { id: job.technicianId }, select: { id: true, name: true, role: true } })
-    : null;
-  const allTechs = missingTech ? [...techs, missingTech] : techs;
+  // Someone deactivated since they were put on the job stays listed (ticked).
+  const crewIds = job.technicians.map((t) => t.userId);
+  const missing = crewIds.filter((id) => !techs.some((t) => t.id === id));
+  const inactive = missing.length
+    ? await prisma.user.findMany({ where: { id: { in: missing } }, select: { id: true, name: true, role: true } })
+    : [];
+  const allTechs = [...techs, ...inactive.map((u) => ({ ...u, active: false }))];
 
   return (
     <>
@@ -66,16 +72,8 @@ export default async function EditJobPage({ params }: { params: Promise<{ id: st
             <label className="label" htmlFor="scheduledTime">Time</label>
             <input id="scheduledTime" name="scheduledTime" className="input" required defaultValue={job.scheduledTime || "—"} />
           </div>
-          <div>
-            <label className="label" htmlFor="technicianId">Technician</label>
-            <select id="technicianId" name="technicianId" className="input" defaultValue={job.technicianId ?? ""}>
-              <option value="">— Unassigned —</option>
-              {allTechs.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.role === "ADMIN" ? "Admin" : "Employee"})
-                </option>
-              ))}
-            </select>
+          <div className="sm:col-span-2">
+            <CrewPicker techs={allTechs} selected={crewIds} />
           </div>
           <div>
             <label className="label" htmlFor="clientId">Customer account</label>

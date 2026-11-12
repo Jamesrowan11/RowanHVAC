@@ -14,11 +14,11 @@ async function requireOwnedJob(jobId: string) {
   const user = await assertRole("EMPLOYEE", "ADMIN");
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    select: { id: true, technicianId: true, status: true },
+    select: { id: true, status: true, technicians: { select: { userId: true } } },
   });
   // Employees may only touch jobs assigned to them. Admins may touch any.
   if (!job) throw new Error("Not found");
-  if (user.role === "EMPLOYEE" && job.technicianId !== user.id) {
+  if (user.role === "EMPLOYEE" && !job.technicians.some((t) => t.userId === user.id)) {
     throw new Error("Not found");
   }
   return { user, job };

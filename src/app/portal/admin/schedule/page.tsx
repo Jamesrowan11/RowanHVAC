@@ -9,6 +9,8 @@ import {
   fmtDateTime,
 } from "@/components/portal/ui";
 import { ConfirmButton } from "@/components/portal/ConfirmButton";
+import { CrewPicker } from "@/components/portal/CrewPicker";
+import { crewInclude, crewLabel } from "@/lib/jobCrew";
 import { createJob, cancelJob, reinstateJob } from "../actions";
 
 export default async function SchedulePage({
@@ -33,7 +35,7 @@ export default async function SchedulePage({
     prisma.job.findMany({
       orderBy: [{ scheduledDate: "desc" }],
       include: {
-        technician: { select: { name: true, role: true } },
+        ...crewInclude,
         client: { select: { name: true } },
         notes: {
           orderBy: { createdAt: "desc" },
@@ -46,8 +48,6 @@ export default async function SchedulePage({
       : Promise.resolve(null),
   ]);
 
-  const employees = techs.filter((t) => t.role === "EMPLOYEE");
-  const admins = techs.filter((t) => t.role === "ADMIN");
 
   return (
     <>
@@ -111,25 +111,8 @@ export default async function SchedulePage({
               required
             />
           </div>
-          <div>
-            <label className="label" htmlFor="technicianId">Assign technician</label>
-            <select id="technicianId" name="technicianId" className="input" defaultValue="">
-              <option value="">— Unassigned —</option>
-              {employees.length > 0 && (
-                <optgroup label="Employees">
-                  {employees.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </optgroup>
-              )}
-              {admins.length > 0 && (
-                <optgroup label="Admins">
-                  {admins.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+          <div className="sm:col-span-2">
+            <CrewPicker techs={techs} />
           </div>
           <div>
             <label className="label" htmlFor="clientId">Link to client account</label>
@@ -166,9 +149,7 @@ export default async function SchedulePage({
                   <p className="mt-1 text-xs text-navy-500">{job.address}</p>
                   <p className="mt-1 text-xs text-navy-500">
                     {fmtDate(job.scheduledDate)} · {job.scheduledTime} ·{" "}
-                    {job.technician
-                      ? `${job.technician.name} (${job.technician.role})`
-                      : "Unassigned"}
+                    {crewLabel(job.technicians)}
                   </p>
                   {job.status === "CANCELLED" && job.cancelReason && (
                     <p className="mt-2 rounded bg-navy-50 px-3 py-2 text-xs text-navy-600">

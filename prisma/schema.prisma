@@ -72,7 +72,7 @@ model User {
   documents         Document[]         @relation("ClientDocuments")
 
   // As a technician (employee or admin)
-  assignedJobs   Job[]           @relation("TechnicianJobs")
+  assignedJobs   JobTechnician[] @relation("TechnicianJobs")
   serviceTickets ServiceTicket[] @relation("TechnicianTickets")
 
   // Authored content
@@ -209,8 +209,8 @@ model Job {
   clientId String?
   client   User?   @relation("ClientJobs", fields: [clientId], references: [id], onDelete: SetNull)
 
-  technicianId String?
-  technician   User?   @relation("TechnicianJobs", fields: [technicianId], references: [id], onDelete: SetNull)
+  // Everyone working the job (one or more technicians).
+  technicians JobTechnician[]
 
   notes   JobNote[]
   tickets ServiceTicket[]
@@ -219,7 +219,19 @@ model Job {
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
-  @@index([technicianId])
+}
+
+// A technician on a job. A job can have a whole crew; `position` keeps the
+// order the office listed them in (the first one is shown first).
+model JobTechnician {
+  jobId    String
+  job      Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation("TechnicianJobs", fields: [userId], references: [id], onDelete: Cascade)
+  position Int    @default(0)
+
+  @@id([jobId, userId])
+  @@index([userId])
 }
 
 enum TicketStatus {

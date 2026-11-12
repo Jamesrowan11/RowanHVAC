@@ -10,10 +10,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   const ticket = await prisma.serviceTicket.findUnique({
     where: { id },
-    include: { job: { select: { technicianId: true } } },
+    include: { job: { select: { technicians: { select: { userId: true } } } } },
   });
   const allowed =
-    ticket && (user.role === "ADMIN" || (user.role === "EMPLOYEE" && ticket.job.technicianId === user.id));
+    ticket && (user.role === "ADMIN" || (user.role === "EMPLOYEE" && ticket.job.technicians.some((t) => t.userId === user.id)));
   if (!ticket || !allowed) return new NextResponse("Not found", { status: 404 });
   return ticketPdfResponse(ticket, new URL(req.url).searchParams.has("download"));
 }
