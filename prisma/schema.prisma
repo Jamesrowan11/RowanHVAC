@@ -53,6 +53,8 @@ model User {
   name          String
   email         String   @unique
   phone         String?
+  // Customer's service address (filled from imports; used for new jobs).
+  address       String?  @db.VarChar(400)
   // Optional private email for EMPLOYEE/ADMIN. Password-reset emails go here when
   // set (so staff get them at a personal inbox); CLIENT resets always use `email`.
   personalEmail String?

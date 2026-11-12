@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 import {
@@ -13,10 +14,10 @@ import { createJob, cancelJob, reinstateJob } from "../actions";
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ fromRequest?: string }>;
+  searchParams: Promise<{ fromRequest?: string; saved?: string }>;
 }) {
   await requireRole("ADMIN");
-  const { fromRequest } = await searchParams;
+  const { fromRequest, saved } = await searchParams;
 
   const [techs, clients, jobs, prefill] = await Promise.all([
     prisma.user.findMany({
@@ -54,6 +55,10 @@ export default async function SchedulePage({
         title="Scheduling"
         subtitle="Create jobs, assign a technician, and track live progress."
       />
+
+      {saved && (
+        <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">Job saved.</p>
+      )}
 
       {/* Create job */}
       <div className="card mb-8 p-6">
@@ -173,6 +178,9 @@ export default async function SchedulePage({
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
+                  <Link href={`/portal/admin/schedule/${job.id}`} className="btn-outline btn-sm">
+                    Edit
+                  </Link>
                   {job.status !== "CANCELLED" ? (
                     <form action={cancelJob}>
                       <input type="hidden" name="id" value={job.id} />
