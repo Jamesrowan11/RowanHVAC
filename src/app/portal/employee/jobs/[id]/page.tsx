@@ -104,12 +104,12 @@ export default async function JobDetail({
 
       {/* Service tickets (written on the van terminal) */}
       <div className="card mt-6 p-6">
-        <h2 className="mb-1 text-lg font-semibold text-navy-900">Service Tickets</h2>
+        <h2 className="mb-1 text-lg font-semibold text-navy-900">Service Tickets & Maintenance Reports</h2>
         <p className="mb-4 text-xs text-navy-400">
           Filled in on the van terminal and checked by AI. The PDF is the customer&apos;s copy.
         </p>
         {job.tickets.length === 0 ? (
-          <p className="text-sm text-navy-500">No service ticket yet.</p>
+          <p className="text-sm text-navy-500">None yet.</p>
         ) : (
           <TicketList tickets={job.tickets} />
         )}

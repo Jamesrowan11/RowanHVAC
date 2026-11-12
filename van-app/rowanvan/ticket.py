@@ -1,6 +1,10 @@
-"""Service ticket data: the fields (from ticket_layout.json), sensible defaults
-from the job, the totals the app calculates, and the checks that run on the
+"""Service ticket and maintenance report data: the fields (from
+ticket_layout.json / maintenance_layout.json), sensible defaults from the job,
+the totals the app calculates (service tickets), and the checks that run on the
 laptop with no signal. The AI check runs on the website (see api.ticket_check).
+
+kind: "service" (the service ticket) or "maintenance" (the preventive
+maintenance inspection report for maintenance-agreement visits).
 
 Python 3.4: no f-strings, no type hints.
 """
@@ -10,30 +14,31 @@ import json
 import os
 import re
 
-_LAYOUT = None
+KINDS = {"service": "ticket_layout.json", "maintenance": "maintenance_layout.json"}
+KIND_NAMES = {"service": "Service Ticket", "maintenance": "Maintenance Report"}
+_LAYOUTS = {}
 
 
-def layout():
+def layout(kind="service"):
     """The shared sheet layout (also used by the website to print the PDF)."""
-    global _LAYOUT
-    if _LAYOUT is None:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ticket_layout.json")
+    if kind not in _LAYOUTS:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), KINDS[kind])
         with open(path, "r") as f:
-            _LAYOUT = json.load(f)
-    return _LAYOUT
+            _LAYOUTS[kind] = json.load(f)
+    return _LAYOUTS[kind]
 
 
-def fields():
+def fields(kind="service"):
     """{field id: {"label", "kind", "computed", "hint"}} for every field on the sheet."""
     out = {}
-    for section in layout()["sections"]:
+    for section in layout(kind)["sections"]:
         for f in section["fields"]:
             out[f["id"]] = f
     return out
 
 
-def field_label(fid):
-    f = fields().get(fid)
+def field_label(fid, kind="service"):
+    f = fields(kind).get(fid)
     return f["label"] if f else fid
 
 
@@ -122,9 +127,11 @@ def _split_address(address):
 
 # ---------------------------------------------------------------- new ticket + totals
 
-def new_ticket(job, tech_name, existing_numbers=(), now=None):
+def new_ticket(job, tech_name, existing_numbers=(), now=None, kind="service"):
     """A ticket pre-filled from the job so the technician only adds what they did."""
     now = now or datetime.datetime.now()
+    if kind == "maintenance":
+        return new_maintenance_report(job, tech_name, existing_numbers, now)
     street, city = _split_address(job.get("address"))
     data = {
         "invoice_no": invoice_number(tech_name, now.date(), existing_numbers),
@@ -142,6 +149,35 @@ def new_ticket(job, tech_name, existing_numbers=(), now=None):
     }
     data.update(compute(data))
     return data
+
+
+def new_maintenance_report(job, tech_name, existing_numbers, now):
+    street, city = _split_address(job.get("address"))
+    # Report numbers end in -PM so they never clash with service ticket numbers.
+    base = invoice_number(tech_name, now.date()) + "-PM"
+    number, n = base, 2
+    while number in existing_numbers:
+        number = "%s-%d" % (base, n)
+        n += 1
+    data = {
+        "invoice_no": number,
+        "date": fmt_date(now.date()),
+        "time_in": fmt_time(now),
+        "cust_name": job.get("client_name") or job.get("customer_name") or "",
+        "cust_street": street,
+        "cust_city": city,
+        "cust_email": job.get("client_email") or "",
+        "cust_phone": job.get("client_phone") or "",
+        "technician": job.get("crew") or tech_name or "",
+    }
+    # Spring visits check cooling, fall visits heating (the tech can change it).
+    data["visit_spring" if 3 <= now.month <= 8 else "visit_fall"] = True
+    return data
+
+
+def compute_for(kind, data):
+    """Calculated fields for this kind of sheet (only service tickets have totals)."""
+    return compute(data) if kind == "service" else {}
 
 
 def compute(data):
@@ -287,10 +323,90 @@ def check(data):
 SEVERITY_ORDER = {"error": 0, "warning": 1, "suggestion": 2}
 
 
-def sort_issues(issues):
-    order = dict((f, i) for i, f in enumerate(_field_order()))
+def sort_issues(issues, kind="service"):
+    order = dict((f, i) for i, f in enumerate(_field_order(kind)))
     return sorted(issues, key=lambda i: (SEVERITY_ORDER.get(i.get("severity"), 3), order.get(i.get("field"), 999)))
 
 
-def _field_order():
-    return [f["id"] for s in layout()["sections"] for f in s["fields"]]
+def _field_order(kind="service"):
+    return [f["id"] for s in layout(kind)["sections"] for f in s["fields"]]
+
+
+def check_for(kind, data):
+    return check_maintenance(data) if kind == "maintenance" else check(data)
+
+
+# ---------------------------------------------------------------- maintenance report checks
+
+def status_fields(kind="maintenance"):
+    return [f for s in layout(kind)["sections"] for f in s["fields"] if f["kind"] == "status"]
+
+
+def check_maintenance(data):
+    """Mistakes the app can find by itself on a maintenance report."""
+    issues = []
+    text = lambda k: (data.get(k) or "").strip() if isinstance(data.get(k), str) else ""
+    for fid, what in (("cust_name", "the customer's name"), ("cust_street", "the customer's address"),
+                      ("date", "the date"), ("technician", "your name")):
+        if not text(fid):
+            issues.append(_issue(fid, "error", "Fill in " + what + "."))
+    if not any(data.get(k) for k in ("visit_spring", "visit_fall", "visit_other")):
+        issues.append(_issue("visit_spring", "error", "Tick the kind of visit: spring (cooling), fall (heating) or other."))
+    if not text("condition"):
+        issues.append(_issue("condition", "error", "Pick the overall system condition."))
+    desc = text("work_description")
+    if len(desc) < 20:
+        issues.append(_issue("work_description", "error",
+                             "Write your findings and recommendations: what you checked, adjusted or cleaned, "
+                             "and any repairs needed."))
+
+    items = [f for f in status_fields() if f["id"] != "condition"]
+    marked = [f for f in items if text(f["id"])]
+    if len(marked) < 5:
+        issues.append(_issue((items[0]["id"] if items else "work_description"), "warning",
+                             "Only %d checklist item(s) marked. Mark each item you checked." % len(marked)))
+    cooling = [f for f in marked if f["id"].startswith("c_")]
+    heating = [f for f in marked if f["id"].startswith("h_")]
+    if data.get("visit_spring") and not cooling:
+        issues.append(_issue("c_thermostat", "warning", "Spring visit, but nothing on the cooling checklist is marked."))
+    if data.get("visit_fall") and not heating:
+        issues.append(_issue("h_heat_exchanger", "warning", "Fall visit, but nothing on the heating checklist is marked."))
+
+    low = desc.lower()
+    repairs = [f for f in items if text(f["id"]) == "rep"]
+    for f in repairs:
+        words = [w for w in re.findall(r"[a-z]{4,}", f["label"].lower())
+                 if w not in ("checked", "inspected", "cleaned", "replaced", "motor", "home", "visual", "mode")]
+        if not any(w in low for w in words):
+            issues.append(_issue(f["id"], "warning",
+                                 "Marked NEEDS REPAIR: say what's wrong and what you recommend in the findings."))
+    if text("condition") == "poor" and not repairs:
+        issues.append(_issue("condition", "suggestion",
+                             "Condition is 'needs attention' but no item is marked NEEDS REPAIR."))
+    if repairs and text("condition") == "good":
+        issues.append(_issue("condition", "suggestion",
+                             "Some items need repair; is 'Good' the right overall condition?"))
+
+    for f in items:
+        if text(f["id"] + "_val") and not text(f["id"]):
+            issues.append(_issue(f["id"], "suggestion", "You wrote a reading for this item; mark OK, ADJ or REP too."))
+    co = re.match(r"\s*(\d+(?:\.\d+)?)", text("h_co_val"))
+    if co and float(co.group(1)) >= 35 and " co" not in " " + low and "carbon" not in low:
+        issues.append(_issue("work_description", "warning",
+                          "CO reads %s ppm. Explain it and what you told the customer." % co.group(1)))
+
+    if not data.get("system_operating"):
+        issues.append(_issue("system_operating", "warning",
+                             "Tick 'System left operating normally', or explain in the findings why it wasn't."))
+    if not data.get("job_finished"):
+        issues.append(_issue("job_finished", "suggestion", "Tick VISIT COMPLETE when you're done."))
+    t_in, t_out = parse_time(text("time_in")), parse_time(text("time_out"))
+    if not text("time_out"):
+        issues.append(_issue("time_out", "warning", "Fill in the time out."))
+    elif t_in is not None and t_out is not None and t_out <= t_in:
+        issues.append(_issue("time_out", "warning", "Time out is not after time in. Check AM/PM."))
+    if not text("next_visit"):
+        issues.append(_issue("next_visit", "suggestion", "Fill in when the next maintenance visit is due."))
+    if not (text("eq1_model") and text("eq1_serial")):
+        issues.append(_issue("eq1_model", "suggestion", "Record the model and serial number of the equipment."))
+    return issues

@@ -1,0 +1,4119 @@
+{
+ "elements": [
+  {
+   "fill": null,
+   "h": 80,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 200,
+   "x": 18,
+   "y": 18
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "ROWAN",
+   "size": 10,
+   "t": "text",
+   "x": 118.0,
+   "y": 22
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "HEATING & AIR CONDITIONING, INC",
+   "size": 8.5,
+   "t": "text",
+   "x": 118.0,
+   "y": 34
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "P.O. BOX 109 \u00b7 FULTON, MD 20759",
+   "size": 7.5,
+   "t": "text",
+   "x": 118.0,
+   "y": 46
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "WWW.ROWANHVAC.COM",
+   "size": 7.5,
+   "t": "text",
+   "x": 118.0,
+   "y": 57
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "410-531-0008 \u00b7 1-800-225-ROWAN",
+   "size": 7.5,
+   "t": "text",
+   "x": 118.0,
+   "y": 70
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "HVACR #2569",
+   "size": 7.5,
+   "t": "text",
+   "x": 118.0,
+   "y": 83
+  },
+  {
+   "fill": null,
+   "h": 80,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 206,
+   "x": 218,
+   "y": 18
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_name",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 198,
+   "x": 222,
+   "y": 23
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_street",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 198,
+   "x": 222,
+   "y": 38
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_city",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 198,
+   "x": 222,
+   "y": 53
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "EMAIL:",
+   "size": 6.5,
+   "t": "text",
+   "x": 222,
+   "y": 69
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_email",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 168,
+   "x": 252,
+   "y": 68
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "PHONE:",
+   "size": 6.5,
+   "t": "text",
+   "x": 222,
+   "y": 84
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "cust_phone",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 168,
+   "x": 252,
+   "y": 83
+  },
+  {
+   "fill": null,
+   "h": 80,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 170,
+   "x": 424,
+   "y": 18
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "REPORT #",
+   "size": 7,
+   "t": "text",
+   "x": 428,
+   "y": 22
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "invoice_no",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 116,
+   "x": 474,
+   "y": 21
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 424,
+   "x2": 594,
+   "y1": 35,
+   "y2": 35
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "DATE:",
+   "size": 6.5,
+   "t": "text",
+   "x": 428,
+   "y": 39
+  },
+  {
+   "align": "right",
+   "h": 11,
+   "id": "date",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 126,
+   "x": 464,
+   "y": 38
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 424,
+   "x2": 594,
+   "y1": 52,
+   "y2": 52
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 509.0,
+   "x2": 509.0,
+   "y1": 52,
+   "y2": 80
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TIME IN:",
+   "size": 6.5,
+   "t": "text",
+   "x": 428,
+   "y": 55
+  },
+  {
+   "align": "center",
+   "h": 11,
+   "id": "time_in",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 77.0,
+   "x": 428,
+   "y": 65
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TIME OUT:",
+   "size": 6.5,
+   "t": "text",
+   "x": 513.0,
+   "y": 55
+  },
+  {
+   "align": "center",
+   "h": 11,
+   "id": "time_out",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 77.0,
+   "x": 513.0,
+   "y": 65
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 424,
+   "x2": 594,
+   "y1": 80,
+   "y2": 80
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "VISIT COMPLETE",
+   "size": 6.5,
+   "t": "text",
+   "x": 428,
+   "y": 84
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 560,
+   "y": 84
+  },
+  {
+   "h": 7,
+   "id": "job_finished",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 560,
+   "y": 84
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "YES",
+   "size": 6.5,
+   "t": "text",
+   "x": 570,
+   "y": 84
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 15,
+   "lw": 0,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 104
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "PREVENTIVE MAINTENANCE INSPECTION REPORT",
+   "size": 9.5,
+   "t": "text",
+   "x": 306.0,
+   "y": 106
+  },
+  {
+   "fill": null,
+   "h": 16,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 123
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "VISIT:",
+   "size": 7,
+   "t": "text",
+   "x": 22,
+   "y": 127
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 58,
+   "y": 127
+  },
+  {
+   "h": 7,
+   "id": "visit_spring",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 58,
+   "y": 127
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SPRING / COOLING",
+   "size": 6.5,
+   "t": "text",
+   "x": 68,
+   "y": 127
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 158,
+   "y": 127
+  },
+  {
+   "h": 7,
+   "id": "visit_fall",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 158,
+   "y": 127
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FALL / HEATING",
+   "size": 6.5,
+   "t": "text",
+   "x": 168,
+   "y": 127
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 248,
+   "y": 127
+  },
+  {
+   "h": 7,
+   "id": "visit_other",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 248,
+   "y": 127
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "OTHER",
+   "size": 6.5,
+   "t": "text",
+   "x": 258,
+   "y": 127
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "AGREEMENT / PLAN:",
+   "size": 7,
+   "t": "text",
+   "x": 318,
+   "y": 127
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "agreement",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 192,
+   "x": 398,
+   "y": 126
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 145
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "EQUIPMENT",
+   "size": 7.5,
+   "t": "text",
+   "x": 306.0,
+   "y": 147
+  },
+  {
+   "fill": null,
+   "h": 37,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 156
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "LOCATION",
+   "size": 6.5,
+   "t": "text",
+   "x": 21,
+   "y": 158
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "MAKE",
+   "size": 6.5,
+   "t": "text",
+   "x": 111,
+   "y": 158
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 108,
+   "x2": 108,
+   "y1": 156,
+   "y2": 193
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "MODEL",
+   "size": 6.5,
+   "t": "text",
+   "x": 191,
+   "y": 158
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 188,
+   "x2": 188,
+   "y1": 156,
+   "y2": 193
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "SERIAL",
+   "size": 6.5,
+   "t": "text",
+   "x": 311,
+   "y": 158
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 308,
+   "x2": 308,
+   "y1": 156,
+   "y2": 193
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TYPE",
+   "size": 6.5,
+   "t": "text",
+   "x": 431,
+   "y": 158
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 428,
+   "x2": 428,
+   "y1": 156,
+   "y2": 193
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "FILTER SIZE",
+   "size": 6.5,
+   "t": "text",
+   "x": 527,
+   "y": 158
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 524,
+   "x2": 524,
+   "y1": 156,
+   "y2": 193
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 167,
+   "y2": 167
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_location",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 84,
+   "x": 21,
+   "y": 168
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_make",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 74,
+   "x": 111,
+   "y": 168
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_model",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114,
+   "x": 191,
+   "y": 168
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_serial",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114,
+   "x": 311,
+   "y": 168
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 90,
+   "x": 431,
+   "y": 168
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq1_filter",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 527,
+   "y": 168
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 180,
+   "y2": 180
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_location",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 84,
+   "x": 21,
+   "y": 181
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_make",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 74,
+   "x": 111,
+   "y": 181
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_model",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114,
+   "x": 191,
+   "y": 181
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_serial",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 114,
+   "x": 311,
+   "y": 181
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_type",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 90,
+   "x": 431,
+   "y": 181
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "eq2_filter",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 64,
+   "x": 527,
+   "y": 181
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 284.0,
+   "x": 18,
+   "y": 199
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "COOLING \u00b7 AIR CONDITIONER \u00b7 HEAT PUMP",
+   "size": 7.5,
+   "t": "text",
+   "x": 160.0,
+   "y": 201
+  },
+  {
+   "fill": null,
+   "h": 242.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 284.0,
+   "x": 18,
+   "y": 210
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "OK",
+   "size": 6,
+   "t": "text",
+   "x": 149.5,
+   "y": 212
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "ADJ",
+   "size": 6,
+   "t": "text",
+   "x": 169.5,
+   "y": 212
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "REP",
+   "size": 6,
+   "t": "text",
+   "x": 189.5,
+   "y": 212
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "READING",
+   "size": 6,
+   "t": "text",
+   "x": 204,
+   "y": 212
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 220,
+   "y2": 220
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Thermostat checked / calibrated",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 224.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_thermostat",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 224.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 234.5,
+   "y2": 234.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Air filter checked / replaced",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 238.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_filter",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 238.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 249.0,
+   "y2": 249.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Condenser coil cleaned",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 253.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_cond_coil",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 253.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 263.5,
+   "y2": 263.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Evaporator coil inspected",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 267.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_evap_coil",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 267.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 278.0,
+   "y2": 278.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Condensate drain flushed / treated",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 282.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_drain",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 282.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 292.5,
+   "y2": 292.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Condensate pump / float switch",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 296.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_pump",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 296.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 307.0,
+   "y2": 307.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Refrigerant pressures",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 311.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_refrigerant",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 311.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_refrigerant_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 309.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 321.5,
+   "y2": 321.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Superheat / subcool",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 325.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_superheat",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 325.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_superheat_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 323.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 336.0,
+   "y2": 336.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Supply / return temperature split",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 340.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_split",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 340.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_split_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 338.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 350.5,
+   "y2": 350.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Run capacitor(s)",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 354.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_capacitor",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 354.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_capacitor_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 352.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 365.0,
+   "y2": 365.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Contactor",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 369.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_contactor",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 369.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 379.5,
+   "y2": 379.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Compressor amps",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 383.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_comp_amps",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 383.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_comp_amps_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 381.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 394.0,
+   "y2": 394.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Condenser fan motor",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 398.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_fan_amps",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 398.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_fan_amps_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 396.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 408.5,
+   "y2": 408.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Indoor blower motor / wheel",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 412.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_blower",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 412.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "c_blower_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 202,
+   "y": 410.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 423.0,
+   "y2": 423.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Electrical connections tightened",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 427.0
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_electrical",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 427.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 302.0,
+   "y1": 437.5,
+   "y2": 437.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Disconnect, whip, line set",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 166,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 186,
+   "y": 441.5
+  },
+  {
+   "boxes": {
+    "adj": 166,
+    "ok": 146,
+    "rep": 186
+   },
+   "h": 7,
+   "id": "c_disconnect",
+   "kind": "status",
+   "t": "field",
+   "w": 47,
+   "x": 146,
+   "y": 441.5
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 284.0,
+   "x": 310.0,
+   "y": 199
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "HEATING \u00b7 FURNACE \u00b7 HEAT PUMP",
+   "size": 7.5,
+   "t": "text",
+   "x": 452.0,
+   "y": 201
+  },
+  {
+   "fill": null,
+   "h": 242.0,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 284.0,
+   "x": 310.0,
+   "y": 210
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "OK",
+   "size": 6,
+   "t": "text",
+   "x": 441.5,
+   "y": 212
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "ADJ",
+   "size": 6,
+   "t": "text",
+   "x": 461.5,
+   "y": 212
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "s": "REP",
+   "size": 6,
+   "t": "text",
+   "x": 481.5,
+   "y": 212
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "READING",
+   "size": 6,
+   "t": "text",
+   "x": 496.0,
+   "y": 212
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 220,
+   "y2": 220
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Heat exchanger inspected",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 224.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 224.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_heat_exchanger",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 224.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 234.5,
+   "y2": 234.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Burners cleaned / inspected",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 238.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 238.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_burners",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 238.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 249.0,
+   "y2": 249.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Flame sensor cleaned",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 253.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 253.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_flame_sensor",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 253.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_flame_sensor_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 251.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 263.5,
+   "y2": 263.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Ignitor / pilot",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 267.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 267.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_ignitor",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 267.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_ignitor_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 265.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 278.0,
+   "y2": 278.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Gas pressure",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 282.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 282.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_gas_pressure",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 282.0
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_gas_pressure_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 280.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 292.5,
+   "y2": 292.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Carbon monoxide test",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 296.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 296.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_co",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 296.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_co_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 294.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 307.0,
+   "y2": 307.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Flue / venting / draft",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 311.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 311.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_flue",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 311.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 321.5,
+   "y2": 321.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Inducer motor",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 325.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 325.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_inducer",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 325.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_inducer_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 323.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 336.0,
+   "y2": 336.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Limit and safety switches",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 340.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 340.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_limits",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 340.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 350.5,
+   "y2": 350.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Temperature rise",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 354.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 354.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_temp_rise",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 354.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_temp_rise_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 352.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 365.0,
+   "y2": 365.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Blower / belts (heat mode)",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 369.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 369.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_blower",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 369.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 379.5,
+   "y2": 379.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Humidifier / pad",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 383.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 383.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_humidifier",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 383.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 394.0,
+   "y2": 394.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Heat pump defrost / reversing valve",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 398.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 398.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_defrost",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 398.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 408.5,
+   "y2": 408.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Auxiliary / strip heat",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 412.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 412.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_aux_heat",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 412.5
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "h_aux_heat_val",
+   "kind": "text",
+   "size": 7,
+   "t": "field",
+   "w": 96.0,
+   "x": 494.0,
+   "y": 410.5
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 423.0,
+   "y2": 423.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Smoke / CO detectors in home",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 427.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 427.0
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_detectors",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 427.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 310.0,
+   "x2": 594.0,
+   "y1": 437.5,
+   "y2": 437.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "Ductwork / registers (visual)",
+   "size": 6.5,
+   "t": "text",
+   "x": 314.0,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 438.0,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 458.0,
+   "y": 441.5
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 478.0,
+   "y": 441.5
+  },
+  {
+   "boxes": {
+    "adj": 458.0,
+    "ok": 438.0,
+    "rep": 478.0
+   },
+   "h": 7,
+   "id": "h_ducts",
+   "kind": "status",
+   "t": "field",
+   "w": 47.0,
+   "x": 438.0,
+   "y": 441.5
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "color": "#444444",
+   "s": "OK = checked, working properly \u00b7 ADJ = adjusted / cleaned during this visit \u00b7 REP = needs repair (see recommendations). Blank = not applicable.",
+   "size": 5.8,
+   "t": "text",
+   "x": 18,
+   "y": 454.0
+  },
+  {
+   "fill": null,
+   "h": 16,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 464.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "OVERALL SYSTEM CONDITION:",
+   "size": 7,
+   "t": "text",
+   "x": 22,
+   "y": 468.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "GOOD",
+   "size": 6.5,
+   "t": "text",
+   "x": 156,
+   "y": 468.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "FAIR",
+   "size": 6.5,
+   "t": "text",
+   "x": 206,
+   "y": 468.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "NEEDS ATTENTION",
+   "size": 6.5,
+   "t": "text",
+   "x": 250,
+   "y": 468.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 146,
+   "y": 468.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 196,
+   "y": 468.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 240,
+   "y": 468.0
+  },
+  {
+   "boxes": {
+    "fair": 196,
+    "good": 146,
+    "poor": 240
+   },
+   "h": 7,
+   "id": "condition",
+   "kind": "status",
+   "t": "field",
+   "w": 101,
+   "x": 146,
+   "y": 468.0
+  },
+  {
+   "fill": null,
+   "h": 7,
+   "lw": 0.6,
+   "t": "rect",
+   "w": 7,
+   "x": 334,
+   "y": 468.0
+  },
+  {
+   "h": 7,
+   "id": "system_operating",
+   "kind": "check",
+   "t": "field",
+   "w": 7,
+   "x": 334,
+   "y": 468.0
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "SYSTEM LEFT OPERATING NORMALLY",
+   "size": 6.5,
+   "t": "text",
+   "x": 344,
+   "y": 468.0
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "NEXT VISIT DUE:",
+   "size": 7,
+   "t": "text",
+   "x": 476,
+   "y": 468.0
+  },
+  {
+   "align": "center",
+   "h": 11,
+   "id": "next_visit",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 54,
+   "x": 536,
+   "y": 467.0
+  },
+  {
+   "fill": "#1a2b4a",
+   "h": 11,
+   "lw": 0,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 484.0
+  },
+  {
+   "align": "center",
+   "bold": true,
+   "color": "#ffffff",
+   "s": "FINDINGS & RECOMMENDATIONS",
+   "size": 7.5,
+   "t": "text",
+   "x": 306.0,
+   "y": 486.0
+  },
+  {
+   "fill": null,
+   "h": 102.2,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 495.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 508.4,
+   "y2": 508.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 520.8,
+   "y2": 520.8
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 533.2,
+   "y2": 533.2
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 545.6,
+   "y2": 545.6
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 558.0,
+   "y2": 558.0
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 570.4,
+   "y2": 570.4
+  },
+  {
+   "lw": 0.3,
+   "t": "line",
+   "x1": 18,
+   "x2": 594,
+   "y1": 582.8,
+   "y2": 582.8
+  },
+  {
+   "align": "left",
+   "h": 99.2,
+   "id": "work_description",
+   "kind": "multi",
+   "lh": 12.4,
+   "size": 7.5,
+   "t": "field",
+   "w": 570,
+   "x": 21,
+   "y": 496.0
+  },
+  {
+   "fill": null,
+   "h": 16,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 597.2
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "TECHNICIAN:",
+   "size": 7,
+   "t": "text",
+   "x": 22,
+   "y": 601.2
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "technician",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 200,
+   "x": 78,
+   "y": 600.2
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "This inspection was performed under your Rowan Heating & Air Conditioning maintenance agreement. Items marked NEEDS REPAIR are not included in the agreement unless your agreement says so; we will give you a price before doing any repair. Thank you for being a Rowan maintenance customer.",
+   "size": 6.5,
+   "t": "text",
+   "w": 576,
+   "x": 18,
+   "y": 619.2
+  },
+  {
+   "fill": null,
+   "h": 40,
+   "lw": 0.8,
+   "t": "rect",
+   "w": 576,
+   "x": 18,
+   "y": 649.2
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "CUSTOMER PRINTED NAME / SIGNATURE",
+   "size": 6.5,
+   "t": "text",
+   "x": 22,
+   "y": 652.2
+  },
+  {
+   "align": "left",
+   "h": 11,
+   "id": "printed_name",
+   "kind": "text",
+   "size": 7.5,
+   "t": "field",
+   "w": 220,
+   "x": 22,
+   "y": 662.2
+  },
+  {
+   "align": "left",
+   "bold": true,
+   "s": "X",
+   "size": 10,
+   "t": "text",
+   "x": 258,
+   "y": 675.2
+  },
+  {
+   "lw": 0.5,
+   "t": "line",
+   "x1": 270,
+   "x2": 588,
+   "y1": 683.2,
+   "y2": 683.2
+  },
+  {
+   "align": "left",
+   "bold": false,
+   "s": "I ACKNOWLEDGE THIS INSPECTION WAS COMPLETED AND I RECEIVED A COPY",
+   "size": 6,
+   "t": "text",
+   "x": 270,
+   "y": 662.2
+  }
+ ],
+ "kind": "maintenance",
+ "page": {
+  "h": 792,
+  "w": 612
+ },
+ "sections": [
+  {
+   "fields": [
+    {
+     "id": "cust_name",
+     "kind": "text",
+     "label": "Customer name"
+    },
+    {
+     "id": "cust_street",
+     "kind": "text",
+     "label": "Street address"
+    },
+    {
+     "id": "cust_city",
+     "kind": "text",
+     "label": "City, state, ZIP"
+    },
+    {
+     "id": "cust_email",
+     "kind": "text",
+     "label": "Email"
+    },
+    {
+     "id": "cust_phone",
+     "kind": "text",
+     "label": "Phone"
+    }
+   ],
+   "title": "Customer"
+  },
+  {
+   "fields": [
+    {
+     "hint": "Filled in for you: technician initials and date",
+     "id": "invoice_no",
+     "kind": "text",
+     "label": "Report #"
+    },
+    {
+     "id": "date",
+     "kind": "text",
+     "label": "Date"
+    },
+    {
+     "hint": "e.g. 6:00 PM",
+     "id": "time_in",
+     "kind": "text",
+     "label": "Time in"
+    },
+    {
+     "hint": "e.g. 7:30 PM",
+     "id": "time_out",
+     "kind": "text",
+     "label": "Time out"
+    },
+    {
+     "id": "job_finished",
+     "kind": "check",
+     "label": "Visit complete"
+    }
+   ],
+   "title": "Report"
+  },
+  {
+   "fields": [
+    {
+     "id": "visit_spring",
+     "kind": "check",
+     "label": "Spring (cooling) visit"
+    },
+    {
+     "id": "visit_fall",
+     "kind": "check",
+     "label": "Fall (heating) visit"
+    },
+    {
+     "id": "visit_other",
+     "kind": "check",
+     "label": "Other visit"
+    },
+    {
+     "hint": "e.g. Comfort Club, 2 visits a year, renews 05/2027",
+     "id": "agreement",
+     "kind": "text",
+     "label": "Agreement / plan"
+    }
+   ],
+   "title": "Visit"
+  },
+  {
+   "fields": [
+    {
+     "id": "eq1_location",
+     "kind": "text",
+     "label": "Unit 1 location"
+    },
+    {
+     "id": "eq1_make",
+     "kind": "text",
+     "label": "Unit 1 make"
+    },
+    {
+     "id": "eq1_model",
+     "kind": "text",
+     "label": "Unit 1 model"
+    },
+    {
+     "id": "eq1_serial",
+     "kind": "text",
+     "label": "Unit 1 serial"
+    },
+    {
+     "id": "eq1_type",
+     "kind": "text",
+     "label": "Unit 1 type"
+    },
+    {
+     "id": "eq1_filter",
+     "kind": "text",
+     "label": "Unit 1 filter size"
+    },
+    {
+     "id": "eq2_location",
+     "kind": "text",
+     "label": "Unit 2 location"
+    },
+    {
+     "id": "eq2_make",
+     "kind": "text",
+     "label": "Unit 2 make"
+    },
+    {
+     "id": "eq2_model",
+     "kind": "text",
+     "label": "Unit 2 model"
+    },
+    {
+     "id": "eq2_serial",
+     "kind": "text",
+     "label": "Unit 2 serial"
+    },
+    {
+     "id": "eq2_type",
+     "kind": "text",
+     "label": "Unit 2 type"
+    },
+    {
+     "id": "eq2_filter",
+     "kind": "text",
+     "label": "Unit 2 filter size"
+    }
+   ],
+   "title": "Equipment"
+  },
+  {
+   "fields": [
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_thermostat",
+     "kind": "status",
+     "label": "Thermostat checked / calibrated"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_filter",
+     "kind": "status",
+     "label": "Air filter checked / replaced"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_cond_coil",
+     "kind": "status",
+     "label": "Condenser coil cleaned"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_evap_coil",
+     "kind": "status",
+     "label": "Evaporator coil inspected"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_drain",
+     "kind": "status",
+     "label": "Condensate drain flushed / treated"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_pump",
+     "kind": "status",
+     "label": "Condensate pump / float switch"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: suction / discharge psi",
+     "id": "c_refrigerant",
+     "kind": "status",
+     "label": "Refrigerant pressures"
+    },
+    {
+     "hint": "suction / discharge psi",
+     "id": "c_refrigerant_val",
+     "kind": "text",
+     "label": "Refrigerant pressures reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: \u00b0F, e.g. 10 / 12",
+     "id": "c_superheat",
+     "kind": "status",
+     "label": "Superheat / subcool"
+    },
+    {
+     "hint": "\u00b0F, e.g. 10 / 12",
+     "id": "c_superheat_val",
+     "kind": "text",
+     "label": "Superheat / subcool reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: \u00b0F, e.g. 63/43",
+     "id": "c_split",
+     "kind": "status",
+     "label": "Supply / return temperature split"
+    },
+    {
+     "hint": "\u00b0F, e.g. 63/43",
+     "id": "c_split_val",
+     "kind": "text",
+     "label": "Supply / return temperature split reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: \u00b5F rated / measured",
+     "id": "c_capacitor",
+     "kind": "status",
+     "label": "Run capacitor(s)"
+    },
+    {
+     "hint": "\u00b5F rated / measured",
+     "id": "c_capacitor_val",
+     "kind": "text",
+     "label": "Run capacitor(s) reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_contactor",
+     "kind": "status",
+     "label": "Contactor"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: amps",
+     "id": "c_comp_amps",
+     "kind": "status",
+     "label": "Compressor amps"
+    },
+    {
+     "hint": "amps",
+     "id": "c_comp_amps_val",
+     "kind": "text",
+     "label": "Compressor amps reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: amps",
+     "id": "c_fan_amps",
+     "kind": "status",
+     "label": "Condenser fan motor"
+    },
+    {
+     "hint": "amps",
+     "id": "c_fan_amps_val",
+     "kind": "text",
+     "label": "Condenser fan motor reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: amps",
+     "id": "c_blower",
+     "kind": "status",
+     "label": "Indoor blower motor / wheel"
+    },
+    {
+     "hint": "amps",
+     "id": "c_blower_val",
+     "kind": "text",
+     "label": "Indoor blower motor / wheel reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_electrical",
+     "kind": "status",
+     "label": "Electrical connections tightened"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "c_disconnect",
+     "kind": "status",
+     "label": "Disconnect, whip, line set"
+    }
+   ],
+   "title": "Cooling checklist"
+  },
+  {
+   "fields": [
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_heat_exchanger",
+     "kind": "status",
+     "label": "Heat exchanger inspected"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_burners",
+     "kind": "status",
+     "label": "Burners cleaned / inspected"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: \u00b5A",
+     "id": "h_flame_sensor",
+     "kind": "status",
+     "label": "Flame sensor cleaned"
+    },
+    {
+     "hint": "\u00b5A",
+     "id": "h_flame_sensor_val",
+     "kind": "text",
+     "label": "Flame sensor cleaned reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: ohms",
+     "id": "h_ignitor",
+     "kind": "status",
+     "label": "Ignitor / pilot"
+    },
+    {
+     "hint": "ohms",
+     "id": "h_ignitor_val",
+     "kind": "text",
+     "label": "Ignitor / pilot reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: inlet / manifold in. w.c.",
+     "id": "h_gas_pressure",
+     "kind": "status",
+     "label": "Gas pressure"
+    },
+    {
+     "hint": "inlet / manifold in. w.c.",
+     "id": "h_gas_pressure_val",
+     "kind": "text",
+     "label": "Gas pressure reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: ppm, flue / ambient",
+     "id": "h_co",
+     "kind": "status",
+     "label": "Carbon monoxide test"
+    },
+    {
+     "hint": "ppm, flue / ambient",
+     "id": "h_co_val",
+     "kind": "text",
+     "label": "Carbon monoxide test reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_flue",
+     "kind": "status",
+     "label": "Flue / venting / draft"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: amps",
+     "id": "h_inducer",
+     "kind": "status",
+     "label": "Inducer motor"
+    },
+    {
+     "hint": "amps",
+     "id": "h_inducer_val",
+     "kind": "text",
+     "label": "Inducer motor reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_limits",
+     "kind": "status",
+     "label": "Limit and safety switches"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: \u00b0F",
+     "id": "h_temp_rise",
+     "kind": "status",
+     "label": "Temperature rise"
+    },
+    {
+     "hint": "\u00b0F",
+     "id": "h_temp_rise_val",
+     "kind": "text",
+     "label": "Temperature rise reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_blower",
+     "kind": "status",
+     "label": "Blower / belts (heat mode)"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_humidifier",
+     "kind": "status",
+     "label": "Humidifier / pad"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_defrost",
+     "kind": "status",
+     "label": "Heat pump defrost / reversing valve"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "hint": "Reading: amps",
+     "id": "h_aux_heat",
+     "kind": "status",
+     "label": "Auxiliary / strip heat"
+    },
+    {
+     "hint": "amps",
+     "id": "h_aux_heat_val",
+     "kind": "text",
+     "label": "Auxiliary / strip heat reading"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_detectors",
+     "kind": "status",
+     "label": "Smoke / CO detectors in home"
+    },
+    {
+     "choices": [
+      [
+       "ok",
+       "OK"
+      ],
+      [
+       "adj",
+       "Adjusted / cleaned"
+      ],
+      [
+       "rep",
+       "Needs repair"
+      ]
+     ],
+     "id": "h_ducts",
+     "kind": "status",
+     "label": "Ductwork / registers (visual)"
+    }
+   ],
+   "title": "Heating checklist"
+  },
+  {
+   "fields": [
+    {
+     "choices": [
+      [
+       "good",
+       "Good"
+      ],
+      [
+       "fair",
+       "Fair"
+      ],
+      [
+       "poor",
+       "Needs attention"
+      ]
+     ],
+     "id": "condition",
+     "kind": "status",
+     "label": "Overall system condition"
+    },
+    {
+     "id": "system_operating",
+     "kind": "check",
+     "label": "System left operating normally"
+    },
+    {
+     "hint": "e.g. 04/2027",
+     "id": "next_visit",
+     "kind": "text",
+     "label": "Next visit due"
+    },
+    {
+     "hint": "What you found, what you adjusted or cleaned, and any repairs you recommend (with why)",
+     "id": "work_description",
+     "kind": "multi",
+     "label": "Findings & recommendations"
+    }
+   ],
+   "title": "Findings"
+  },
+  {
+   "fields": [
+    {
+     "id": "technician",
+     "kind": "text",
+     "label": "Technician"
+    },
+    {
+     "id": "printed_name",
+     "kind": "text",
+     "label": "Customer printed name"
+    }
+   ],
+   "title": "Sign-off"
+  }
+ ],
+ "version": 1
+}

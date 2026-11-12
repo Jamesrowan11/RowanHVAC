@@ -23,7 +23,7 @@ import {
   type OpResult,
   type VanOp,
 } from "@/lib/vanSync";
-import { withTotals, type TicketIssue } from "@/lib/ticket";
+import { cleanTicketData, type TicketIssue } from "@/lib/ticket";
 import { checkTicketWithAi, ticketAiConfigured } from "@/lib/ticketAi";
 import { Prisma, type Role } from "@prisma/client";
 
@@ -134,11 +134,11 @@ async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult>
   }
   const existing = await prisma.serviceTicket.findUnique({
     where: { id: op.id },
-    select: { jobId: true, status: true, updatedAt: true, submittedAt: true },
+    select: { jobId: true, kind: true, status: true, updatedAt: true, submittedAt: true },
   });
-  if (existing && existing.jobId !== job.id) return reject("Invalid service ticket.");
+  if (existing && (existing.jobId !== job.id || existing.kind !== op.kind)) return reject("Invalid service ticket.");
 
-  const data = withTotals(op.data);
+  const data = cleanTicketData(op.kind, op.data);
   const status = op.status === "final" || existing?.status === "FINAL" ? "FINAL" : "DRAFT";
   const fields = {
     invoiceNumber: op.invoiceNumber || String(data.invoice_no ?? "").slice(0, 64) || op.id.slice(4, 16),
@@ -151,14 +151,14 @@ async function applyTicketOp(caller: VanCaller, op: TicketOp): Promise<OpResult>
   await prisma.serviceTicket.upsert({
     where: { id: op.id },
     // The crew shares one ticket per job; it stays credited to whoever started it.
-    create: { id: op.id, jobId: job.id, technicianId: caller.user.id, ...fields },
+    create: { id: op.id, jobId: job.id, kind: op.kind, technicianId: caller.user.id, ...fields },
     update: fields,
   });
 
   // Sent without an AI check (no signal at the time): check it now so the
   // office still sees the AI's notes. Not awaited: the van is waiting.
   if (status === "FINAL" && !op.aiCheck && ticketAiConfigured()) {
-    void checkTicketWithAi(data, { serviceNeeded: job.serviceNeeded })
+    void checkTicketWithAi(data, { serviceNeeded: job.serviceNeeded, kind: op.kind })
       .then((result) =>
         prisma.serviceTicket.updateMany({
           where: { id: op.id, aiCheck: { equals: Prisma.AnyNull } },
@@ -492,7 +492,7 @@ export async function buildSnapshot(caller: VanCaller) {
     where: { jobId: { in: jobs.map((j) => j.id) } },
     orderBy: { createdAt: "asc" },
     select: {
-      id: true, jobId: true, invoiceNumber: true, status: true, data: true, aiCheck: true, updatedAt: true,
+      id: true, jobId: true, kind: true, invoiceNumber: true, status: true, data: true, aiCheck: true, updatedAt: true,
     },
   });
 
@@ -509,6 +509,7 @@ export async function buildSnapshot(caller: VanCaller) {
     tickets: tickets.map((t) => ({
       id: t.id,
       jobId: t.jobId,
+      kind: t.kind,
       invoiceNumber: t.invoiceNumber,
       status: t.status === "FINAL" ? "final" : "draft",
       data: t.data,

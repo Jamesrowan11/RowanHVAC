@@ -16,7 +16,7 @@ export default async function TicketsPage() {
   return (
     <>
       <PageHeader
-        title="Service Tickets"
+        title="Service Tickets & Maintenance Reports"
         subtitle="Written on the van terminals and checked by AI. Newest first (last 100)."
       />
       {tickets.length === 0 ? (

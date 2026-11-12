@@ -20,9 +20,9 @@ ISSUE_COLORS = {"error": "#b3261e", "warning": "#e08a00", "suggestion": "#1d4ed8
 
 
 class TicketSheet(tk.Frame):
-    def __init__(self, parent, on_field_click=None, **kw):
+    def __init__(self, parent, on_field_click=None, kind="service", **kw):
         tk.Frame.__init__(self, parent, **kw)
-        self.layout = T.layout()
+        self.layout = T.layout(kind)
         self.page_w = self.layout["page"]["w"]
         self.page_h = self.layout["page"]["h"]
         self.fields = dict((e["id"], e) for e in self.layout["elements"] if e["t"] == "field")
@@ -155,6 +155,15 @@ class TicketSheet(tk.Frame):
         if e["kind"] == "check":
             if value:
                 c.create_line(x + 0.12 * w, y + 0.5 * h, x + 0.4 * w, y + 0.85 * h, x + 0.95 * w, y - 0.1 * h,
+                              fill=INK, width=max(2, int(self.scale * 1.4)), tags=tag)
+            return
+        if e["kind"] == "status":
+            # A tick in the box for the chosen answer (OK / ADJ / REP ...).
+            bx = (e.get("boxes") or {}).get(value)
+            if bx is not None:
+                bx, _ = self._xy(bx, e["y"])
+                s7 = 7 * self.scale
+                c.create_line(bx + 0.12 * s7, y + 0.5 * h, bx + 0.4 * s7, y + 0.85 * h, bx + 0.95 * s7, y - 0.1 * h,
                               fill=INK, width=max(2, int(self.scale * 1.4)), tags=tag)
             return
         if not value:
